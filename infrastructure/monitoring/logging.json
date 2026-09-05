@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "formatters": {"safe": {"()": "app.observability.logging.SafeJSONFormatter"}},
+  "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "safe"}},
+  "loggers": {"medical_rag.requests": {"handlers": ["console"], "level": "INFO", "propagate": false}}
+}

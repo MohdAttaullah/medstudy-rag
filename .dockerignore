@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+.venv
+.uv-cache
+.npm-cache
+.local
+**/node_modules
+**/dist
+**/__pycache__
+**/.pytest_cache
+data

@@ -1,0 +1,26 @@
+{
+  "dataset_id": "synthetic-contract-v1",
+  "clinically_validated": false,
+  "description": "Invented symbols for future pipeline contracts; not medical facts or calibration data.",
+  "evidence": [
+    {"id": "text-a", "text": "In the fictional Atlas A, marker Q is labelled amber.", "source": "atlas-a", "authority": "textbook"},
+    {"id": "text-b", "text": "In the fictional Atlas A, amber markers belong to group R.", "source": "atlas-a", "authority": "textbook"},
+    {"id": "table-a", "text": "Fictional table: item | value; P | 4; Q | 8.", "source": "atlas-a", "authority": "textbook"},
+    {"id": "formula-a", "text": "Fictional formula F = X / Y, where X is count and Y is duration.", "source": "atlas-a", "authority": "textbook"},
+    {"id": "caption-a", "text": "Generated description: the unavailable figure may show Q.", "source": "atlas-a", "authority": "generated_metadata"},
+    {"id": "conflict-b", "text": "In the fictional Atlas B, marker Q is labelled violet.", "source": "atlas-b", "authority": "textbook"},
+    {"id": "key-a", "text": "Fictional question: Q colour? A amber; B violet. Official key B.", "source": "assessment-a", "authority": "answer_key"}
+  ],
+  "questions": [
+    {"id": "factual", "kind": "factual", "question": "What colour is Q in Atlas A?", "relevant_ids": ["text-a"], "expected_gate": "SUFFICIENT"},
+    {"id": "multi-hop", "kind": "multi_hop", "question": "Which group contains Q in Atlas A?", "relevant_ids": ["text-a", "text-b"], "expected_gate": "SUFFICIENT"},
+    {"id": "table", "kind": "table", "question": "What value belongs to Q in the fictional table?", "relevant_ids": ["table-a"], "expected_gate": "SUFFICIENT"},
+    {"id": "formula", "kind": "formula", "question": "What does Y represent in formula F?", "relevant_ids": ["formula-a"], "expected_gate": "SUFFICIENT"},
+    {"id": "figure", "kind": "figure", "question": "Identify Q in the unavailable original figure.", "relevant_ids": [], "expected_gate": "INSUFFICIENT"},
+    {"id": "absent", "kind": "no_answer", "question": "Describe marker Z.", "relevant_ids": [], "expected_gate": "INSUFFICIENT"},
+    {"id": "ambiguous", "kind": "ambiguous", "question": "What is its value?", "relevant_ids": [], "expected_gate": "INSUFFICIENT"},
+    {"id": "conflict", "kind": "conflicting_sources", "question": "Across the atlases, what colour is Q?", "relevant_ids": ["text-a", "conflict-b"], "expected_gate": "CONFLICTING"},
+    {"id": "exact", "kind": "exact_terminology", "question": "Locate the definition F = X / Y.", "relevant_ids": ["formula-a"], "expected_gate": "SUFFICIENT"},
+    {"id": "qbank", "kind": "question_bank", "question": "Does the official Q key agree with Atlas A?", "relevant_ids": ["key-a", "text-a"], "expected_gate": "CONFLICTING"}
+  ]
+}

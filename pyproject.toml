@@ -1,0 +1,42 @@
+[project]
+name = "medical-rag"
+version = "0.1.0"
+description = "Accuracy-first educational medical RAG — M0 foundation"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1",
+  "pydantic-settings>=2.7,<3", "sqlalchemy>=2.0,<3",
+  "alembic>=1.14,<2", "psycopg[binary]>=3.2,<4",
+  "httpx>=0.28,<1", "redis>=5.2,<7", "celery>=5.4,<6",
+  "pypdf>=6,<7", "boto3>=1.35,<2", "prometheus-client>=0.21,<1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.3,<10", "ruff>=0.9,<1", "mypy>=1.14,<2", "pyyaml>=6,<7"]
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/app", "workers"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+pythonpath = ["backend", "."]
+markers = ["integration: requires the local infrastructure stack"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+files = ["backend/app"]
+

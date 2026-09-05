@@ -1,0 +1,7 @@
+# Optional development scrape target; Prometheus is not launched by Compose.
+global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: medical-rag-api
+    static_configs:
+      - targets: ["api:8000"]
