@@ -1,7 +1,8 @@
 # Data model
 
-M1 uses nine normalized PostgreSQL tables with UUID primary keys and timezone-aware timestamps.
-Alembic is the sole schema migration mechanism; application startup does not call create_all.
+Sixteen normalized PostgreSQL tables with UUID primary keys and timezone-aware timestamps: nine
+from M1 and seven added by M2. Alembic is the sole schema migration mechanism; application startup
+does not call create_all.
 
 | Table | Implemented responsibility |
 |---|---|
@@ -19,8 +20,9 @@ Actual SQL names are declared in `backend/app/models/documents.py`. Composite fo
 tenant consistency for publication/version/job identity. Constraints include tenant/checksum
 uniqueness, publication/version-number uniqueness and outbox job/generation uniqueness.
 Version original identity cannot be updated through the immutable-original guard.
-Searchable is constrained to false in M1. Page count remains null; structural PDF validation is
-not a page/provenance extraction pipeline.
+Searchable is constrained to false. Version page count is null until a parse run succeeds, at
+which point it is set from the parsed page count; structural PDF validation on upload is not a
+page/provenance extraction pipeline.
 
 Stage events have a per-job sequence with a unique constraint. Timestamp ordering alone is
 insufficient because PostgreSQL timestamps can tie within the upload transaction. State transitions
@@ -28,17 +30,41 @@ hold the job lock (or create a new unpublished job), allocate sequence and flush
 Database triggers prohibit history/audit mutation and illegal job transitions or provenance changes.
 
 Migrations: `0dd8e0dcb035` creates M1 tables, indexes, constraints and guards;
-`m1_event_order` adds/backfills deterministic event sequence. The latter briefly disables the
-append-only trigger for its controlled backfill. Both have downgrade paths; downgrading the initial
-revision removes M1 data and is only exercised in isolated test schemas. Back up before any deliberate
-application schema downgrade.
+`m1_event_order` adds/backfills deterministic event sequence; `m2_document_parsing` adds the
+parsing tables and the M2 state vocabulary and guard. `m1_event_order` briefly disables the
+append-only trigger for its controlled backfill. All three have downgrade paths, exercised as
+upgrade/downgrade/upgrade in isolated test schemas; downgrading the initial revision removes all
+data. Back up before any deliberate application schema downgrade.
+
+## M2 parsing tables
+
+| Table | Implemented responsibility |
+|---|---|
+| parse_runs | One durable parse attempt: parser name/provider/version, policy version and content fingerprint, frozen config snapshot, source checksum and pinned object version, raw artifact location, counters, OCR mode/engine, validation result, lease and safe error |
+| document_pages | 1-based page number, size, rotation, rolled-up normalized text, element count, source text-layer size, OCR indicator and evidence, optional preview object |
+| document_elements | Type, parent, sibling ordinal, document-wide reading order, depth, raw and normalized text, TOPLEFT-origin bbox, parser reference and label, content layer |
+| table_artifacts | Canonical JSONB cells, row/column/header counts, caption relation, continuation candidacy and evidence, malformed flag, markdown/HTML renderings |
+| figure_artifacts | Caption relation, stored crop key and pinned version, dimensions, media type, page and bbox |
+| formula_artifacts | Source expression, whitespace-normalized expression, notation, adjacent explanatory paragraph links |
+| parse_validation_findings | Append-only severity, code, safe message and details, scoped to document, page or element |
+
+Page numbers are 1-based, enforced by `page_number >= 1`; table `row`/`column` are 0-based grid
+coordinates and are never page numbers. Bounding boxes are PDF points with a TOPLEFT origin and
+carry their origin explicitly; an unlocated element leaves all box columns NULL. `reading_order` is
+unique per parse run. A partial unique index plus a check constraint enforce at most one active,
+successful parse run per version. Findings inherit the append-only trigger used by stage events and
+audit rows. Parse rows cascade from their run; nothing cascades from a document version's original.
+
+Migration `m2_document_parsing` adds these tables, widens the job/version status vocabulary with
+READY_FOR_CHUNKING and replaces the M1 transition guard with the M2 graph including the explicit
+reparse edge. Its downgrade drops the parse tables, restores the M1 guard and vocabulary, and
+refuses to run while any row still holds an M2-only status rather than silently rewriting it.
 
 ## Future schema (not implemented)
 
-DocumentPage/DocumentElement will preserve source/version/page/box provenance. ChunkElement and
-ChunkRelation will retain ordered parent/neighbor/source joins. Tables, figures and formulas reference
-original elements and generated metadata separately. Embedding/index versions and activation
-manifests will keep incompatible representations isolated.
+ChunkElement and ChunkRelation will retain ordered parent/neighbor/source joins onto the
+document_elements above. Embedding/index versions and activation manifests will keep incompatible
+representations isolated.
 
 Answers must snapshot corpus/config/provider/prompt versions, evidence IDs and verification outcomes.
 Citation resolution must use immutable stored provenance, never reconstructed current metadata.

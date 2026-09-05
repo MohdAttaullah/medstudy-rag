@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, pool
 
 from app.core.config import Settings
 from app.db.base import Base
-from app.models import documents  # noqa: F401
+from app.models import documents, parsing  # noqa: F401
 
 target_metadata = Base.metadata
 database_url = Settings().database_url.get_secret_value()

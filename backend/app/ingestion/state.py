@@ -9,20 +9,44 @@ from app.models.documents import DocumentVersion, IngestionJob, IngestionStageEv
 from app.models.enums import Status
 from app.observability.ingestion import audit
 
-# M2+ states are intentionally absent from the executable transition graph.
+# M3+ states (CHUNKING, EMBEDDING, INDEXING, VERIFYING_INDEX, READY) are intentionally absent
+# from the executable transition graph. M2 ends at READY_FOR_CHUNKING, which is terminal here.
+FAILURE_STATES = frozenset(
+    {Status.FAILED, Status.QUARANTINED, Status.NEEDS_REVIEW, Status.CANCELLED}
+)
+PARSE_STAGES = (Status.PARSING, Status.NORMALIZING, Status.ENRICHING)
 TRANSITIONS: dict[Status, frozenset[Status]] = {
     Status.UPLOADED: frozenset({Status.VALIDATING, Status.CANCELLED}),
     Status.VALIDATING: frozenset(
         {Status.QUEUED, Status.FAILED, Status.QUARANTINED, Status.NEEDS_REVIEW, Status.CANCELLED}
     ),
-    Status.QUEUED: frozenset({Status.FAILED, Status.QUARANTINED, Status.CANCELLED}),
+    Status.QUEUED: frozenset({Status.PARSING, *FAILURE_STATES} - {Status.NEEDS_REVIEW}),
+    Status.PARSING: frozenset({Status.NORMALIZING, *FAILURE_STATES}),
+    Status.NORMALIZING: frozenset({Status.ENRICHING, *FAILURE_STATES}),
+    Status.ENRICHING: frozenset({Status.READY_FOR_CHUNKING, *FAILURE_STATES}),
+    Status.READY_FOR_CHUNKING: frozenset({Status.CANCELLED}),
     Status.FAILED: frozenset({Status.CANCELLED}),
     Status.QUARANTINED: frozenset({Status.CANCELLED}),
     Status.NEEDS_REVIEW: frozenset({Status.CANCELLED}),
 }
 
 
-def require_transition(current: Status, target: Status, *, retry: bool = False) -> None:
+# A reparse is deliberately explicit: a completed or flagged job never re-enters the parse path
+# on its own, and doing so consumes the same bounded retry budget as a failure retry.
+REPARSE_ORIGINS = frozenset({Status.READY_FOR_CHUNKING, Status.NEEDS_REVIEW, Status.FAILED})
+
+
+def require_transition(
+    current: Status, target: Status, *, retry: bool = False, reparse: bool = False
+) -> None:
+    if reparse:
+        if current in REPARSE_ORIGINS and target == Status.VALIDATING:
+            return
+        raise DomainError(
+            "INGESTION_INVALID_TRANSITION",
+            "Only parsed, flagged or failed jobs can be reparsed.",
+            409,
+        )
     if retry:
         if current == Status.FAILED and target == Status.VALIDATING:
             return
@@ -88,11 +112,12 @@ def transition(
     *,
     service: str = "api",
     retry: bool = False,
+    reparse: bool = False,
     error_code: str | None = None,
     error_message: str | None = None,
 ) -> None:
-    require_transition(job.status, target, retry=retry)
-    if retry:
+    require_transition(job.status, target, retry=retry, reparse=reparse)
+    if retry or reparse:
         if job.retry_count >= job.max_retries:
             raise DomainError("INGESTION_RETRY_EXHAUSTED", "The retry limit has been reached.", 409)
         job.retry_count += 1
@@ -109,7 +134,8 @@ def transition(
         job.started_at = now
     if target == Status.QUEUED:
         job.queued_at = now
-    if target in {Status.FAILED, Status.QUARANTINED, Status.NEEDS_REVIEW, Status.CANCELLED}:
+    # READY_FOR_CHUNKING completes the M2 job; it is not readiness for retrieval or answering.
+    if target in FAILURE_STATES or target == Status.READY_FOR_CHUNKING:
         job.completed_at = now
     if target == Status.CANCELLED:
         job.cancelled_at = now

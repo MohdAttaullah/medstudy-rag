@@ -42,11 +42,25 @@ class JobService:
                 return
             if document.archived_at:
                 raise DomainError(
-                    "DOCUMENT_ARCHIVED", "Archived document jobs cannot be retried.", 409
+                    "DOCUMENT_ARCHIVED", "Archived document jobs cannot be reprocessed.", 409
                 )
-            transition(session, job, version, Status.VALIDATING, actor.user_id, retry=True)
+            reparse = action == "reparse"
+            transition(
+                session,
+                job,
+                version,
+                Status.VALIDATING,
+                actor.user_id,
+                retry=not reparse,
+                reparse=reparse,
+            )
             audit(
-                session, actor.tenant_id, actor.user_id, "INGESTION_RETRIED", job.id, correlation_id
+                session,
+                actor.tenant_id,
+                actor.user_id,
+                "INGESTION_REPARSE_REQUESTED" if reparse else "INGESTION_RETRIED",
+                job.id,
+                correlation_id,
             )
             try:
                 stored = self.storage.stat(version.object_storage_key, version.object_version_id)

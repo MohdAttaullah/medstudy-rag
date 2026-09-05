@@ -103,13 +103,16 @@ services:
       timeout: 3s
       retries: 5
 
+  # Only the worker carries the parser and its models; the API and dispatcher stay lean.
   worker:
     profiles: ["app", "workers"]
     build:
       context: .
-      dockerfile: infrastructure/docker/backend.Dockerfile
-    environment: *api-environment
-    command: ["celery", "-A", "workers.bootstrap:app", "worker", "--loglevel=WARNING", "--queues=ingestion", "--concurrency=1"]
+      dockerfile: infrastructure/docker/worker.Dockerfile
+    environment:
+      <<: *api-environment
+      MEDRAG_PARSING__MAX_CONCURRENCY: "1"
+    volumes: ["parser-models:/home/medrag/.cache"]
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -128,6 +131,7 @@ services:
       minio-init: {condition: service_completed_successfully}
 
 volumes:
+  parser-models:
   postgres-data:
   qdrant-data:
   redis-data:

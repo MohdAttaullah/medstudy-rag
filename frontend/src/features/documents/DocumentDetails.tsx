@@ -7,6 +7,7 @@ import { date, Pagination, size, StatusBadge } from '../../components/DocumentWi
 import { AccessGate, useSession } from '../library/Session';
 import { label, MetadataFields, UploadForm } from '../library/UploadForm';
 import { Jobs } from '../operations/Jobs';
+import { ParseSummaryPanel } from '../parsing/ParseSummaryPanel';
 export function DocumentDetails() {
   const { id } = useParams();
   return <><p className="eyebrow">SOURCE PROVENANCE</p><h1>Document details</h1><AccessGate><Detail id={id!} /></AccessGate></>;
@@ -55,8 +56,9 @@ function Detail({ id }: { id: string }) {
           <h3>Version {version.version_number} · {version.edition || 'Edition unspecified'}</h3><StatusBadge status={version.ingestion_status} /></div>
           <p>{version.original_filename} · {size(version.file_size_bytes)} · {version.publication_year || 'Year unspecified'}</p>
           <p>Uploaded {date(version.created_at)}</p><p className="mono checksum">SHA-256: {version.sha256}</p>
-          <p className="muted">Original retained. Not searchable; parsing and indexing have not started.</p>
-          <button className="secondary" onClick={() => void download(version)}>Download original</button></article>)}
+          <p className="muted">Original retained. Not searchable; chunking, embedding and indexing are not implemented.</p>
+          <button className="secondary" onClick={() => void download(version)}>Download original</button>
+          <ParseSummaryPanel documentId={id} versionId={version.id} /></article>)}
         <Pagination offset={offset} total={versions.data.total} onChange={setOffset} /></>}
     </section>{!value.archived_at && <UploadForm documentId={id} />}<Jobs documentId={id} /></>;
 }

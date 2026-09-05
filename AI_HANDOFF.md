@@ -2,128 +2,170 @@
 
 ## Current milestone and status
 
-M1 - Authorized upload and durable ingestion control plane: COMPLETE and verified locally.
-M0 remains verified. Successful jobs stop at UPLOADED -> VALIDATING -> QUEUED.
-Medical answering is disabled. M2 has not started.
+M2 - Docling parsing, parser-independent structured normalization, provenance and parse-quality
+validation: COMPLETE and verified locally. M0 and M1 remain verified.
+Successful jobs execute UPLOADED -> VALIDATING -> QUEUED -> PARSING -> NORMALIZING -> ENRICHING ->
+READY_FOR_CHUNKING. READY_FOR_CHUNKING means parsed and validated, not retrievable: no chunk,
+embedding or index exists and every version stays database-constrained unsearchable.
+Medical answering is disabled. M3 has not started.
 
 ## Completed implementation
 
-- Preserved existing backend/domain work during recovery; completed missing frontend/proxy/container
-  wiring from actual repository state. No reset or project recreation.
-- Versioned authorized APIs, development AuthProvider/Principal adapter, tenant-scoped reader/curator/
-  admin permissions, strict source/authority metadata and private source download.
-- Normalized documents/immutable versions/jobs, streamed PDF validation and SHA-256, tenant-local
-  duplicates, durable upload intents, idempotency and storage/database compensation/reconciliation.
-- Guarded job transitions, config snapshots, append-only audit and explicitly sequenced stage history.
-- Transactional outbox dispatcher and real Celery receipt; bounded retry, cancel/archive, stale and
-  duplicate delivery fencing. Receipt never starts parsing or makes a version searchable.
-- Functional Library upload/list/archive, publication details/edit/version/source/history and
-  Operations jobs/actions/errors. Actual transfer progress; safe status on replay. Network retries
-  preserve keys; confirmed failed attempts use new keys.
-- Safe request/phase/queue logs, persisted status/failure metrics, synthetic fixtures, live tests,
-  migrations and current architecture/ADR/README documentation.
+- Docling 2.126.0 behind a parser-independent abstraction; only `ingestion/parser/docling_adapter`
+  imports Docling. Device and thread count pinned; remote services and external plugins disabled.
+- Durable versioned ParseRun: parser name/provider/version, policy version plus a SHA-256
+  fingerprint of the whole frozen policy, config snapshot, source checksum and pinned object
+  version, raw artifact location, counters, lease and safe error. At most one active run per
+  version, enforced by a partial unique index and a check constraint.
+- Raw Docling artifact, page previews and figure crops in private object storage under
+  `documents/<doc>/<version>/parsing/<run>/`; binary rasters are separate objects, not base64 in
+  the JSON. PostgreSQL is never the only copy of the parse structure.
+- Parser-independent pages, elements, tables, figures, formulas and findings with 1-based page
+  numbers, TOPLEFT-origin point bounding boxes, parser-declared hierarchy, deterministic reading
+  order, retained page headers/footers and preserved question-bank cues. Nothing is inferred.
+- Deterministic normalization (NFKC, soft hyphens, ligatures, zero-width, hyphenated line breaks,
+  whitespace) that never rewrites numbers, units, doses, terminology or formulas; the original
+  parser text is kept whenever it differs.
+- OCR configuration (OFF/AUTO/FORCE, RapidOCR) with recorded engine, per-page derived OCR
+  indicator from the pypdf-measured source text layer, and suspicious-OCR review routing.
+- Deterministic parse-quality layer: persisted findings and PASS / PASS_WITH_WARNINGS /
+  NEEDS_REVIEW / FAIL, with typed thresholds inside the policy fingerprint. Fail-closed errors with
+  declared retryability; deterministic input defects are never retried.
+- Worker pipeline with idempotent delivery, cancellation handling, per-job temporary directories,
+  parse leases, dispatcher lease reaping and an explicit permissioned reparse action.
+- Tenant-authorized inspection APIs, parse summary on document details, parse inspector with page
+  previews and table/figure/formula views, and real parse stages in Operations.
+- Parsing extraction-fidelity gold dataset and evaluation harness, separate from RAG evaluation.
 
-Modules: backend/app/{api,schemas,security,models,repositories,services,ingestion,observability};
-workers/{celery_app,bootstrap,dispatcher}; frontend/src/features/{library,operations};
-migrations/versions; scripts/{init_dev_auth,create_test_pdfs,smoke_m1}.
-See [M1 report](docs/verification/m1.md) for complete endpoint/module and verification details.
+Modules: backend/app/{api,core,evaluation,ingestion,models,observability,repositories,schemas,
+services}; workers/{celery_app,dispatcher}; frontend/src/features/parsing;
+migrations/versions/m2_document_parsing; scripts/{create_parse_fixtures,evaluate_parsing,smoke_m2};
+infrastructure/docker/worker.Dockerfile.
+See [M2 report](docs/verification/m2.md) and [document parsing](docs/architecture/document-parsing.md).
 
 ## Git and files
 
-Branch: main. No baseline commit or last-known-good commit exists.
-All project files are new/untracked; nothing staged or committed. AGENTS.md and CLAUDE.md preserved.
-Changed areas include root config/docs, backend, frontend, workers, migrations, infrastructure,
-scripts and the original M0 skill directories. .env, .local, caches, dependencies, build outputs and
-browser artifacts are ignored. No secrets were staged.
+Branch: main. Last known good commit: **bb2bfa0** ("feat: complete M1 document ingestion control
+plane"), the verified M1 baseline and the only commit on the branch.
 
-Host-account Git commands may need the scoped override because sandbox identity initialized Git:
-`git -c safe.directory=D:/Projects/RAG/Proj_1_DoctorDocuments status --short --branch`.
+(The previous handoff stated that no baseline commit existed and that all files were untracked.
+That was stale: bb2bfa0 exists and contains the whole M1 tree. Corrected here.)
+
+All M2 work is **uncommitted** in the working tree; nothing is staged. No history was rewritten,
+reset or force-pushed, and no prior work was discarded. `.env`, `.local`, caches, dependencies,
+build outputs and browser artifacts remain ignored; no secrets are in the tree.
+
+Codex's only change after bb2bfa0 was the `parsing` optional-dependency group plus `reportlab` in
+`pyproject.toml`, with `.venv` synced but `uv.lock` not updated. This session completed that:
+`uv.lock` now carries the full parsing resolution, and torch/torchvision are declared directly and
+mapped to the PyTorch CPU index on Linux, which removed all CUDA packages from the lock.
+
+Host-account Git commands may still need the scoped override because sandbox identity initialized
+Git: `git -c safe.directory=D:/Projects/RAG/Proj_1_DoctorDocuments status --short --branch`.
 No global Git configuration was changed.
 
 ## Verification executed
 
-Commands ran from repository root; local invocations used --cache-dir .uv-cache.
+Commands ran from the repository root against the running development stack.
 
 | Check | Final result |
 |---|---|
-| MEDRAG_RUN_INTEGRATION=1; uv run --env-file .env pytest backend/tests/test_m1_units.py backend/tests/test_m1_integration.py -q | 42 passed |
-| MEDRAG_RUN_INTEGRATION=1; uv run --env-file .env pytest -q | 59 passed, no skipped tests |
-| uv run ruff check backend workers scripts | Passed |
-| uv run ruff format --check backend workers scripts | Passed, 81 files |
-| uv run mypy backend/app | Passed, 61 source files |
-| uv run python scripts/check_skills.py | 9 synchronized pairs passed |
-| uv run --env-file .env alembic check | No drift |
-| uv run --env-file .env alembic current | m1_event_order (head) |
-| npm --prefix frontend test | 14 passed |
-| npm --prefix frontend run build | TypeScript/Vite passed |
-| MEDRAG_E2E_LIVE=1; PLAYWRIGHT_CHANNEL=chrome; uv run --env-file .env npm.cmd --prefix frontend run test:e2e | 2 passed, 11.9 seconds |
+| MEDRAG_RUN_INTEGRATION=1 pytest -q (M1 baseline, before any change) | 59 passed |
+| MEDRAG_RUN_INTEGRATION=1 pytest -q (final) | 142 passed |
+| ruff check / ruff format --check backend workers scripts | Passed, 99 files |
+| mypy backend/app | Passed, 74 source files |
+| python scripts/check_skills.py | 9 synchronized pairs passed |
+| alembic current / alembic check | m2_document_parsing (head) / no drift |
+| alembic downgrade m1_event_order -> upgrade head -> check | Passed |
+| npm --prefix frontend test | 23 passed |
+| npm --prefix frontend run build | TypeScript and Vite passed |
+| MEDRAG_E2E_LIVE=1 PLAYWRIGHT_CHANNEL=chrome playwright test | 4 passed |
 | docker compose config --quiet | Passed |
-| docker compose --profile app up -d --build --wait | Final app/worker/dispatcher built and started |
-| docker compose --profile app up -d --build --no-deps --wait frontend | Final frontend refreshed, healthy |
-| uv run --env-file .env python scripts/smoke_m1.py | Direct API and nginx auth/list/source/upload-validation/deep-link checks passed |
-| Safe structured logs | Upload checksum/validation/storage/commit and queue publish/receipt present |
+| docker compose --profile app up -d --build --wait | All services healthy |
+| python scripts/smoke_m1.py | PASS |
+| python scripts/smoke_m2.py | PASS (containerised worker parsed a real upload) |
+| python scripts/evaluate_parsing.py (host) | 9/9 cases, 142/142 checks |
+| python scripts/evaluate_parsing.py (Linux worker image) | 4/9 cases, 129/142 checks, see below |
 
-Backend warnings: two upstream Starlette/httpx/AnyIO deprecations. Earlier browser locator and
-obsolete success-message assertions were corrected; final run passes. Browser uses installed Chrome
-because the earlier M0 Chromium download timed out. It runs Vite on 4173 beside container UI 5173.
-Desktop/mobile browser artifacts are under ignored frontend/test-results; layouts inspected.
+Warnings: two upstream Starlette/httpx/AnyIO deprecations plus two Docling/pydantic deprecations
+raised inside the vendor library. Two stale M1 assertions were updated for M2 reality (the liveness
+milestone string, and QUEUED -> PARSING which is now legal); no test was disabled or weakened to
+make the suite pass.
 
 ## Migrations and infrastructure
 
-Applied to the development database:
-- 0dd8e0dcb035: nine domain/control tables, constraints/indexes, append-only and immutable/state guards.
-- m1_event_order: sequence backfill and unique per-job history order; current head.
+Applied to the development database: `0dd8e0dcb035`, `m1_event_order`, `m2_document_parsing`
+(current head). The M2 revision adds seven parsing tables with their indexes, constraints and the
+findings append-only trigger, widens the job/version status vocabulary and column width for
+READY_FOR_CHUNKING, and replaces the M1 transition guard with the M2 graph including the explicit
+reparse edge. Its downgrade refuses to run while any row still holds READY_FOR_CHUNKING rather than
+silently rewriting it; the M2 integration teardown cancels such jobs first, which is the documented
+operator action.
 
-Integration tests exercise upgrade/downgrade/upgrade in disposable random schemas and clean their own
-object keys. No application data reset. Startup never uses create_all; migrate before app/worker use.
+Running: API 127.0.0.1:8000; frontend 127.0.0.1:5173; PostgreSQL 5432; Redis 6379; MinIO 9000/9001;
+Qdrant 6333/6334; parsing worker and outbox dispatcher. Only the worker carries the parser: it
+builds from `infrastructure/docker/worker.Dockerfile` (parsing extra plus the X/GL libraries
+OpenCV links against) and is ~2.5 GB. Model weights live in the `parser-models` named volume at
+`/home/medrag/.cache`; the first parse of a fresh volume needs outbound network access and is
+noticeably slower. Two container-only defects were found and fixed during verification: missing
+`libxcb.so.1`/`libgl1` failed OCR at model init, and the cache volume mounted root-owned.
 
-Running: API 127.0.0.1:8000; frontend 127.0.0.1:5173; PostgreSQL 5432; Redis 6379;
-MinIO 9000/9001; Qdrant 6333/6334; worker and outbox dispatcher. API/frontend/PostgreSQL/Redis/MinIO
-healthchecks pass, all four dependency protocols pass. Worker/dispatcher receipt is verified by the
-live browser test; no dedicated worker healthcheck exists. MinIO initializer exited zero.
-Versioned private source bucket and named volumes persist.
-
-Generated credentials remain in ignored .env. UI admin/reader keys are in .local/dev-access.txt;
-do not print them. scripts/init_dev_auth.py preserves existing keys. Browser tests leave synthetic
-publications in the local tenant. scripts/smoke_m1.py expects at least one such existing document.
-No user medical corpus was imported.
+Generated credentials remain in ignored `.env`; UI keys are in `.local/dev-access.txt` — do not
+print them. Browser and smoke tests leave synthetic publications in the local tenant. No user
+medical corpus was imported.
 
 ## Decisions, limitations and blockers
 
-ADR-001 through ADR-005 remain accepted. ADR-006 records the upload-intent saga, receipt-only outbox,
-raw-body/base64-header upload protocol, development authorization and ordered history.
-M1 versions are database-constrained unsearchable. Future processing states cannot execute.
+ADR-001 through ADR-006 remain accepted. **ADR-007** records versioned parse runs, derived-artifact
+storage and fail-closed parse validation.
 
-No remaining M1 blocker. This is local development: no production OIDC, credential lifecycle,
-AV/comprehensive PDF sanitization, dedicated parser memory sandbox, upload quotas, TLS, managed
-secrets, backup/retention/purge, full audit UI or installed OpenTelemetry/alert pipeline.
-Validation has byte/time limits; source checks compare stored pinned metadata. These controls are
-not clinical validation or compliance certification. Production startup remains explicitly rejected.
-Qdrant is available but no index/corpus exists; provider selection remains absent.
+**Important finding for the next agent.** Layout classification is not bit-identical across
+CPU/BLAS environments. On the same parser version and the same bytes, the Windows host and the
+Linux worker container agreed on page counts, page text, table cell contents, grid geometry and
+reading order, but disagreed on semantic labels for borderline regions: page header/footer
+classification, table caption association, formula detection and list grouping. Consequently the
+gold dataset is baselined per environment (host 9/9, container 4/9) and the automated tests assert
+our own persistence, provenance and authorization, using a fixed parser output where a specific
+parser judgement is required. Do not "fix" this by loosening the gold dataset into vagueness, and
+do not claim environment-independent structural determinism.
 
-The resumed session's normal sandbox helper failed to initialize. Authorized host shell operations
-were used after review; no previous declined bulk command was blindly replayed. No current approval
-or account-limit block remains.
+Other limitations: thresholds are uncalibrated defaults chosen against synthetic fixtures; there is
+no review-approval workflow (a NEEDS_REVIEW document is reparsed or cancelled, and reparse consumes
+the bounded retry budget); no retention or cleanup of superseded runs and their artifacts; the
+parser has a timeout, page guard and artifact ceiling but no hard memory sandbox or per-tenant
+quota; worker in-process parse metrics are not scrapeable (the exposed parse series are derived
+from PostgreSQL); there is no offline model mode. This remains local development: no production
+OIDC, credential lifecycle, AV scanning, TLS, managed secrets, backup/retention/purge or installed
+telemetry pipeline. None of this is clinical validation or compliance certification. Production
+startup remains explicitly rejected. Qdrant is available but no index or corpus exists.
+
+No remaining M2 blocker.
 
 ## Next exact task
 
-Stop. Wait for the user's M2 authorization. Then begin:
-**M2 - Docling parsing, structured document normalization, page/element provenance and parsing-quality
-validation.**
+Stop. Wait for the user's M3 authorization. Then begin:
+**M3 - Structure-aware hierarchical medical chunking, specialized tables/formulas/figures,
+question-bank logical objects, parent-child relationships, and chunk-quality evaluation.**
 
-Read AGENTS.md, this handoff, ingestion/data-model/security docs and ADR-001/006. Use existing version,
-job, config and outbox boundaries. Define M2 structured artifact schema, parser/version configuration,
-leases/fencing and quality validation before permitting new executable transitions. Preserve originals,
-ordered history, tenant isolation and failure recovery. Add reviewed migrations and focused fixtures.
-Do not skip ahead into chunks, embeddings, indexing, retrieval or answering.
+Read AGENTS.md, this handoff, [document parsing](docs/architecture/document-parsing.md),
+[data model](docs/architecture/data-model.md), ADR-001/006/007 and the retrieval-quality skill.
+Consume only the **active** ParseRun (`is_active`) and its persisted elements, tables, figures and
+formulas; the raw Docling artifact exists for debugging and re-normalization, not as a chunking
+input. Preserve page numbers, bounding boxes, reading order, hierarchy and caption relations onto
+chunks so citations resolve to an exact source region. Add the `CHUNKING` edge to both the
+application transition table and the database guard in a reviewed migration; it is deliberately
+absent today. Add chunk-quality evaluation separate from parsing evaluation and from RAG
+evaluation. Do not skip ahead into embeddings, indexing, retrieval or answering.
 
 ## Do not do
 
 - Do not expose partially processed versions or enable medical answering.
-- Do not fabricate parsing/chunk/index progress or clinical accuracy.
-- Do not promote question keys/generated metadata to authoritative medical evidence.
-- Do not delete named volumes, rotate credentials by editing .env, reset/discard uncommitted work,
-  overwrite durable instruction files, or claim checks that were not run.
+- Do not fabricate parse, chunk or index progress, accuracy percentages or clinical accuracy.
+- Do not promote question keys, captions or generated metadata to authoritative medical evidence.
+- Do not let a model rewrite, interpret or "correct" parsed source text, values or formulas.
+- Do not relax the gold parsing dataset to hide an environment difference; re-baseline and report.
+- Do not delete named volumes, rotate credentials by editing .env, reset or discard uncommitted
+  work, overwrite durable instruction files, or claim checks that were not run.
 - Do not commit secrets or expose the development stack publicly.
 
-Last updated: 2026-09-05 by Codex.
+Last updated: 2026-09-06 by Claude Code.

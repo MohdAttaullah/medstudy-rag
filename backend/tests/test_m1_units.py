@@ -38,7 +38,8 @@ def test_allowed_transition(before, after):
         ("FAILED", "PARSING"),
         ("CANCELLED", "VALIDATING"),
         ("QUARANTINED", "QUEUED"),
-        ("QUEUED", "PARSING"),
+        # QUEUED -> PARSING became executable in M2; QUEUED -> READY_FOR_CHUNKING never is.
+        ("QUEUED", "READY_FOR_CHUNKING"),
     ],
 )
 def test_illegal_transition(before, after):

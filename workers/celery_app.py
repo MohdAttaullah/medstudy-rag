@@ -3,9 +3,13 @@ from uuid import UUID
 
 from app.core.config import Settings
 from app.db.session import make_engine, make_sessions
+from app.ingestion.parser.docling_adapter import DoclingDocumentParser
+from app.observability.parsing import ParseMetrics
+from app.services.parsing import ParseService
 from app.services.queue import receive
 from app.services.storage import S3ObjectStorage
 from celery import Celery
+from prometheus_client import CollectorRegistry
 
 
 class CeleryPublisher:
@@ -37,12 +41,36 @@ def create_celery(settings: Settings | None = None) -> Any:
         broker_transport_options={"socket_timeout": 5, "socket_connect_timeout": 5},
         worker_prefetch_multiplier=1,
     )
+    # The parser holds warm model weights, so it is created once per worker process and only
+    # when a task first needs it. Importing this module must never load a parser or a model.
+    state: dict[str, Any] = {}
+
+    def parse_service(sessions: Any, storage: Any) -> ParseService:
+        parser = state.get("parser")
+        if parser is None:
+            parser = DoclingDocumentParser()
+            state["parser"] = parser
+        metrics = state.get("metrics")
+        if metrics is None:
+            metrics = ParseMetrics(CollectorRegistry())
+            state["metrics"] = metrics
+        return ParseService(sessions, storage, parser, config.parsing, metrics)
 
     @application.task(name="ingestion.receive")
     def receipt(message_id: str) -> None:
+        """Confirm durable receipt, then run the M2 parse pipeline for the claimed job.
+
+        `receive` returns a job id for exactly one delivery of a message; a duplicate or stale
+        delivery returns None and stops here without touching the parse path.
+        """
         engine = make_engine(config)
         try:
-            receive(make_sessions(engine), S3ObjectStorage(config), UUID(message_id))
+            sessions = make_sessions(engine)
+            storage = S3ObjectStorage(config)
+            job_id = receive(sessions, storage, UUID(message_id))
+            if job_id is None:
+                return
+            parse_service(sessions, storage).run(job_id)
         finally:
             engine.dispose()
 

@@ -1,3 +1,4 @@
+import hashlib
 from dataclasses import dataclass
 from typing import Any, BinaryIO, Protocol
 from uuid import UUID
@@ -19,15 +20,41 @@ class ObjectStat:
 
 class ObjectStorage(Protocol):
     def put(self, key: str, stream: BinaryIO, sha256: str) -> ObjectStat: ...
+    def put_bytes(self, key: str, payload: bytes, content_type: str) -> ObjectStat: ...
     def stat(self, key: str, version_id: str | None = None) -> ObjectStat: ...
     def exists(self, key: str, version_id: str | None = None) -> bool: ...
     def delete(self, key: str) -> None: ...
     def open(self, key: str, version_id: str) -> Any: ...
+    def read(self, key: str, version_id: str | None = None) -> bytes: ...
+    def download(self, key: str, version_id: str, destination: Any) -> None: ...
     def generate_read_reference(self, document_id: UUID, version_id: UUID) -> str: ...
 
 
 def object_key(document_id: UUID, version_id: UUID) -> str:
     return f"documents/{document_id}/{version_id}/original/source.pdf"
+
+
+def parse_prefix(document_id: UUID, version_id: UUID, run_id: UUID) -> str:
+    """All artifacts of one ParseRun live under a single immutable, UUID-addressed prefix."""
+    return f"documents/{document_id}/{version_id}/parsing/{run_id}"
+
+
+def raw_parse_key(document_id: UUID, version_id: UUID, run_id: UUID) -> str:
+    return f"{parse_prefix(document_id, version_id, run_id)}/docling.json"
+
+
+def figure_key(
+    document_id: UUID, version_id: UUID, run_id: UUID, figure_id: UUID, extension: str
+) -> str:
+    return f"{parse_prefix(document_id, version_id, run_id)}/figures/{figure_id}.{extension}"
+
+
+def page_preview_key(
+    document_id: UUID, version_id: UUID, run_id: UUID, page_number: int, extension: str
+) -> str:
+    return (
+        f"{parse_prefix(document_id, version_id, run_id)}/pages/page-{page_number:04d}.{extension}"
+    )
 
 
 class S3ObjectStorage:
@@ -61,6 +88,18 @@ class S3ObjectStorage:
                 multipart_chunksize=8 * 1024 * 1024,
                 use_threads=False,
             ),
+        )
+        return self.stat(key)
+
+    def put_bytes(self, key: str, payload: bytes, content_type: str) -> ObjectStat:
+        """Derived parse artifacts: immutable per ParseRun, addressed by that run's UUID."""
+        digest = hashlib.sha256(payload).hexdigest()
+        self.client.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=payload,
+            ContentType=content_type,
+            Metadata={"sha256": digest},
         )
         return self.stat(key)
 
@@ -115,6 +154,26 @@ class S3ObjectStorage:
 
     def open(self, key: str, version_id: str) -> Any:
         return self.client.get_object(Bucket=self.bucket, Key=key, VersionId=version_id)["Body"]
+
+    def read(self, key: str, version_id: str | None = None) -> bytes:
+        args = {"Bucket": self.bucket, "Key": key}
+        if version_id:
+            args["VersionId"] = version_id
+        body = self.client.get_object(**args)["Body"]
+        try:
+            return bytes(body.read())
+        finally:
+            body.close()
+
+    def download(self, key: str, version_id: str, destination: Any) -> None:
+        """Stream an original to a local file handle without buffering it in worker memory."""
+        self.client.download_fileobj(
+            self.bucket,
+            key,
+            destination,
+            ExtraArgs={"VersionId": version_id},
+            Config=TransferConfig(use_threads=False),
+        )
 
     def generate_read_reference(self, document_id: UUID, version_id: UUID) -> str:
         return f"/api/v1/documents/{document_id}/versions/{version_id}/source"

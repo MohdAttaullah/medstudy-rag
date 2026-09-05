@@ -2,10 +2,12 @@
 
 Accuracy-first educational medical RAG. **Unsupported answers are unacceptable; abstention is a
 successful outcome.** M1 implements authorized PDF upload, publication/version metadata and durable
-ingestion tracking. Successful jobs stop at **QUEUED**. Medical answering remains disabled.
+ingestion tracking; M2 adds Docling parsing, structured normalization with page and coordinate
+provenance, and parse-quality validation. Successful jobs stop at **READY_FOR_CHUNKING**, which
+means parsed and validated, not retrievable. Medical answering remains disabled.
 
 The stack is FastAPI/Pydantic/SQLAlchemy, React/TypeScript/Vite/TanStack Query, PostgreSQL,
-Redis/Celery and MinIO/S3. Qdrant is available locally but unused by M1. Docling, OCR, chunks,
+Redis/Celery, MinIO/S3 and Docling. Qdrant is available locally but still unused. Chunks,
 embeddings, retrieval and generation are future milestones.
 
 ## Start locally
@@ -29,9 +31,15 @@ demonstrates read-only access. Scripts preserve existing credentials. Never comm
 The browser retains its key in tab memory only; reauthenticate after reload.
 
 Select a synthetic PDF, supply a title, source type and authority, then upload. Library and document
-details show the actual version, checksum and ingestion history. Operations shows jobs, errors,
-retry/cancel controls and worker receipt. Receipt leaves the job QUEUED; it does not indicate parsing.
-Assessment material cannot claim reference/high authority. Upload metadata defaults to UNREVIEWED.
+details show the actual version, checksum, ingestion history and, once the worker has parsed it, the
+real parser build, policy version, page/element/table/figure/formula counts, OCR usage and
+validation outcome. "Open parse inspector" shows the parsed pages, structured elements with their
+page coordinates, extracted tables, figure crops, formulas and validation findings. Operations shows
+jobs, errors and retry/reparse/cancel controls. Assessment material cannot claim reference/high
+authority. Upload metadata defaults to UNREVIEWED.
+
+The parsing worker downloads model weights on its first document into the `parser-models` volume,
+so the first parse after a fresh volume takes noticeably longer and needs outbound network access.
 
 For host development, run the API and Vite instead of their containers. Keep infrastructure and
 the worker/dispatcher running; see [deployment](docs/architecture/deployment.md).
@@ -62,8 +70,14 @@ response. A network retry with identical metadata/content and request key return
 A confirmed failed attempt can use a new key; the UI handles this response. Sources are downloaded
 through authorized API requests, never public bucket URLs.
 
-See [M1 report](docs/verification/m1.md) for all endpoints and
-[ingestion architecture](docs/architecture/ingestion.md) for recovery semantics.
+Parsed material is inspected through `GET /documents/{id}/versions/{vid}/parse` and
+`/parse-runs/...` (runs, pages, page previews, elements, tables, figures, formulas, findings and the
+raw parser artifact). Every route enforces the same tenant boundary as the original, and object
+storage is never exposed.
+
+See [M1 report](docs/verification/m1.md) and [M2 report](docs/verification/m2.md) for all endpoints,
+[ingestion architecture](docs/architecture/ingestion.md) for recovery semantics and
+[document parsing](docs/architecture/document-parsing.md) for the parse contract.
 
 ## Verify
 
@@ -84,6 +98,9 @@ npm --prefix frontend run build
 $env:MEDRAG_E2E_LIVE = '1'
 $env:PLAYWRIGHT_CHANNEL = 'chrome'
 uv run --env-file .env npm.cmd --prefix frontend run test:e2e
+uv run --env-file .env python scripts/smoke_m1.py
+uv run --env-file .env python scripts/smoke_m2.py
+uv run --extra parsing python scripts/evaluate_parsing.py
 ```
 
 Browser tests use installed Chrome and Vite port 4173, while the container UI remains on 5173.
@@ -99,7 +116,9 @@ live tests skip; a unit-only result does not verify persistence or queues.
 |---|---|
 | `backend/app/api`, `schemas`, `security` | Versioned contracts and server-side authorization |
 | `backend/app/models`, `repositories`, `services` | Metadata, storage saga, job controls and outbox |
-| `backend/app/ingestion` | Guarded states and bounded basic PDF validation |
+| `backend/app/ingestion` | Guarded states, PDF validation, parser abstraction, normalization and parse-quality rules |
+| `backend/app/evaluation` | Parsing extraction-fidelity evaluator |
+| `frontend/src/features/parsing` | Parse summary and parse inspector |
 | `frontend/src/features/library`, `operations` | Upload, publication/version details and real jobs |
 | `workers` | Celery receipt task and durable outbox/recovery dispatcher |
 | `migrations/versions` | Explicit PostgreSQL schema and ordered history migrations |
@@ -108,7 +127,9 @@ live tests skip; a unit-only result does not verify persistence or queues.
 | `.agents/skills`, `.claude/skills` | Nine synchronized project skill pairs |
 
 Read [AGENTS.md](AGENTS.md), [AI_HANDOFF.md](AI_HANDOFF.md) and relevant ADRs before changes.
-The [M1 requirements](docs/requirements/m1.md) and original bootstrap request are preserved.
+The [M1](docs/requirements/m1.md) and [M2](docs/requirements/m2.md) requirements and the original
+bootstrap request are preserved.
 
 This is a local development implementation: development bearer identities are not production OIDC,
-basic PDF checks are not antivirus, and there is no clinical validation or compliance certification.
+basic PDF checks are not antivirus, parse-quality thresholds are uncalibrated defaults chosen
+against synthetic fixtures, and there is no clinical validation or compliance certification.

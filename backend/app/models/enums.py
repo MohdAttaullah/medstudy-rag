@@ -25,8 +25,9 @@ class Status(StrEnum):
     QUEUED = "QUEUED"
     PARSING = "PARSING"
     NORMALIZING = "NORMALIZING"
-    CHUNKING = "CHUNKING"
     ENRICHING = "ENRICHING"
+    READY_FOR_CHUNKING = "READY_FOR_CHUNKING"
+    CHUNKING = "CHUNKING"
     EMBEDDING = "EMBEDDING"
     INDEXING = "INDEXING"
     VERIFYING_INDEX = "VERIFYING_INDEX"
@@ -35,3 +36,63 @@ class Status(StrEnum):
     QUARANTINED = "QUARANTINED"
     NEEDS_REVIEW = "NEEDS_REVIEW"
     CANCELLED = "CANCELLED"
+
+
+# Ordered exactly as the M1 migration declared them; the persisted CHECK constraint is a set,
+# but keeping one literal list avoids a drifting duplicate between migrations and the model.
+STATUS_VALUES: tuple[str, ...] = tuple(status.value for status in Status)
+
+
+class ParseRunStatus(StrEnum):
+    """Lifecycle of one durable parse attempt, independent of the owning job status."""
+
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+
+class ParseResult(StrEnum):
+    """Structured outcome of the deterministic parse-quality validation layer."""
+
+    PASS = "PASS"
+    PASS_WITH_WARNINGS = "PASS_WITH_WARNINGS"
+    NEEDS_REVIEW = "NEEDS_REVIEW"
+    FAIL = "FAIL"
+
+
+class ElementType(StrEnum):
+    TITLE = "TITLE"
+    HEADING = "HEADING"
+    PARAGRAPH = "PARAGRAPH"
+    LIST = "LIST"
+    LIST_ITEM = "LIST_ITEM"
+    TABLE = "TABLE"
+    FORMULA = "FORMULA"
+    FIGURE = "FIGURE"
+    CAPTION = "CAPTION"
+    FOOTNOTE = "FOOTNOTE"
+    PAGE_HEADER = "PAGE_HEADER"
+    PAGE_FOOTER = "PAGE_FOOTER"
+    SECTION = "SECTION"
+    CODE = "CODE"
+    OTHER = "OTHER"
+
+
+class Severity(StrEnum):
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
+
+
+class OcrMode(StrEnum):
+    """OFF never rasterizes; AUTO lets the parser OCR only regions without a text layer."""
+
+    OFF = "OFF"
+    AUTO = "AUTO"
+    FORCE = "FORCE"
+
+
+class CoordinateOrigin(StrEnum):
+    TOPLEFT = "TOPLEFT"

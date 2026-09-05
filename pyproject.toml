@@ -11,8 +11,37 @@ dependencies = [
   "pypdf>=6,<7", "boto3>=1.35,<2", "prometheus-client>=0.21,<1",
 ]
 
+[project.optional-dependencies]
+parsing = [
+    "docling>=2.126,<3",
+    "onnxruntime>=1.20,<2",
+    "rapidocr>=3,<4",
+    # Declared directly, although Docling pulls them in, so the CPU index mapping below applies.
+    "torch>=2.4,<3",
+    "torchvision>=0.19,<1",
+]
+
 [dependency-groups]
-dev = ["pytest>=8.3,<10", "ruff>=0.9,<1", "mypy>=1.14,<2", "pyyaml>=6,<7"]
+dev = [
+    "pytest>=8.3,<10",
+    "ruff>=0.9,<1",
+    "mypy>=1.14,<2",
+    "pyyaml>=6,<7",
+    "reportlab>=4,<5",
+    "pillow>=11,<13",
+]
+
+# The parser runs on CPU in this deployment. Without this the Linux resolution pulls the CUDA
+# build of torch and several gigabytes of NVIDIA runtime libraries into the worker image for no
+# benefit. Windows/macOS keep the default index, where the published wheel is already CPU-only.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 
 [build-system]
 requires = ["hatchling>=1.27,<2"]

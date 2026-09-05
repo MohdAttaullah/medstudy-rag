@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.ingestion_config import IngestionConfig
+from app.core.parsing_config import ParsingConfig
 from app.security.auth import DevCredential
 
 
@@ -68,6 +69,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     policy: VersionedPolicy = VersionedPolicy()
     ingestion: IngestionConfig = IngestionConfig()
+    parsing: ParsingConfig = ParsingConfig()
     dev_principals: tuple[DevCredential, ...] = ()
     generator: ModelSelection | None = None
     verifier: ModelSelection | None = None

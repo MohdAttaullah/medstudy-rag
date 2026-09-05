@@ -55,17 +55,25 @@ def dispatch(
     return sent
 
 
-def receive(sessions: sessionmaker[Session], storage: ObjectStorage, message_id: UUID) -> None:
+def receive(
+    sessions: sessionmaker[Session], storage: ObjectStorage, message_id: UUID
+) -> UUID | None:
+    """Confirm durable receipt and report the job that is now eligible to be parsed.
+
+    Returns the job id only for the single delivery that legitimately claimed this message.
+    Every duplicate, stale or cancelled delivery returns None, so redelivery can never start a
+    second parse for the same job generation.
+    """
     with sessions.begin() as session:
         message = session.get(OutboxMessage, message_id)
         if message is None:
-            return
+            return None
         job = session.get(IngestionJob, message.job_id)
         if job is None:
-            return
+            return None
         version = session.get(DocumentVersion, job.document_version_id)
         if version is None:
-            return
+            return None
         # Consistent document -> job -> outbox lock order with cancel/archive paths.
         document = session.scalar(
             select(Document).where(Document.id == version.document_id).with_for_update()
@@ -73,7 +81,7 @@ def receive(sessions: sessionmaker[Session], storage: ObjectStorage, message_id:
         session.refresh(job, with_for_update=True)
         session.refresh(message, with_for_update=True)
         if message.received_at:
-            return
+            return None
         message.received_at = datetime.now(UTC)
         if (
             document is None
@@ -81,7 +89,7 @@ def receive(sessions: sessionmaker[Session], storage: ObjectStorage, message_id:
             or job.status != Status.QUEUED
             or (job.retry_count != message.generation)
         ):
-            return
+            return None
         try:
             stored = storage.stat(version.object_storage_key, version.object_version_id)
         except Exception:
@@ -95,7 +103,7 @@ def receive(sessions: sessionmaker[Session], storage: ObjectStorage, message_id:
                 error_code="STORAGE_FAILURE",
                 error_message="The original file is unavailable.",
             )
-            return
+            return None
         if stored.size != version.file_size_bytes or stored.sha256 != version.sha256:
             transition(
                 session,
@@ -107,7 +115,7 @@ def receive(sessions: sessionmaker[Session], storage: ObjectStorage, message_id:
                 error_code="STORAGE_INTEGRITY_FAILURE",
                 error_message="The original file failed integrity verification.",
             )
-            return
+            return None
         job.queue_received_at = datetime.now(UTC)
         audit(
             session,
@@ -118,4 +126,6 @@ def receive(sessions: sessionmaker[Session], storage: ObjectStorage, message_id:
             job.correlation_id,
             {"generation": message.generation},
         )
-        # M1 stops here. Receipt is not parsing, readiness or indexing.
+        # Receipt itself never parses, activates or indexes. It only confirms that this job
+        # generation is durably owned by this worker, which may then run the M2 parse pipeline.
+        return job.id

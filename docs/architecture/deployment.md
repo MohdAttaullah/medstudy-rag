@@ -20,14 +20,39 @@ docker compose --profile app up -d --build --wait
 ```
 
 Apply migrations before starting data endpoints/workers. No API startup schema mutation occurs.
-MinIO initialization creates a private bucket and enables versioning. Apply both M1 revisions;
-current head is m1_event_order. A pre-M1 schema has no domain tables to preserve; existing M1 data
-is upgraded in place. Do not downgrade application data merely to rerun a test.
+MinIO initialization creates a private bucket and enables versioning. Apply all three revisions;
+current head is `m2_document_parsing`. A pre-M1 schema has no domain tables to preserve; existing
+data is upgraded in place. Do not downgrade application data merely to rerun a test; the M2
+downgrade deliberately refuses to run while any job or version still holds READY_FOR_CHUNKING.
 
 The app profile includes API, frontend, Celery worker and the outbox/recovery dispatcher. Both
 background processes also belong to the workers profile. API/frontend/dependency healthchecks
 do not prove queue processing. Confirm receipt in Operations or run the live browser test.
 QUEUED with no receipt while the broker is unavailable is durable pending delivery, not data loss.
+
+## Parsing worker image
+
+Only the Celery worker parses, so only it carries the parser stack.
+`infrastructure/docker/worker.Dockerfile` installs the `parsing` extra plus the X/GL runtime
+libraries the OCR engine's OpenCV wheel links against, which are absent from `python:3.12-slim`
+and whose absence fails OCR at model initialisation. The API and dispatcher stay on
+`backend.Dockerfile` and are unaffected in size or startup time.
+
+On Linux, torch and torchvision resolve from the PyTorch CPU index (`[tool.uv.sources]` in
+`pyproject.toml`) because this deployment has no GPU; the default resolution would add several
+gigabytes of CUDA runtime for no benefit. The resulting worker image is about 2.5 GB.
+
+Model weights are downloaded on first use into the `parser-models` named volume mounted at
+`/home/medrag/.cache`; the cache directory exists in the image so the volume inherits its
+ownership on first mount. The first parse of a fresh volume therefore needs outbound network
+access to the model host and takes noticeably longer than subsequent documents. There is no
+offline/air-gapped mode and weights are not baked into the image.
+
+Rebuild the worker after changing dependencies:
+
+```powershell
+docker compose --profile app up -d --build --wait worker
+```
 
 Open http://localhost:5173/library and read the generated admin/reader access keys from ignored
 .local/dev-access.txt. Keys map to one development tenant and remain server configured in .env.

@@ -48,8 +48,50 @@ when deliberately changing policy. There is no editable configuration registry/U
 | dispatch_batch_size | 20 |
 
 Delivery/recovery settings are operational values used by the current dispatcher; a job snapshot
-records the settings at acceptance, not a permanently running historical dispatcher. Parser/chunker/
-embedding/index versions will be added with the corresponding stages. No such stages run in M1.
+records the settings at acceptance, not a permanently running historical dispatcher. Chunker,
+embedding and index versions will be added with the corresponding stages; none of those run yet.
+
+## M2 parsing settings
+
+`MEDRAG_PARSING__...` supplies the typed, frozen `ParsingConfig`. Each ParseRun stores the full
+JSON snapshot, the version label and a SHA-256 fingerprint of the whole policy. Reparse
+idempotency keys on the **fingerprint**, not the label, so an edited threshold cannot silently
+reuse a parse produced under different rules. Changing values requires restarting the worker;
+existing runs keep their snapshot.
+
+| Field | Default | Note |
+|---|---|---|
+| version | parsing-m2-v1 | Human label; increment on a deliberate policy change |
+| parser_name | docling | Adapter selection |
+| timeout_seconds | 900 | Per-document parser limit |
+| max_pages | 2000 | Refused before conversion starts |
+| max_concurrency | 1 | Parser processes per worker |
+| parser_threads | 4 | Pinned so host core count cannot change layout prediction |
+| ocr_mode | AUTO | OFF, AUTO (regions without a text layer) or FORCE (whole pages) |
+| extract_tables / extract_formulas / extract_figures | true | Structured artifact extraction |
+| generate_page_previews | true | Optional; a preview failure never fails a parse |
+| preview_scale / preview_format | 1.5 / webp | Page preview rendering |
+| figure_format | png | Extracted figure crops |
+| max_artifact_bytes | 67108864 (64 MiB) | Raw parse artifact ceiling |
+| lease_seconds | 1800 | Parse lease; the dispatcher releases expired leases |
+| temp_dir | null | Parent for per-job temporary directories |
+| thresholds.* | see below | Typed quality bounds, part of the fingerprint |
+
+| Threshold | Default |
+|---|---|
+| min_non_empty_page_ratio | 0.6 |
+| min_chars_per_page | 40 |
+| min_elements_per_page | 0.5 |
+| max_invalid_bbox_ratio | 0.02 |
+| max_unlocated_element_ratio | 0.10 |
+| max_malformed_table_ratio | 0.25 |
+| max_suspicious_ocr_page_ratio | 0.25 |
+| max_empty_formula_ratio | 0.25 |
+| review_on_page_count_mismatch | true |
+
+These defaults were chosen against synthetic fixtures. They are not calibrated on a clinical
+corpus and none of them expresses a parse accuracy; they are bounds on observable ratios.
+Example: `MEDRAG_PARSING__OCR_MODE=FORCE`, `MEDRAG_PARSING__THRESHOLDS__MIN_CHARS_PER_PAGE=80`.
 
 `MEDRAG_DEV_PRINCIPALS` is a JSON list of secret bearer-token/user/tenant/role mappings, provisioned
 by scripts/init_dev_auth.py. Empty configuration denies all data access. Roles are reader, curator,

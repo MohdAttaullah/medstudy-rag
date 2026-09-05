@@ -420,6 +420,18 @@ def retry(job_id: UUID, request: Request, actor: Actor, service: Service) -> Job
     return job(job_id, actor, service)
 
 
+@router.post("/ingestion/jobs/{job_id}/reparse", response_model=JobView)
+def reparse(job_id: UUID, request: Request, actor: Actor, service: Service) -> JobView:
+    """Explicitly reprocess an already parsed, flagged or failed version.
+
+    Nothing reparses on its own. The existing active parse stays active until a new run
+    succeeds, and an unchanged parser build plus unchanged policy plus unchanged bytes is a
+    no-op rather than a duplicate dataset.
+    """
+    service.jobs.change(actor, job_id, "reparse", correlation(request))
+    return job(job_id, actor, service)
+
+
 @router.post("/ingestion/jobs/{job_id}/cancel", response_model=JobView)
 def cancel(job_id: UUID, request: Request, actor: Actor, service: Service) -> JobView:
     service.jobs.change(actor, job_id, "cancel", correlation(request))

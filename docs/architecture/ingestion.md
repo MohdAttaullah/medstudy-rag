@@ -1,11 +1,14 @@
 # Ingestion architecture
 
-## Implemented M1 boundary
+## Implemented boundary
 
 Authorized PDF uploads create an immutable original, DocumentVersion, IngestionJob, ordered stage
-history and a durable outbox message. Successful jobs execute `UPLOADED -> VALIDATING -> QUEUED`.
-Celery confirms receipt in PostgreSQL and leaves the job QUEUED. Every version is unsearchable;
-a database constraint prevents accidental activation. No parsing or later processing runs.
+history and a durable outbox message. Successful jobs execute
+`UPLOADED -> VALIDATING -> QUEUED -> PARSING -> NORMALIZING -> ENRICHING -> READY_FOR_CHUNKING`.
+Celery confirms receipt in PostgreSQL and then runs the M2 parse pipeline for the job it claimed.
+Every version stays unsearchable; a database constraint prevents accidental activation.
+READY_FOR_CHUNKING means parsed and validated, not retrievable: no chunk, embedding or index
+exists. Parsing itself is documented in [document parsing](document-parsing.md).
 
 `backend/app/ingestion/state.py` owns transitions and writes job/version status, timestamps, history
 and audit together. PostgreSQL triggers reject invalid job transitions and changes to immutable job
@@ -15,16 +18,25 @@ provenance. The executable graph is:
 |---|---|
 | UPLOADED | VALIDATING, CANCELLED |
 | VALIDATING | QUEUED, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
-| QUEUED | FAILED, QUARANTINED, CANCELLED |
-| FAILED | CANCELLED; explicit bounded retry to VALIDATING |
-| QUARANTINED, NEEDS_REVIEW | CANCELLED |
+| QUEUED | PARSING, FAILED, QUARANTINED, CANCELLED |
+| PARSING | NORMALIZING, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
+| NORMALIZING | ENRICHING, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
+| ENRICHING | READY_FOR_CHUNKING, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
+| READY_FOR_CHUNKING | CANCELLED; explicit reparse to VALIDATING |
+| FAILED | CANCELLED; explicit bounded retry or reparse to VALIDATING |
+| QUARANTINED | CANCELLED |
+| NEEDS_REVIEW | CANCELLED; explicit reparse to VALIDATING |
 | CANCELLED | None |
 
-Future enum values exist for schema compatibility but are not executable. Retry only accepts FAILED,
-increments the retry generation, preserves history, checks the original's stored size/checksum
-metadata and emits a new outbox message on success. Unavailable storage fails the job; mismatch
-quarantines it. Retry does not replace or reparse the original. Cancel is idempotent; archive cancels
-eligible jobs and prevents new versions. Document/job locks serialize these actions with receipt.
+M3+ enum values (CHUNKING, EMBEDDING, INDEXING, VERIFYING_INDEX, READY) exist for schema
+compatibility and are absent from both the application table and the database guard. Retry only
+accepts FAILED. Reparse additionally accepts READY_FOR_CHUNKING and NEEDS_REVIEW, requires
+`ingestion:reparse`, and consumes one unit of the same bounded retry budget so reprocessing cannot
+loop unbounded. Both increment the retry generation, preserve history, check the original's stored
+size/checksum metadata and emit a new outbox message on success. Unavailable storage fails the job;
+mismatch quarantines it. Neither replaces the original. Cancel is idempotent; archive cancels
+eligible jobs and prevents new versions. Document/job locks serialize these actions with receipt
+and with an in-flight parse.
 
 ## Upload and storage lifecycle
 
@@ -74,19 +86,27 @@ be undone by a late task. Queue failure leaves committed jobs QUEUED for redeliv
 
 Each job freezes the full IngestionConfig snapshot and version, including limits, duplicate policy
 and retry cap. Current delivery/recovery tuning controls the dispatcher; historical job snapshots
-remain unchanged. Receipt is not a processing lease. Long-running M2 stages will require explicit
-leases/fencing and their own failure/retry artifacts.
+remain unchanged. Receipt is not a processing lease: `receive` returns the job id for exactly one
+delivery, and the parse pipeline then takes its own lease by moving that job out of QUEUED under a
+row lock. The lease is recorded on the ParseRun with a worker identity, heartbeat and expiry; the
+dispatcher releases expired leases so a crashed worker leaves a retryable job.
 
-## Future parsing and activation (not implemented)
+## Implemented parsing (M2)
 
-Docling output must preserve structured JSON, reading order, heading ancestry, physical page number,
-printed labels and bounding boxes with coordinate systems. Preserve table headers/row groups,
-formula context and complete question objects. Generated enrichment has separate lineage.
+Docling output is preserved as an immutable raw artifact per parse run, and projected into
+parser-independent pages, elements, tables, figures and formulas with 1-based page numbers,
+TOPLEFT-origin point coordinates, parser-declared hierarchy and deterministic reading order. Table
+headers and cells, formula expressions and question-bank cues are retained; nothing is inferred.
+A deterministic quality layer decides between READY_FOR_CHUNKING, NEEDS_REVIEW and FAILED.
+See [document parsing](document-parsing.md) for the full contract.
+
+## Future chunking and activation (not implemented)
 
 Later indexing uses a fresh staging manifest. Activation requires parse/provenance validation,
 complete embeddings, exact expected index IDs/counts, reconciliation and retrieval smoke success.
 PostgreSQL owns the atomic manifest switch; Qdrant alone cannot create a cross-system transaction.
 Readers pin an authorized READY manifest. Crashed staging writes stay invisible; retention policy
-governs cleanup. M1 never performs this activation.
+governs cleanup. M2 never performs this activation.
 
-See [ADR-006](../adr/006-m1-durable-upload-control-plane.md).
+See [ADR-006](../adr/006-m1-durable-upload-control-plane.md) and
+[ADR-007](../adr/007-m2-parse-runs-and-quality-validation.md).

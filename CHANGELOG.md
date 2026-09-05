@@ -1,5 +1,24 @@
 # Changelog
 
+## M2 - 2026-09-06
+
+- Added Docling parsing behind a parser-independent abstraction; only one adapter imports Docling.
+- Added durable versioned ParseRun with parser/policy identity, content fingerprint, source
+  checksum, lease and a single active dataset enforced by the database.
+- Persisted the raw parser artifact, page previews and figure crops in private object storage.
+- Added parser-independent pages, elements, tables, figures and formulas with 1-based page
+  numbers, TOPLEFT point coordinates, parser-declared hierarchy and deterministic reading order.
+- Added deterministic normalization that repairs extraction artefacts and never rewrites content.
+- Added OCR configuration with recorded engine, per-page OCR indicator and suspicious-OCR review.
+- Added a deterministic parse-quality layer with persisted findings and PASS/PASS_WITH_WARNINGS/
+  NEEDS_REVIEW/FAIL, plus fail-closed parse errors with declared retryability.
+- Executed QUEUED -> PARSING -> NORMALIZING -> ENRICHING -> READY_FOR_CHUNKING in the worker, with
+  idempotent delivery, cancellation handling, lease reaping and an explicit reparse action.
+- Added tenant-authorized parse inspection APIs, a parse summary on document details, a parse
+  inspector with page previews and table/figure/formula views, and real stages in Operations.
+- Added the parsing extraction-fidelity gold dataset and evaluation harness.
+- Parsing stops at READY_FOR_CHUNKING. Chunking, embeddings, retrieval and answering stay disabled.
+
 ## M1 - 2026-09-05
 
 - Added development authentication and server-enforced tenant/role permissions.

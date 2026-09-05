@@ -14,6 +14,7 @@ PERMISSIONS = frozenset(
         "document:manage",
         "ingestion:read",
         "ingestion:retry",
+        "ingestion:reparse",
         "ingestion:cancel",
     }
 )
