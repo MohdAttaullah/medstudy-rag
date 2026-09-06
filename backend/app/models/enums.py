@@ -29,6 +29,7 @@ class Status(StrEnum):
     READY_FOR_CHUNKING = "READY_FOR_CHUNKING"
     VALIDATING_CHUNKS = "VALIDATING_CHUNKS"
     READY_FOR_EMBEDDING = "READY_FOR_EMBEDDING"
+    READY_FOR_RETRIEVAL = "READY_FOR_RETRIEVAL"
     CHUNKING = "CHUNKING"
     EMBEDDING = "EMBEDDING"
     INDEXING = "INDEXING"
@@ -43,6 +44,28 @@ class Status(StrEnum):
 # Ordered exactly as the M1 migration declared them; the persisted CHECK constraint is a set,
 # but keeping one literal list avoids a drifting duplicate between migrations and the model.
 STATUS_VALUES: tuple[str, ...] = tuple(status.value for status in Status)
+
+
+class EmbeddingRunStatus(StrEnum):
+    """Lifecycle of one durable embedding attempt, independent of the owning job status."""
+
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    NEEDS_REVIEW = "NEEDS_REVIEW"
+    CANCELLED = "CANCELLED"
+
+
+class IndexRunStatus(StrEnum):
+    """Lifecycle of one durable index load. Only VERIFIED is eligible to become active."""
+
+    STAGING = "STAGING"
+    VERIFYING = "VERIFYING"
+    VERIFIED = "VERIFIED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    SUPERSEDED = "SUPERSEDED"
 
 
 class ParseRunStatus(StrEnum):

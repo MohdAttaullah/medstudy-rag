@@ -1,5 +1,39 @@
 # Changelog
 
+## M4 - 2026-09-06
+
+- Added document-side embeddings with the MedCPT Article Encoder pinned by revision and weight
+  checksum, reproducing the released representation: CLS pooling, 768 dimensions, unnormalized,
+  512-token maximum, inner-product similarity.
+- Added a provider-independent embedding abstraction; only one adapter imports transformers or
+  torch, and only one imports the vector-database client.
+- Added deterministic two-field embedding inputs built solely from persisted chunk content and
+  declared hierarchy, with a SHA-256 hash over exactly what the model sees.
+- Made truncation impossible to apply silently: an over-long chunk fails the run with a finding
+  naming it, and a truncated vector is unstorable by database constraint.
+- Excluded parent chunks from first-stage retrieval by policy, and kept question-bank material
+  distinguishable through payload authority metadata.
+- Added durable EmbeddingVersion, EmbeddingRun, ChunkEmbedding, IndexRun and IndexValidationFinding
+  records, with one active embedding run and one active index run per version enforced by the
+  database.
+- Added a Qdrant index with named dense vectors, deterministic uuid5 point identity, provenance-only
+  payloads, tenant-oriented payload indexing and server-side tenant scoping.
+- Added staged indexing with point-for-point read-back reconciliation, and activation as a
+  PostgreSQL state change that happens only after verification, so a failed replacement leaves the
+  previous active index untouched.
+- Made superseding a chunk dataset automatically deactivate the embeddings and index built from it.
+- Executed READY_FOR_EMBEDDING -> EMBEDDING -> INDEXING -> VERIFYING_INDEX -> READY_FOR_RETRIEVAL in
+  the worker with idempotent delivery, cancellation, lease sweeping and an explicit permissioned
+  re-embed.
+- Added offline model provisioning with checksum verification and an `embedding-models` volume, so
+  no user request depends on a runtime model download.
+- Added tenant-authorized embedding and index inspection APIs, an embedding summary on document
+  details, an Index Inspector, and the real index stages in Operations. No dense vector is exposed.
+- Added the offline embedding technical-quality evaluation harness and a host/container numerical
+  comparison tool.
+- Indexing stops at READY_FOR_RETRIEVAL. Query retrieval, reranking and answering stay disabled,
+  and READY remains unreachable.
+
 ## M3 - 2026-09-06
 
 - Added structure-aware hierarchical chunking over the active parse run: parent and child chunks,

@@ -17,6 +17,9 @@ dependencies = [
   "boto3>=1.35,<2",
   "prometheus-client>=0.21,<1",
   "tokenizers==0.23.2",
+  # Kept on the deployed server's minor: qdrant-client refuses a >1 minor gap and the wire
+  # format is only guaranteed within it. Bump this and the compose image together.
+  "qdrant-client>=1.15,<1.16",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +30,13 @@ parsing = [
     # Declared directly, although Docling pulls them in, so the CPU index mapping below applies.
     "torch>=2.4,<3",
     "torchvision>=0.19,<1",
+]
+embedding = [
+    "transformers>=4.44,<6",
+    "safetensors>=0.4,<1",
+    "huggingface-hub>=0.26,<2",
+    # Declared directly so the CPU index mapping below applies to the embedding worker too.
+    "torch>=2.4,<3",
 ]
 
 [dependency-groups]

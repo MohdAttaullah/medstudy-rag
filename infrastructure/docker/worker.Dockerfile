@@ -1,13 +1,18 @@
-# Parsing worker image.
+# Ingestion worker image: parsing, chunking and embedding.
 #
-# Only this image carries the parser and its model runtime. The API and the outbox dispatcher
-# never parse, so they stay on the lean backend image and are not slowed down or enlarged by
-# torch, ONNX Runtime and the Docling model stack.
+# Only this image carries the model runtimes. The API and the outbox dispatcher never parse or
+# embed, so they stay on the lean backend image and are not enlarged by torch, ONNX Runtime, the
+# Docling model stack or the MedCPT encoder.
 #
-# Model weights are downloaded on first use and cached under /home/medrag/.cache, which compose
-# backs with a named volume so the download happens once rather than per container lifetime. The
-# cache directory is created in the image so the volume inherits its ownership on first mount.
-# The first parse therefore needs outbound network access to the model host.
+# Two separate model caches, because they are provisioned differently:
+#
+#   /home/medrag/.cache/huggingface  parser weights, downloaded on first use (parser-models volume)
+#   /home/medrag/models/embeddings   the pinned MedCPT revision (embedding-models volume)
+#
+# The embedding cache is provisioned deliberately by scripts/provision_embedding_model.py and the
+# worker then runs with MEDRAG_EMBEDDING__OFFLINE=true, so no user request ever depends on a
+# runtime download from an external model host. Both directories are created in the image so the
+# named volumes inherit their ownership on first mount.
 FROM python:3.12-slim
 WORKDIR /app
 # The OCR engine loads OpenCV, whose wheel links against these X/GL runtime libraries. They are
@@ -23,14 +28,15 @@ COPY migrations ./migrations
 COPY alembic.ini ./
 COPY infrastructure/monitoring/logging.json ./logging.json
 RUN pip install --no-cache-dir uv==0.10.9 \
-    && uv sync --frozen --no-dev --extra parsing \
+    && uv sync --frozen --no-dev --extra parsing --extra embedding \
     && useradd --uid 10001 --create-home medrag \
-    && mkdir -p /home/medrag/.cache/huggingface \
+    && mkdir -p /home/medrag/.cache/huggingface /home/medrag/models/embeddings \
     && chown -R 10001:10001 /home/medrag
 # Thread count is pinned by the parser configuration, not by the environment, so that the same
 # document produces the same layout prediction here and on a developer machine.
 ENV PATH="/app/.venv/bin:$PATH" \
-    HF_HOME=/home/medrag/.cache/huggingface
+    HF_HOME=/home/medrag/.cache/huggingface \
+    MEDRAG_EMBEDDING__MODEL_CACHE_DIR=/home/medrag/models/embeddings
 USER 10001
 CMD ["celery", "-A", "workers.bootstrap:app", "worker", \
      "--loglevel=WARNING", "--queues=ingestion", "--concurrency=1"]

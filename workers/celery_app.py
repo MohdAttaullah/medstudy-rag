@@ -3,13 +3,16 @@ from uuid import UUID
 
 from app.core.config import Settings
 from app.db.session import make_engine, make_sessions
+from app.embeddings.medcpt import MedCPTArticleEmbedder, configure_offline_environment
 from app.ingestion.parser.docling_adapter import DoclingDocumentParser
 from app.models.documents import OutboxMessage
 from app.observability.parsing import ParseMetrics
 from app.services.chunking import ChunkService
+from app.services.embedding import EmbeddingService
 from app.services.parsing import ParseService
 from app.services.queue import receive
 from app.services.storage import S3ObjectStorage
+from app.vectorindex.qdrant import QdrantVectorIndex
 from celery import Celery
 from prometheus_client import CollectorRegistry
 
@@ -58,6 +61,37 @@ def create_celery(settings: Settings | None = None) -> Any:
             state["metrics"] = metrics
         return ParseService(sessions, storage, parser, config.parsing, metrics)
 
+    def embedding_service(sessions: Any) -> EmbeddingService:
+        """Embedding model weights stay warm for the life of the worker process.
+
+        Loading MedCPT costs seconds and hundreds of megabytes, so it is built once and only when
+        an embedding task first needs it. Importing this module must never load a model.
+        """
+
+        def model() -> Any:
+            embedder = state.get("embedder")
+            if embedder is None:
+                configure_offline_environment(config.embedding)
+                embedder = MedCPTArticleEmbedder(config.embedding)
+                embedder.load()
+                state["embedder"] = embedder
+            return embedder
+
+        def index() -> Any:
+            vector_index = state.get("index")
+            if vector_index is None:
+                vector_index = QdrantVectorIndex(
+                    config.qdrant_url,
+                    timeout=config.index.request_timeout_seconds,
+                    retries=config.index.upsert_retries,
+                )
+                state["index"] = vector_index
+            return vector_index
+
+        return EmbeddingService(
+            sessions, config.embedding, config.index, model_factory=model, index_factory=index
+        )
+
     @application.task(name="ingestion.receive")
     def receipt(message_id: str) -> None:
         """Confirm durable receipt, then run the M2 parse pipeline for the claimed job.
@@ -76,9 +110,13 @@ def create_celery(settings: Settings | None = None) -> Any:
             with sessions() as session:
                 message = session.get(OutboxMessage, UUID(message_id))
                 kind = message.kind if message else None
-                run_id = message.chunk_run_id if message else None
-            if kind == "CHUNKING" and run_id:
-                chunks.run(run_id)
+                chunk_run_id = message.chunk_run_id if message else None
+                embedding_run_id = message.embedding_run_id if message else None
+            if kind == "CHUNKING" and chunk_run_id:
+                chunks.run(chunk_run_id)
+                embedding_service(sessions).schedule(job_id)
+            elif kind == "EMBEDDING" and embedding_run_id:
+                embedding_service(sessions).run(embedding_run_id)
             elif kind == "PARSING":
                 parse_service(sessions, storage).run(job_id)
                 chunks.schedule(job_id)

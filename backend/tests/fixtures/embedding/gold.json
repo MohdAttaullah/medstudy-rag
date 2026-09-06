@@ -1,0 +1,137 @@
+{
+  "schema": "embedding-gold-m4-v1",
+  "kind": "synthetic-structure-not-medical-gold",
+  "note": "Original synthetic content written for this repository. No copyrighted medical corpus, and no wording intended to be medically meaningful.",
+  "chunks": [
+    {
+      "id": "plain-text",
+      "chunk_type": "TEXT_CHILD",
+      "retrieval_text": "Context: Synthetic reference > Chapter one\n\nThis synthetic passage describes a fictional measurement recorded during a fabricated study.",
+      "hierarchy": [
+        "Chapter one",
+        "Measurements"
+      ]
+    },
+    {
+      "id": "plain-text-duplicate",
+      "chunk_type": "TEXT_CHILD",
+      "retrieval_text": "Context: Synthetic reference > Chapter one\n\nThis synthetic passage describes a fictional measurement recorded during a fabricated study.",
+      "hierarchy": [
+        "Chapter one",
+        "Measurements"
+      ],
+      "same_input_as": "plain-text"
+    },
+    {
+      "id": "changed-representation",
+      "chunk_type": "TEXT_CHILD",
+      "retrieval_text": "Context: Synthetic reference > Chapter one\n\nThis synthetic passage describes a fictional measurement recorded during a fabricated study, revised.",
+      "hierarchy": [
+        "Chapter one",
+        "Measurements"
+      ],
+      "different_input_from": "plain-text"
+    },
+    {
+      "id": "changed-hierarchy",
+      "chunk_type": "TEXT_CHILD",
+      "retrieval_text": "Context: Synthetic reference > Chapter one\n\nThis synthetic passage describes a fictional measurement recorded during a fabricated study.",
+      "hierarchy": [
+        "Chapter two",
+        "Measurements"
+      ],
+      "different_input_from": "plain-text"
+    },
+    {
+      "id": "long-but-valid",
+      "chunk_type": "TEXT_CHILD",
+      "retrieval_text": "Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning.",
+      "hierarchy": [
+        "Chapter one"
+      ]
+    },
+    {
+      "id": "over-the-limit",
+      "chunk_type": "TEXT_CHILD",
+      "retrieval_text": "Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning. Synthetic marker readings were tabulated across fabricated groups in this fixture and every sentence adds ordinary prose without clinical meaning.",
+      "hierarchy": [
+        "Chapter one"
+      ],
+      "expect_over_limit": true
+    },
+    {
+      "id": "table-part",
+      "chunk_type": "TABLE_PART",
+      "retrieval_text": "Context: Synthetic reference > Chapter one > Table 1. Synthetic values.\n\nMarker | Reading | Unit\nAlpha | 131.5 | example units\nBeta | 132.5 | example units",
+      "hierarchy": [
+        "Chapter one"
+      ],
+      "caption": "Table 1. Synthetic values."
+    },
+    {
+      "id": "formula",
+      "chunk_type": "FORMULA",
+      "retrieval_text": "Context: Synthetic reference > Chapter one\n\nC = \\frac { A \\cdot B } { D }\nThe symbols above are defined in the adjacent synthetic paragraph.",
+      "hierarchy": [
+        "Chapter one"
+      ]
+    },
+    {
+      "id": "figure-context",
+      "chunk_type": "FIGURE_CONTEXT",
+      "retrieval_text": "Context: Synthetic reference > Chapter one\n\nFigure 1. Synthetic diagram caption describing an invented schematic.",
+      "hierarchy": [
+        "Chapter one"
+      ],
+      "caption": "Figure 1. Synthetic diagram caption describing an invented schematic."
+    },
+    {
+      "id": "question",
+      "chunk_type": "QUESTION",
+      "retrieval_text": "Context: Synthetic question bank > Section A\n\n1. Which synthetic marker is reported first in this fixture?\nA. Synthetic option one\nB. Synthetic option two\nAnswer: B",
+      "document_title": "Synthetic question bank",
+      "hierarchy": [
+        "Section A"
+      ]
+    },
+    {
+      "id": "list",
+      "chunk_type": "LIST",
+      "retrieval_text": "Context: Synthetic reference > Chapter one\n\nThe fixture lists three invented items:\n- First synthetic item\n- Second synthetic item\n- Third synthetic item",
+      "hierarchy": [
+        "Chapter one"
+      ]
+    },
+    {
+      "id": "parent-not-indexed",
+      "chunk_type": "TEXT_PARENT",
+      "retrieval_text": "Context: Synthetic reference > Chapter one\n\nA parent chunk is the union of its children and is reserved for later context expansion.",
+      "hierarchy": [
+        "Chapter one"
+      ],
+      "expect_eligible": false
+    },
+    {
+      "id": "cross-tenant-shaped",
+      "chunk_type": "OTHER_STRUCTURED",
+      "retrieval_text": "Context: Synthetic reference > Appendix\n\nA structured fragment that carries no medical meaning and exists to exercise an eligible type.",
+      "hierarchy": [
+        "Appendix"
+      ]
+    }
+  ],
+  "similarity": [
+    {
+      "id": "paraphrase-vs-unrelated",
+      "anchor": "Serum sodium below 135 mmol per litre defines hyponatremia in this synthetic fixture.",
+      "nearer": "Hyponatremia is defined in this synthetic fixture as a serum sodium under 135 mmol per litre.",
+      "farther": "The synthetic timetable lists locomotive departures from the northern platform each hour."
+    },
+    {
+      "id": "table-vs-unrelated",
+      "anchor": "Marker | Reading | Unit\nAlpha | 131.5 | example units\nBeta | 132.5 | example units",
+      "nearer": "Marker readings: Alpha measured 131.5 example units and Beta measured 132.5 example units.",
+      "farther": "A synthetic bread recipe needs flour, water, salt and time to rise before baking."
+    }
+  ]
+}

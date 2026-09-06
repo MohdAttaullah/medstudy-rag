@@ -17,6 +17,19 @@ class QueuePublisher(Protocol):
     def publish(self, message_id: UUID) -> None: ...
 
 
+# Each outbox message kind is only meaningful while its job sits in the state that produced it.
+# A delivery that arrives after the job moved on is stale and must be discarded, never replayed.
+EXPECTED_STATUS = {
+    "PARSING": Status.QUEUED,
+    "CHUNKING": Status.READY_FOR_CHUNKING,
+    "EMBEDDING": Status.READY_FOR_EMBEDDING,
+}
+
+
+def expected_status(kind: str | None) -> Status:
+    return EXPECTED_STATUS.get(kind or "PARSING", Status.QUEUED)
+
+
 def dispatch(
     sessions: sessionmaker[Session], publisher: QueuePublisher, config: IngestionConfig
 ) -> int:
@@ -39,8 +52,7 @@ def dispatch(
             job = session.get(IngestionJob, message.job_id)
             if (
                 job is None
-                or job.status
-                != (Status.READY_FOR_CHUNKING if message.kind == "CHUNKING" else Status.QUEUED)
+                or job.status != expected_status(message.kind)
                 or job.retry_count != message.generation
             ):
                 message.received_at = datetime.now(
@@ -91,8 +103,7 @@ def receive(
         if (
             document is None
             or document.archived_at
-            or job.status
-            != (Status.READY_FOR_CHUNKING if message.kind == "CHUNKING" else Status.QUEUED)
+            or job.status != expected_status(message.kind)
             or (job.retry_count != message.generation)
         ):
             return None

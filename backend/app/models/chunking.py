@@ -29,6 +29,11 @@ class ChunkRun(UUIDTimestampMixin, Base):
             "id", "parse_run_id", "tenant_id", name="uq_chunk_runs_id_parse_run_id_tenant_id"
         ),
         UniqueConstraint("id", "parse_run_id", name="uq_chunk_runs_id_parse_run_id"),
+        # M4 embedding runs key on (chunk run, version, tenant) so a vector can never be
+        # attributed to a chunk dataset from another tenant or another document version.
+        UniqueConstraint(
+            "id", "document_version_id", "tenant_id", name="uq_chunk_runs_id_version_tenant"
+        ),
         UniqueConstraint(
             "ingestion_job_id", "generation", name="uq_chunk_runs_ingestion_job_id_generation"
         ),

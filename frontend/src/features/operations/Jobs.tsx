@@ -15,7 +15,7 @@ export function JobHistory({ jobId }: { jobId: string }) {
         {event.error_detail && <p className="error">{event.error_detail}</p>}</li>)}</ol>
       <p className="muted">Configuration: {job.data.configuration_version}</p>
       <p className="muted">{job.data.queue_received_at ? 'Worker receipt confirmed.' : 'Awaiting worker receipt; the job is durable in PostgreSQL.'}</p>
-      <p className="muted">Chunking ends at READY_FOR_EMBEDDING. Embedding and indexing are not implemented.</p>
+      <p className="muted">Indexing ends at READY_FOR_RETRIEVAL, which means the vectors verified. Query retrieval, reranking and answering are not implemented.</p>
     </>}</section>;
 }
 export function Jobs({ documentId }: { documentId?: string }) {
@@ -28,14 +28,14 @@ export function Jobs({ documentId }: { documentId?: string }) {
   const [error, setError] = useState('');
   const jobs = useQuery({ queryKey: ['jobs', documentId, offset, status],
     queryFn: () => api<Page<Job>>(token, `/ingestion/jobs?offset=${offset}${documentId ? '&document_id=' + documentId : ''}${status ? '&status=' + status : ''}`), refetchInterval: 5000 });
-  async function action(job: Job, name: 'retry' | 'reparse' | 'rechunk' | 'cancel') {
+  async function action(job: Job, name: 'retry' | 'reparse' | 'rechunk' | 'reembed' | 'cancel') {
     setBusy(job.id); setError('');
-    try { await api(token, '/ingestion/jobs/' + job.id + '/' + name, { method: 'POST', ...(name === 'rechunk' ? { body: JSON.stringify({ force: true }) } : {}) });
+    try { await api(token, '/ingestion/jobs/' + job.id + '/' + name, { method: 'POST', ...(['rechunk', 'reembed'].includes(name) ? { body: JSON.stringify({ force: true }) } : {}) });
       for (const queryKey of [['jobs'], ['document']]) await queries.invalidateQueries({ queryKey }); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'The action failed.'); } finally { setBusy(''); }
   }
   return <section className="panel"><div className="section-heading"><h2>Ingestion jobs</h2><label>Status filter<select value={status} onChange={e => { setStatus(e.target.value); setOffset(0); }}>
-    <option value="">All states</option>{['UPLOADED', 'VALIDATING', 'QUEUED', 'PARSING', 'NORMALIZING', 'ENRICHING', 'READY_FOR_CHUNKING', 'CHUNKING', 'VALIDATING_CHUNKS', 'READY_FOR_EMBEDDING', 'FAILED', 'QUARANTINED', 'NEEDS_REVIEW', 'CANCELLED'].map(item => <option key={item}>{item}</option>)}</select></label></div>
+    <option value="">All states</option>{['UPLOADED', 'VALIDATING', 'QUEUED', 'PARSING', 'NORMALIZING', 'ENRICHING', 'READY_FOR_CHUNKING', 'CHUNKING', 'VALIDATING_CHUNKS', 'READY_FOR_EMBEDDING', 'EMBEDDING', 'INDEXING', 'VERIFYING_INDEX', 'READY_FOR_RETRIEVAL', 'FAILED', 'QUARANTINED', 'NEEDS_REVIEW', 'CANCELLED'].map(item => <option key={item}>{item}</option>)}</select></label></div>
     {error && <p role="alert" className="error">{error}</p>}
     {jobs.isPending ? <p>Loading jobs…</p> : jobs.isError ? <p role="alert">Could not load ingestion jobs.</p> : <>
       {!jobs.data.items.length ? <p>No ingestion jobs in this view.</p> : <div className="job-list">
@@ -47,8 +47,9 @@ export function Jobs({ documentId }: { documentId?: string }) {
           {job.last_error_message && <p className="error">{job.last_error_code}: {job.last_error_message}</p>}
           <div className="actions"><button className="secondary" onClick={() => setSelected(selected === job.id ? '' : job.id)}>Inspect history</button>
             {identity?.permissions.includes('ingestion:retry') && <button className="secondary" disabled={busy === job.id || job.status !== 'FAILED' || job.retry_count >= job.max_retries} onClick={() => void action(job, 'retry')}>Retry</button>}
-            {identity?.permissions.includes('ingestion:reparse') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_CHUNKING', 'READY_FOR_EMBEDDING', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'reparse')}>Reparse</button>}
-            {identity?.permissions.includes('ingestion:rechunk') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_CHUNKING', 'READY_FOR_EMBEDDING', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'rechunk')}>Rechunk</button>}
+            {identity?.permissions.includes('ingestion:reparse') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_CHUNKING', 'READY_FOR_EMBEDDING', 'READY_FOR_RETRIEVAL', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'reparse')}>Reparse</button>}
+            {identity?.permissions.includes('ingestion:rechunk') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_EMBEDDING', 'READY_FOR_RETRIEVAL', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'rechunk')}>Rechunk</button>}
+            {identity?.permissions.includes('ingestion:reembed') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_EMBEDDING', 'READY_FOR_RETRIEVAL', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'reembed')}>Re-embed</button>}
             {identity?.permissions.includes('ingestion:cancel') && <button className="secondary" disabled={busy === job.id || job.status === 'CANCELLED'} onClick={() => void action(job, 'cancel')}>Cancel job</button>}
           </div>{selected === job.id && <JobHistory jobId={job.id} />}</article>)}</div>}
       <Pagination offset={offset} total={jobs.data.total} onChange={setOffset} />

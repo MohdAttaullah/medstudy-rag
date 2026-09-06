@@ -112,7 +112,14 @@ services:
     environment:
       <<: *api-environment
       MEDRAG_PARSING__MAX_CONCURRENCY: "1"
-    volumes: ["parser-models:/home/medrag/.cache"]
+      # Provisioned by scripts/provision_embedding_model.py into the embedding-models volume, so
+      # the worker never downloads a model while a user is waiting.
+      MEDRAG_EMBEDDING__MODEL_CACHE_DIR: /home/medrag/models/embeddings
+      MEDRAG_EMBEDDING__OFFLINE: "true"
+      MEDRAG_EMBEDDING__TORCH_THREADS: "4"
+    volumes:
+      - "parser-models:/home/medrag/.cache"
+      - "embedding-models:/home/medrag/models/embeddings"
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -134,5 +141,6 @@ volumes:
   parser-models:
   postgres-data:
   qdrant-data:
+  embedding-models:
   redis-data:
   minio-data:

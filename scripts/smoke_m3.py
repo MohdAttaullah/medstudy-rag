@@ -21,7 +21,15 @@ from app.core.config import Settings
 FIXTURE = Path("backend/tests/fixtures/parsing/table.pdf")
 # The worker downloads parser weights on its first document of a container lifetime.
 DEADLINE_SECONDS = int(sys.argv[1]) if len(sys.argv) > 1 else 900
-TERMINAL = {"READY_FOR_EMBEDDING", "NEEDS_REVIEW", "FAILED", "QUARANTINED", "CANCELLED"}
+# M4 carries the job past READY_FOR_EMBEDDING, so this poll may observe the later state.
+TERMINAL = {
+    "READY_FOR_EMBEDDING",
+    "READY_FOR_RETRIEVAL",
+    "NEEDS_REVIEW",
+    "FAILED",
+    "QUARANTINED",
+    "CANCELLED",
+}
 
 settings = Settings()
 credential = next(item for item in settings.dev_principals if item.role == "admin")
@@ -59,12 +67,13 @@ with httpx.Client(base_url="http://127.0.0.1:5173", timeout=60) as client:
         if job["status"] in TERMINAL:
             break
         time.sleep(3)
-    assert job.get("status") == "READY_FOR_EMBEDDING", (
+    assert job.get("status") in {"READY_FOR_EMBEDDING", "READY_FOR_RETRIEVAL"}, (
         f"ended in {job.get('status')}: "
         f"{job.get('last_error_code')} {job.get('last_error_message')}"
     )
     stages = [event["to_status"] for event in job["events"]]
-    assert stages[-3:] == ["CHUNKING", "VALIDATING_CHUNKS", "READY_FOR_EMBEDDING"], stages
+    chunk_stages = ["CHUNKING", "VALIDATING_CHUNKS", "READY_FOR_EMBEDDING"]
+    assert stages[stages.index("CHUNKING") : stages.index("CHUNKING") + 3] == chunk_stages, stages
 
     runs = client.get(f"{base}/chunk-runs", headers=headers).json()["items"]
     run = next(item for item in runs if item["is_active"])
@@ -116,7 +125,7 @@ with httpx.Client(base_url="http://127.0.0.1:5173", timeout=60) as client:
     assert client.get(f"{base}/chunk-runs").status_code == 401
 
 with httpx.Client(base_url="http://127.0.0.1:8000", timeout=30) as client:
-    assert client.get("/health/live").json()["milestone"] == "M3"
+    assert client.get("/health/live").json()["milestone"] == "M4"
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     for series in ("chunk_runs_by_status", "chunk_runs_by_result", "chunks_by_type"):

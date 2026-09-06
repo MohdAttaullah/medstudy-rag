@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.chunking_config import ChunkingConfig
+from app.core.embedding_config import EmbeddingConfig, IndexConfig
 from app.core.ingestion_config import IngestionConfig
 from app.core.parsing_config import ParsingConfig
 from app.security.auth import DevCredential
@@ -72,6 +73,8 @@ class Settings(BaseSettings):
     ingestion: IngestionConfig = IngestionConfig()
     parsing: ParsingConfig = ParsingConfig()
     chunking: ChunkingConfig = ChunkingConfig()
+    embedding: EmbeddingConfig = EmbeddingConfig()
+    index: IndexConfig = IndexConfig()
     dev_principals: tuple[DevCredential, ...] = ()
     generator: ModelSelection | None = None
     verifier: ModelSelection | None = None

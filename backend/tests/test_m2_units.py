@@ -68,6 +68,9 @@ def test_parse_transitions_allowed(before, after):
         ("ENRICHING", "CHUNKING"),
         ("READY_FOR_CHUNKING", "READY"),
         ("READY_FOR_CHUNKING", "READY_FOR_EMBEDDING"),
+        ("READY_FOR_EMBEDDING", "INDEXING"),
+        ("VERIFYING_INDEX", "READY"),
+        ("READY_FOR_RETRIEVAL", "READY"),
         ("READY_FOR_CHUNKING", "PARSING"),
         ("QUEUED", "NEEDS_REVIEW"),
     ],
@@ -77,17 +80,19 @@ def test_parse_transitions_rejected(before, after):
         require_transition(Status(before), Status(after))
 
 
-def test_m4_states_are_not_executable():
-    """The pipeline now stops at READY_FOR_EMBEDDING: no embedding or index state is reachable.
+def test_m5_states_are_not_executable():
+    """The pipeline now stops at READY_FOR_RETRIEVAL, and READY remains unreachable.
 
-    M2 stopped one stage earlier, at READY_FOR_CHUNKING. M3 made CHUNKING and
-    VALIDATING_CHUNKS executable in the application graph and the database guard, so this
-    boundary moved deliberately; the embedding and index states did not.
+    The boundary has moved once per milestone, deliberately and with a reviewed migration each
+    time: M2 stopped at READY_FOR_CHUNKING, M3 at READY_FOR_EMBEDDING, M4 at READY_FOR_RETRIEVAL.
+    READY is reserved for a version that is genuinely answerable, which needs query retrieval,
+    grounding and verification. None of those exist, so nothing may enter it.
     """
     reachable = {target for targets in TRANSITIONS.values() for target in targets}
-    for future in (Status.EMBEDDING, Status.INDEXING, Status.VERIFYING_INDEX, Status.READY):
-        assert future not in reachable
-        assert future not in TRANSITIONS
+    assert Status.READY not in reachable
+    assert Status.READY not in TRANSITIONS
+    # READY_FOR_RETRIEVAL means the index verified, not that the document can be answered from.
+    assert TRANSITIONS[Status.READY_FOR_RETRIEVAL] == frozenset({Status.CANCELLED})
 
 
 # --------------------------------------------------------------------------- normalization

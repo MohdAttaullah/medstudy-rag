@@ -4,13 +4,14 @@ Accuracy-first educational medical RAG. **Unsupported answers are unacceptable; 
 successful outcome.** M1 implements authorized PDF upload, publication/version metadata and durable
 ingestion tracking; M2 adds Docling parsing, structured normalization with page and coordinate
 provenance, and parse-quality validation; M3 adds structure-aware hierarchical chunking with
-complete span-level provenance, deterministic chunk identity and chunk-quality validation.
-Successful jobs stop at **READY_FOR_EMBEDDING**, which means parsed, chunked and validated, not
-retrievable. Medical answering remains disabled.
+complete span-level provenance, deterministic chunk identity and chunk-quality validation; M4 adds
+pinned MedCPT dense embeddings, a versioned Qdrant index and verified index activation.
+Successful jobs stop at **READY_FOR_RETRIEVAL**, which means the vectors were built and the index
+reconciled — **not** that the document is answerable. Medical answering remains disabled.
 
 The stack is FastAPI/Pydantic/SQLAlchemy, React/TypeScript/Vite/TanStack Query, PostgreSQL,
-Redis/Celery, MinIO/S3 and Docling. Qdrant is available locally but still unused. Embeddings,
-retrieval and generation are future milestones.
+Redis/Celery, MinIO/S3, Docling and Qdrant. Query retrieval, reranking and generation are future
+milestones.
 
 ## Start locally
 
@@ -82,11 +83,18 @@ Chunked material is inspected through `GET /documents/{id}/versions/{vid}/chunk-
 ordered source mappings, question objects and validation findings). No route returns a storage key,
 a lease token or any vector field.
 
-See the [M1](docs/verification/m1.md), [M2](docs/verification/m2.md) and
-[M3](docs/verification/m3.md) reports for all endpoints,
+Embedding and index state is inspected through `GET /documents/{id}/versions/{vid}/embedding`,
+`/embedding-runs/...` and `/index-runs/...` (runs, vector metadata, index runs, live index
+statistics and validation findings). No route returns a dense vector, and the browser never talks
+to Qdrant.
+
+See the [M1](docs/verification/m1.md), [M2](docs/verification/m2.md),
+[M3](docs/verification/m3.md) and [M4](docs/verification/m4.md) reports for all endpoints,
 [ingestion architecture](docs/architecture/ingestion.md) for recovery semantics,
-[document parsing](docs/architecture/document-parsing.md) for the parse contract and
-[document chunking](docs/architecture/document-chunking.md) for the chunk contract.
+[document parsing](docs/architecture/document-parsing.md) for the parse contract,
+[document chunking](docs/architecture/document-chunking.md) for the chunk contract, and
+[embeddings](docs/architecture/embeddings.md) and
+[vector index](docs/architecture/vector-index.md) for the vector contract.
 
 ## Verify
 
@@ -110,9 +118,21 @@ uv run --env-file .env npm.cmd --prefix frontend run test:e2e
 uv run --env-file .env python scripts/smoke_m1.py
 uv run --env-file .env python scripts/smoke_m2.py
 uv run --env-file .env python scripts/smoke_m3.py
+uv run --env-file .env python scripts/smoke_m4.py
 uv run --extra parsing python scripts/evaluate_parsing.py
 uv run python scripts/evaluate_chunking.py
+uv run --extra embedding python scripts/evaluate_embeddings.py
 ```
+
+Embedding needs its model provisioned once, which is the only step that reaches the network:
+
+```powershell
+uv run --extra embedding python scripts/provision_embedding_model.py
+```
+
+The containerised worker reads the same pinned revision from the `embedding-models` volume and runs
+with downloads disabled. See [embeddings](docs/architecture/embeddings.md) for the provisioning
+workflow.
 
 Browser tests use installed Chrome and Vite port 4173, while the container UI remains on 5173.
 Alternatively install Playwright Chromium and omit the channel override. Live browser tests require
@@ -138,9 +158,11 @@ live tests skip; a unit-only result does not verify persistence or queues.
 | `.agents/skills`, `.claude/skills` | Nine synchronized project skill pairs |
 
 Read [AGENTS.md](AGENTS.md), [AI_HANDOFF.md](AI_HANDOFF.md) and relevant ADRs before changes.
-The [M1](docs/requirements/m1.md), [M2](docs/requirements/m2.md) and
-[M3](docs/requirements/m3.md) requirements and the original bootstrap request are preserved.
+The [M1](docs/requirements/m1.md), [M2](docs/requirements/m2.md),
+[M3](docs/requirements/m3.md) and [M4](docs/requirements/m4.md) requirements and the original
+bootstrap request are preserved.
 
 This is a local development implementation: development bearer identities are not production OIDC,
-basic PDF checks are not antivirus, parse- and chunk-quality thresholds are uncalibrated defaults
-chosen against synthetic fixtures, and there is no clinical validation or compliance certification.
+basic PDF checks are not antivirus, parse-, chunk- and index-quality thresholds are uncalibrated
+defaults chosen against synthetic fixtures, retrieval quality has not been measured at all, and
+there is no clinical validation or compliance certification.

@@ -109,6 +109,7 @@ beforeEach(() => {
       url.includes('/chunk-runs/chunk-run-1/validation-findings') ? page([]) :
       url.includes('/chunk-runs/chunk-run-1') ? chunkRun :
       url.includes('/chunk-runs') ? page([chunkRun]) :
+      url.includes('/embedding') ? { document_version_id: 'version-1', ingestion_status: 'READY_FOR_EMBEDDING', embedding_run: null, embedding_version: null, index_run: null, embedding_runs: 0, finding_counts: {}, chunk_types: {} } :
       url.includes('/parse') ? { document_version_id: 'version-1', ingestion_status: 'READY_FOR_EMBEDDING', parse_run: null, parse_runs: 0 } :
       url.includes('/versions') ? page([version]) :
       url.includes('/documents/doc-1') ? document_ :

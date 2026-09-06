@@ -48,8 +48,7 @@ when deliberately changing policy. There is no editable configuration registry/U
 | dispatch_batch_size | 20 |
 
 Delivery/recovery settings are operational values used by the current dispatcher; a job snapshot
-records the settings at acceptance, not a permanently running historical dispatcher. Embedding and
-index versions will be added with the corresponding stages; neither runs yet.
+records the settings at acceptance, not a permanently running historical dispatcher.
 
 ## M2 parsing settings
 
@@ -127,6 +126,59 @@ These defaults were chosen against synthetic fixtures. They are not calibrated o
 and none of them expresses a chunk quality or retrieval accuracy; they are bounds on observable
 counts. Example: `MEDRAG_CHUNKING__CHILD_TARGET_TOKENS=320`,
 `MEDRAG_CHUNKING__THRESHOLDS__TINY_TOKENS=32`.
+
+## M4 embedding settings
+
+`MEDRAG_EMBEDDING__...` supplies the typed, frozen `EmbeddingConfig`. Two fingerprints are derived
+from it. The **semantics fingerprint** covers only what a vector means and identifies the
+`EmbeddingVersion`, so changing a batch size reuses the vector space while changing pooling or the
+model creates a new one. The **policy fingerprint** covers the whole configuration and is recorded
+on each run.
+
+Fields typed as `Literal` cannot be changed by environment variable at all. That is deliberate:
+pooling, normalization, dimension, metric, the input limit and the truncation policy change what
+every stored vector means, and a change to any of them needs a code change, a benchmark and an ADR
+rather than a redeploy.
+
+| Field | Default | Note |
+|---|---|---|
+| version | embedding-m4-v1 | Human label; increment on a deliberate policy change |
+| model_id / model_revision | ncbi/MedCPT-Article-Encoder / d05a736d… | Pinned; `main` is never used |
+| model_checksum / verify_model_checksum | a5d5ffe4… / true | Weights are verified before the model loads |
+| embedding_dimension | 768 | Fixed; also the index vector size |
+| pooling_strategy | CLS | Fixed; the released MedCPT article representation |
+| normalization | NONE | Fixed; unnormalized vectors are why similarity is DOT |
+| distance_metric | DOT | Fixed; maximum inner product |
+| max_input_tokens | 512 | Fixed; the model maximum |
+| truncation_policy | REJECT | Fixed; an over-long chunk fails loudly and is never shortened |
+| input_builder_version | medcpt-two-field-v1 | Fixed; part of the input hash |
+| max_context_characters | 300 | Context-field budget; trimmed from the front, deterministic |
+| eligible_chunk_types | nine retrieval types | `TEXT_PARENT` is rejected by validation |
+| embed_parent_chunks | false | Fixed; parents are context units, not retrieval units |
+| batch_size / max_batch_tokens | 16 / 8192 | Inference batching |
+| torch_threads | 4 | CPU inference; no CUDA dependency |
+| reuse_existing_embeddings | true | Reuse requires an exact input-hash match |
+| model_cache_dir / offline | null / false | Set to the provisioned cache and true in the worker |
+| timeout_seconds / lease_seconds | 3600 / 4200 | The lease must exceed the timeout |
+| max_chunks | 200000 | Refused before embedding starts |
+
+`MEDRAG_INDEX__...` supplies the frozen `IndexConfig`.
+
+| Field | Default | Note |
+|---|---|---|
+| version / schema_version | index-m4-v1 / v1 | Schema version is part of the collection name |
+| collection_prefix / alias | medrag_chunks / medrag_chunks_active | Physical name also carries the semantics fingerprint |
+| dense_vector_name | medcpt_dense | Named so sparse and late-interaction vectors can join later |
+| upsert_batch_size / verify_batch_size | 64 / 128 | Batched writes and read-back |
+| verify_vectors / verify_sample_ratio | true / 1.0 | Full read-back verification by default |
+| request_timeout_seconds / upsert_retries | 60 / 3 | Transient index failures are retried |
+| payload_indexes | seven keys | Documented in [vector index](vector-index.md) |
+| tenant_payload_key | tenant_id | Must be a payload index; validation enforces it |
+
+Example: `MEDRAG_EMBEDDING__BATCH_SIZE=32`, `MEDRAG_EMBEDDING__OFFLINE=true`,
+`MEDRAG_INDEX__UPSERT_BATCH_SIZE=128`. Changing the embedding model or any vector semantics is a
+**reindex-required** change: it creates a new EmbeddingVersion and a new physical collection, and
+the alias switches only after the replacement verifies.
 
 `MEDRAG_DEV_PRINCIPALS` is a JSON list of secret bearer-token/user/tenant/role mappings, provisioned
 by scripts/init_dev_auth.py. Empty configuration denies all data access. Roles are reader, curator,

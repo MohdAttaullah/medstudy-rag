@@ -1,8 +1,8 @@
 # Data model
 
-Twenty-four normalized PostgreSQL tables with UUID primary keys and timezone-aware timestamps:
-nine from M1, seven added by M2 and eight added by M3. Alembic is the sole schema migration
-mechanism; application startup does not call create_all.
+Twenty-nine normalized PostgreSQL tables with UUID primary keys and timezone-aware timestamps:
+nine from M1, seven added by M2, eight added by M3 and five added by M4. Alembic is the sole schema
+migration mechanism; application startup does not call create_all.
 
 | Table | Implemented responsibility |
 |---|---|
@@ -32,8 +32,10 @@ Database triggers prohibit history/audit mutation and illegal job transitions or
 Migrations: `0dd8e0dcb035` creates M1 tables, indexes, constraints and guards;
 `m1_event_order` adds/backfills deterministic event sequence; `m2_document_parsing` adds the
 parsing tables and the M2 state vocabulary and guard; `m3_hierarchical_chunks` adds the chunk
-tables, the M3 state vocabulary and guard, and the outbox message kind. `m1_event_order` briefly disables the
-append-only trigger for its controlled backfill. All four have downgrade paths, exercised as
+tables, the M3 state vocabulary and guard, and the outbox message kind;
+`m4_embeddings_and_index` adds the embedding and index tables, the M4 state vocabulary and guard,
+and the embedding outbox reference. `m1_event_order` briefly disables the
+append-only trigger for its controlled backfill. All five have downgrade paths, exercised as
 upgrade/downgrade/upgrade in isolated test schemas; downgrading the initial revision removes all
 data. Back up before any deliberate application schema downgrade.
 
@@ -89,6 +91,36 @@ successful source parse; its identity columns are immutable; a completed run may
 historical datasets are immutable; source offsets must resolve against the element's normalized
 text; and deactivating a parse run or cancelling a job automatically deactivates the chunk datasets
 built from it.
+
+## M4 embedding and index tables
+
+| Table | Implemented responsibility |
+|---|---|
+| embedding_versions | What a vector *means*: provider, model id and revision, tokenizer revision, weight checksum, dimension, pooling, normalization, distance metric, input limit, dtype, input-builder version, config snapshot and the semantics fingerprint that identifies the vector space |
+| embedding_runs | One durable embedding attempt over one chunk dataset: eligible/embedded/reused/failed counts, input and policy fingerprints, fenced lease, metrics and safe error |
+| chunk_embeddings | Metadata for one vector: point id, vector name, input hash, vector checksum, dimension, token count, norm, truncated and reused flags. The dense array itself lives in the vector index |
+| index_runs | One durable index load: physical collection, alias, vector name, schema version, expected/indexed/verified point counts, upsert batches, activation time and safe error |
+| index_validation_findings | Append-only severity, code, safe message and details for vector sanity and index reconciliation |
+
+Declared in `backend/app/models/embeddings.py`. An embedding version is unique on its semantics
+fingerprint, so a batch-size change reuses the vector space while a pooling or model change creates
+a new one. Composite foreign keys keep every vector inside the same tenant, document version, chunk
+run and embedding run: a `chunk_embeddings` row must reference a chunk of its own run's dataset, and
+an `index_runs` row must reference an embedding run of its own tenant.
+
+Partial unique indexes allow one active and one pending-or-running embedding run per version, and
+one active index run per version. `active_embedding_run_complete` allows `is_active` only for a
+succeeded run that embedded every eligible chunk with no failures;
+`active_index_run_verified` allows it only for a `VERIFIED` run whose indexed and verified counts
+both equal its expected count. `chunk_embedding_never_truncated` makes a truncated vector
+unstorable, which is the database half of the reject-never-truncate policy.
+
+Triggers enforce the rest: an embedding run must begin pending and inactive against a currently
+active, validated chunk dataset; identity columns are immutable; a completed run may only have
+`is_active` changed; rows of a run that is not `RUNNING` cannot be inserted, updated or deleted;
+an index run may only be activated when it is verified and its embedding run succeeded cleanly; and
+deactivating a chunk dataset automatically deactivates the embedding and index runs built from it,
+so a stale index can never remain the active corpus for a version.
 
 ## Future schema (not implemented)
 

@@ -33,10 +33,11 @@ test('a real upload is chunked and every chunk resolves to its source page', asy
   await page.getByRole('link', { name: 'Open uploaded document' }).click();
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
 
-  // Parsing loads model weights on a cold worker, so allow a generous wait for the whole path.
-  await expect(page.locator('.version-card').getByText('ready for embedding').first()).toBeVisible({
-    timeout: 780000,
-  });
+  // Parsing loads model weights on a cold worker, so allow a generous wait. M4 embeds straight
+  // after chunking, so the version may already have advanced past ready for embedding.
+  await expect(
+    page.locator('.version-card').getByText(/ready for (embedding|retrieval)/).first()
+  ).toBeVisible({ timeout: 1080000 });
   const chunking = page.locator('.panel', { hasText: 'Chunking' }).first();
   await expect(chunking.getByText(/medical-structure/)).toBeVisible();
   await expect(chunking.getByText(/chunking-m3-v1/)).toBeVisible();
@@ -90,7 +91,6 @@ test('operations exposes the real chunk stages and not the embedding stages', as
   for (const stage of ['CHUNKING', 'VALIDATING_CHUNKS', 'READY_FOR_EMBEDDING']) {
     expect(options).toContain(stage);
   }
-  for (const absent of ['EMBEDDING', 'INDEXING', 'VERIFYING_INDEX', 'READY']) {
-    expect(options).not.toContain(absent);
-  }
+  // M4 made the embedding and index stages real; READY remains unreachable.
+  expect(options).not.toContain('READY');
 });

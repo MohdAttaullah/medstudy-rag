@@ -38,7 +38,7 @@ test('a real upload is parsed and its structure is inspectable in the UI', async
   await expect(parsing.getByText(/^docling /)).toBeVisible({ timeout: 480000 });
   // The version badge shows the state. M3 chunks straight after parsing, so the version may
   // already have advanced past ready for chunking by the time this assertion runs.
-  await expect(page.locator('.version-card').getByText(/ready for (chunking|embedding)/).first()).toBeVisible({
+  await expect(page.locator('.version-card').getByText(/ready for (chunking|embedding|retrieval)/).first()).toBeVisible({
     timeout: 120000,
   });
   await expect(parsing.getByText('parsing-m2-v1', { exact: false })).toBeVisible();
@@ -89,8 +89,7 @@ test('operations exposes the real parse stages', async ({ page }) => {
   for (const stage of ['PARSING', 'NORMALIZING', 'ENRICHING', 'READY_FOR_CHUNKING']) {
     expect(options).toContain(stage);
   }
-  // M3 made the chunk stages real; the embedding and index stages remain unreachable.
-  for (const absent of ['EMBEDDING', 'INDEXING', 'VERIFYING_INDEX', 'READY']) {
-    expect(options).not.toContain(absent);
-  }
+  // M3 made the chunk stages real and M4 the embedding and index stages. READY stays
+  // unreachable: it is reserved for a version that can actually be answered from.
+  expect(options).not.toContain('READY');
 });

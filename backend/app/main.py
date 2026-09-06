@@ -9,11 +9,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, generate_latest
-from sqlalchemy import func, select
+from sqlalchemy import Integer, func, select
 from starlette.middleware.base import RequestResponseEndpoint
 
 from app.api.chunking import router as chunking_router
 from app.api.documents import router
+from app.api.embeddings import router as embedding_router
 from app.api.parsing import router as parsing_router
 from app.core.config import Settings
 from app.core.errors import DomainError
@@ -25,12 +26,19 @@ from app.models.chunking import (
     QuestionArtifact,
 )
 from app.models.documents import IngestionJob, IngestionStageEvent
+from app.models.embeddings import (
+    ChunkEmbedding,
+    EmbeddingRun,
+    IndexRun,
+    IndexValidationFinding,
+)
 from app.models.enums import ParseRunStatus
 from app.models.parsing import ParseRun, ParseValidationFinding
 from app.observability.ingestion import IngestionMetrics
 from app.services.control import ControlPlane
 from app.services.health import DependencyProbe, InfrastructureProbe
 from app.services.storage import S3ObjectStorage
+from app.vectorindex.qdrant import QdrantVectorIndex
 
 logger = logging.getLogger("medical_rag.requests")
 
@@ -121,6 +129,56 @@ def _chunk_metric_lines(service: ControlPlane) -> list[str]:
     return lines
 
 
+def _index_metric_lines(service: ControlPlane) -> list[str]:
+    """Embedding and index counters from durable PostgreSQL state.
+
+    Embedding runs in the Celery worker, which is not scraped, so the authoritative counts come
+    from committed rows. Labels are bounded enum values only: no chunk, document, version or run
+    identifier is ever a label. None of these is a retrieval or medical accuracy measure.
+    """
+    with service.sessions() as session:
+        runs = session.execute(
+            select(EmbeddingRun.status, func.count()).group_by(EmbeddingRun.status)
+        ).all()
+        index_runs = session.execute(
+            select(IndexRun.status, func.count()).group_by(IndexRun.status)
+        ).all()
+        findings = session.execute(
+            select(IndexValidationFinding.severity, func.count()).group_by(
+                IndexValidationFinding.severity
+            )
+        ).all()
+        embeddings, reused, tokens = session.execute(
+            select(
+                func.count(),
+                func.coalesce(func.sum(ChunkEmbedding.reused.cast(Integer)), 0),
+                func.coalesce(func.sum(ChunkEmbedding.token_count), 0),
+            )
+        ).one()
+        points = session.scalar(
+            select(func.coalesce(func.sum(IndexRun.verified_point_count), 0)).where(
+                IndexRun.is_active.is_(True)
+            )
+        )
+    lines = ["# TYPE embedding_runs_by_status gauge"]
+    lines += [f'embedding_runs_by_status{{status="{status}"}} {count}' for status, count in runs]
+    lines += ["# TYPE index_runs_by_status gauge"]
+    lines += [f'index_runs_by_status{{status="{status}"}} {count}' for status, count in index_runs]
+    lines += ["# TYPE index_validation_findings gauge"]
+    lines += [
+        f'index_validation_findings{{severity="{severity}"}} {count}'
+        for severity, count in findings
+    ]
+    for name, value in (
+        ("embeddings_total", embeddings),
+        ("embeddings_reused_total", reused),
+        ("embedding_input_tokens_total", tokens),
+        ("index_active_points_total", points or 0),
+    ):
+        lines += [f"# TYPE {name} gauge", f"{name} {int(value)}"]
+    return lines
+
+
 def create_app(
     settings: Settings | None = None,
     probe: DependencyProbe | None = None,
@@ -134,7 +192,18 @@ def create_app(
     service = control_plane
     if service is None and config.database_url.get_secret_value():
         engine = make_engine(config)
-        service = ControlPlane(config, make_sessions(engine), S3ObjectStorage(config), metrics)
+        # The API reads live index statistics on an operator's behalf; it never embeds and never
+        # writes points. Constructing the client is lazy inside the adapter, so an unreachable
+        # Qdrant degrades the statistics endpoint rather than preventing startup.
+        service = ControlPlane(
+            config,
+            make_sessions(engine),
+            S3ObjectStorage(config),
+            metrics,
+            vector_index=QdrantVectorIndex(
+                config.qdrant_url, timeout=config.index.request_timeout_seconds
+            ),
+        )
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -142,7 +211,7 @@ def create_app(
         if engine is not None:
             engine.dispose()
 
-    app = FastAPI(title="Medical RAG - M3", version="0.3.0", lifespan=lifespan)
+    app = FastAPI(title="Medical RAG - M4", version="0.4.0", lifespan=lifespan)
     app.state.settings, app.state.control = config, service
     requests = Counter(
         "medrag_http_requests_total", "Completed HTTP requests", ["status"], registry=registry
@@ -234,7 +303,7 @@ def create_app(
 
     @app.get("/health/live")
     async def live() -> dict[str, str]:
-        return {"status": "alive", "milestone": "M3"}
+        return {"status": "alive", "milestone": "M4"}
 
     @app.get("/health/ready")
     async def ready() -> JSONResponse:
@@ -272,10 +341,12 @@ def create_app(
             ]
             lines += _parse_metric_lines(service)
             lines += _chunk_metric_lines(service)
+            lines += _index_metric_lines(service)
             result += ("\n".join(lines) + "\n").encode()
         return Response(result, headers={"Content-Type": CONTENT_TYPE_LATEST})
 
     app.include_router(router)
     app.include_router(parsing_router)
     app.include_router(chunking_router)
+    app.include_router(embedding_router)
     return app

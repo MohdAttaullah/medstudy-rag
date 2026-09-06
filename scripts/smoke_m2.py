@@ -112,7 +112,7 @@ with httpx.Client(base_url="http://127.0.0.1:5173", timeout=60) as client:
     assert client.get(f"{base}/parse", headers={}).status_code == 401
 
 with httpx.Client(base_url="http://127.0.0.1:8000", timeout=30) as client:
-    assert client.get("/health/live").json()["milestone"] == "M3"
+    assert client.get("/health/live").json()["milestone"] == "M4"
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     for series in ("parse_runs_by_status", "parse_runs_by_result", "parse_pages_total"):

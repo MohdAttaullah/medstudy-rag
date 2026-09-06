@@ -16,6 +16,7 @@ PERMISSIONS = frozenset(
         "ingestion:retry",
         "ingestion:reparse",
         "ingestion:rechunk",
+        "ingestion:reembed",
         "ingestion:cancel",
     }
 )

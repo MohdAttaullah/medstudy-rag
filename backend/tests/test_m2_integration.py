@@ -164,14 +164,18 @@ def system_module(database):  # noqa: F811
     control = app.state.control
     with TestClient(app) as client:
         yield client, control, credentials
-    # The M2 downgrade refuses to run while READY_FOR_CHUNKING rows exist, so this teardown
-    # performs the explicit operator action its message prescribes before the schema is reversed.
+    # Each milestone downgrade refuses to run while its own completed states still exist, so this
+    # teardown performs the explicit operator action those messages prescribe before the schema is
+    # reversed. Nothing is rewritten silently; the jobs are cancelled through the real guard.
     from app.ingestion.state import transition
 
+    completed = (
+        Status.READY_FOR_CHUNKING,
+        Status.READY_FOR_EMBEDDING,
+        Status.READY_FOR_RETRIEVAL,
+    )
     with control.sessions.begin() as session:
-        for job in session.scalars(
-            select(IngestionJob).where(IngestionJob.status == Status.READY_FOR_CHUNKING)
-        ):
+        for job in session.scalars(select(IngestionJob).where(IngestionJob.status.in_(completed))):
             version = session.get(DocumentVersion, job.document_version_id)
             transition(session, job, version, Status.CANCELLED, None, service="test-teardown")
     with control.sessions() as session:

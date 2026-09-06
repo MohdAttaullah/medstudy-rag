@@ -5,12 +5,14 @@
 Authorized PDF uploads create an immutable original, DocumentVersion, IngestionJob, ordered stage
 history and a durable outbox message. Successful jobs execute
 `UPLOADED -> VALIDATING -> QUEUED -> PARSING -> NORMALIZING -> ENRICHING -> READY_FOR_CHUNKING ->
-CHUNKING -> VALIDATING_CHUNKS -> READY_FOR_EMBEDDING`. Celery confirms receipt in PostgreSQL and
-then runs the parse pipeline, and afterwards the chunk pipeline, for the job it claimed.
+CHUNKING -> VALIDATING_CHUNKS -> READY_FOR_EMBEDDING -> EMBEDDING -> INDEXING -> VERIFYING_INDEX ->
+READY_FOR_RETRIEVAL`. Celery confirms receipt in PostgreSQL and then runs the parse, chunk and
+embedding pipelines in turn for the job it claimed.
 Every version stays unsearchable; a database constraint prevents accidental activation.
-READY_FOR_EMBEDDING means parsed, chunked and validated, not retrievable: no embedding or index
-exists. Parsing is documented in [document parsing](document-parsing.md) and chunking in
-[document chunking](document-chunking.md).
+READY_FOR_RETRIEVAL means the vectors were built and the index reconciled — it does **not** mean
+the document is answerable. Parsing is documented in [document parsing](document-parsing.md),
+chunking in [document chunking](document-chunking.md), and embedding and indexing in
+[embeddings](embeddings.md) and [vector index](vector-index.md).
 
 `backend/app/ingestion/state.py` owns transitions and writes job/version status, timestamps, history
 and audit together. PostgreSQL triggers reject invalid job transitions and changes to immutable job
@@ -27,18 +29,23 @@ provenance. The executable graph is:
 | READY_FOR_CHUNKING | CHUNKING, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED; explicit reparse to VALIDATING |
 | CHUNKING | VALIDATING_CHUNKS, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
 | VALIDATING_CHUNKS | READY_FOR_EMBEDDING, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
-| READY_FOR_EMBEDDING | CANCELLED; explicit reparse to VALIDATING or rechunk to READY_FOR_CHUNKING |
-| FAILED | CANCELLED; explicit bounded retry, reparse to VALIDATING or rechunk to READY_FOR_CHUNKING |
+| READY_FOR_EMBEDDING | EMBEDDING, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED; explicit reparse or rechunk |
+| EMBEDDING | INDEXING, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
+| INDEXING | VERIFYING_INDEX, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
+| VERIFYING_INDEX | READY_FOR_RETRIEVAL, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
+| READY_FOR_RETRIEVAL | CANCELLED; explicit reparse, rechunk or re-embed |
+| FAILED | CANCELLED; explicit bounded retry, reparse, rechunk or re-embed |
 | QUARANTINED | CANCELLED |
-| NEEDS_REVIEW | CANCELLED; explicit reparse to VALIDATING or rechunk to READY_FOR_CHUNKING |
+| NEEDS_REVIEW | CANCELLED; explicit reparse, rechunk or re-embed |
 | CANCELLED | None |
 
-M4+ enum values (EMBEDDING, INDEXING, VERIFYING_INDEX, READY) exist for schema compatibility and
-are absent from both the application table and the database guard. Retry only accepts FAILED, and
-routes a chunk-stage failure to a forced rechunk rather than a full reparse. Reparse additionally
-accepts READY_FOR_CHUNKING, READY_FOR_EMBEDDING and NEEDS_REVIEW and requires `ingestion:reparse`;
-rechunk accepts the same origins plus FAILED and requires `ingestion:rechunk`. Each consumes one
-unit of the same bounded retry budget so reprocessing cannot loop unbounded. Both increment the retry generation, preserve history, check the original's stored
+READY exists in the enum for schema compatibility and is absent from both the application table and
+the database guard: it is reserved for a version that is genuinely answerable, which needs query
+retrieval, grounding and verification. Retry only accepts FAILED, and routes a chunk-stage failure
+to a forced rechunk rather than a full reparse. Reparse (`ingestion:reparse`) returns a job to
+VALIDATING; rechunk (`ingestion:rechunk`) to READY_FOR_CHUNKING; re-embed (`ingestion:reembed`) to
+READY_FOR_EMBEDDING. Each consumes one unit of the same bounded retry budget so reprocessing cannot
+loop unbounded. Both increment the retry generation, preserve history, check the original's stored
 size/checksum metadata and emit a new outbox message on success. Unavailable storage fails the job;
 mismatch quarantines it. Neither replaces the original. Cancel is idempotent; archive cancels
 eligible jobs and prevents new versions. Document/job locks serialize these actions with receipt
@@ -122,15 +129,26 @@ inspectable. See [document chunking](document-chunking.md) for the full contract
 READY_FOR_EMBEDDING means chunked and validated, not retrievable: no embedding, vector or index
 exists, and every version stays database-constrained unsearchable.
 
-## Future embedding, indexing and activation (not implemented)
+## Implemented embedding and indexing (M4)
 
-Later indexing uses a fresh staging manifest. Activation requires parse/provenance validation,
-complete embeddings, exact expected index IDs/counts, reconciliation and retrieval smoke success.
-PostgreSQL owns the atomic manifest switch; Qdrant alone cannot create a cross-system transaction.
-Readers pin an authorized READY manifest. Crashed staging writes stay invisible; retention policy
-governs cleanup. M3 never performs this activation, and the embedding and index job states are
-unreachable in both the application graph and the database guard.
+The retrieval-eligible chunks of the active chunk dataset are embedded with a pinned MedCPT Article
+Encoder revision, loaded into a named dense vector in Qdrant, reconciled point for point against
+the expected set recorded in PostgreSQL, and only then activated. Work is dispatched through the
+same transactional outbox with an `EMBEDDING` message kind and taken under a fenced lease.
+
+PostgreSQL owns the authoritative active-index pointer; Qdrant alone cannot create a cross-system
+transaction, so activation is a database state change that happens after read-back verification
+rather than a side effect of writing points. A failed replacement leaves the previous active index
+untouched, and superseding a chunk dataset deactivates the index built from it.
+
+## Future retrieval and answering (not implemented)
+
+Query encoding, dense and sparse retrieval, fusion, reranking, context expansion, evidence
+sufficiency, grounded generation, claim verification and citation validation are later milestones.
+READY remains unreachable in both the application graph and the database guard, and Ask stays
+disabled.
 
 See [ADR-006](../adr/006-m1-durable-upload-control-plane.md),
-[ADR-007](../adr/007-m2-parse-runs-and-quality-validation.md) and
-[ADR-008](../adr/008-m3-hierarchical-chunking.md).
+[ADR-007](../adr/007-m2-parse-runs-and-quality-validation.md),
+[ADR-008](../adr/008-m3-hierarchical-chunking.md) and
+[ADR-009](../adr/009-m4-medcpt-embeddings-and-vector-index.md).

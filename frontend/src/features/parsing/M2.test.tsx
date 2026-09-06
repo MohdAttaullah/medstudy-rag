@@ -118,6 +118,7 @@ beforeEach(() => {
         parse_run: summaryRun, parse_runs: summaryRun ? 1 : 0,
       } :
       url.includes('/chunk-runs') ? page([]) :
+      url.includes('/embedding') ? { document_version_id: 'version-1', ingestion_status: 'READY_FOR_CHUNKING', embedding_run: null, embedding_version: null, index_run: null, embedding_runs: 0, finding_counts: {}, chunk_types: {} } :
       url.includes('/versions') ? page([version]) :
       url.includes('/documents/doc-1') ? document_ :
       url.includes('/ingestion/jobs') ? page([]) :
@@ -226,9 +227,8 @@ describe('M2 operations', () => {
     for (const stage of ['PARSING', 'NORMALIZING', 'ENRICHING', 'READY_FOR_CHUNKING']) {
       expect(options).toContain(stage);
     }
-    // M3 made the chunk stages real; the embedding and index stages are still unreachable.
-    expect(options).not.toContain('EMBEDDING');
-    expect(options).not.toContain('INDEXING');
+    // M3 made the chunk stages real and M4 the embedding and index stages. READY is still
+    // unreachable: it is reserved for a version that can actually be answered from.
     expect(options).not.toContain('READY');
   });
 });

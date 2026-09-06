@@ -59,6 +59,18 @@ same tenant boundary as the original and expose no storage key, lease token or v
 rechunk action requires its own `ingestion:rechunk` permission and supplying a custom chunk policy
 additionally requires `audit:read`.
 
+M4 adds a second datastore and keeps it internal. Qdrant is never reachable from the browser: the
+frontend has no vector-database client and no credential, and the single live-statistics endpoint
+is server-side, tenant-scoped and requires `document:manage`. Port 6333 is published only for local
+development and must not be exposed publicly. Index payloads carry routing and provenance only —
+never chunk text and never a provider secret — so an index exposure would not disclose licensed
+source material. Tenant scope is a server-side payload filter on an indexed, tenant-oriented key,
+proven at the repository boundary by integration tests rather than by frontend filtering. No dense
+vector is returned by any route. The re-embed action requires `ingestion:reembed`, and supplying a
+custom embedding policy additionally requires `audit:read`. The embedding worker loads only a
+checksum-verified local model and, in the container, runs with downloads disabled, so no ingestion
+path reaches an external model host at request time.
+
 These checks are not antivirus or comprehensive PDF sanitization. Subprocess validation has a time
 limit but no dedicated hard memory sandbox, and the parser itself runs in the worker process
 rather than an isolated sandbox with a hard memory cap. Public upload deployment requires malware scanning,

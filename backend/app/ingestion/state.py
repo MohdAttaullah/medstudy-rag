@@ -9,7 +9,10 @@ from app.models.documents import DocumentVersion, IngestionJob, IngestionStageEv
 from app.models.enums import Status
 from app.observability.ingestion import audit
 
-# M3 stops at READY_FOR_EMBEDDING. Embedding and indexing remain disabled.
+# M4 stops at READY_FOR_RETRIEVAL, which means the corpus index for this version verified and is
+# technically eligible for retrieval. It does not mean the document is medically answerable:
+# query retrieval, reranking, grounding and answering are later milestones and READY stays
+# unreachable until they exist.
 FAILURE_STATES = frozenset(
     {Status.FAILED, Status.QUARANTINED, Status.NEEDS_REVIEW, Status.CANCELLED}
 )
@@ -26,7 +29,11 @@ TRANSITIONS: dict[Status, frozenset[Status]] = {
     Status.READY_FOR_CHUNKING: frozenset({Status.CHUNKING, *FAILURE_STATES}),
     Status.CHUNKING: frozenset({Status.VALIDATING_CHUNKS, *FAILURE_STATES}),
     Status.VALIDATING_CHUNKS: frozenset({Status.READY_FOR_EMBEDDING, *FAILURE_STATES}),
-    Status.READY_FOR_EMBEDDING: frozenset({Status.CANCELLED}),
+    Status.READY_FOR_EMBEDDING: frozenset({Status.EMBEDDING, *FAILURE_STATES}),
+    Status.EMBEDDING: frozenset({Status.INDEXING, *FAILURE_STATES}),
+    Status.INDEXING: frozenset({Status.VERIFYING_INDEX, *FAILURE_STATES}),
+    Status.VERIFYING_INDEX: frozenset({Status.READY_FOR_RETRIEVAL, *FAILURE_STATES}),
+    Status.READY_FOR_RETRIEVAL: frozenset({Status.CANCELLED}),
     Status.FAILED: frozenset({Status.CANCELLED}),
     Status.QUARANTINED: frozenset({Status.CANCELLED}),
     Status.NEEDS_REVIEW: frozenset({Status.CANCELLED}),
@@ -36,8 +43,24 @@ TRANSITIONS: dict[Status, frozenset[Status]] = {
 # A reparse is deliberately explicit: a completed or flagged job never re-enters the parse path
 # on its own, and doing so consumes the same bounded retry budget as a failure retry.
 REPARSE_ORIGINS = frozenset(
-    {Status.READY_FOR_CHUNKING, Status.READY_FOR_EMBEDDING, Status.NEEDS_REVIEW, Status.FAILED}
+    {
+        Status.READY_FOR_CHUNKING,
+        Status.READY_FOR_EMBEDDING,
+        Status.READY_FOR_RETRIEVAL,
+        Status.NEEDS_REVIEW,
+        Status.FAILED,
+    }
 )
+RECHUNK_ORIGINS = frozenset(
+    {
+        Status.READY_FOR_EMBEDDING,
+        Status.READY_FOR_RETRIEVAL,
+        Status.NEEDS_REVIEW,
+        Status.FAILED,
+    }
+)
+# Re-embedding rebuilds vectors and the index without reparsing or rechunking the source.
+REEMBED_ORIGINS = frozenset({Status.READY_FOR_RETRIEVAL, Status.NEEDS_REVIEW, Status.FAILED})
 
 
 def require_transition(
@@ -47,12 +70,18 @@ def require_transition(
     retry: bool = False,
     reparse: bool = False,
     rechunk: bool = False,
+    reembed: bool = False,
 ) -> None:
+    if reembed:
+        if current in REEMBED_ORIGINS and target == Status.READY_FOR_EMBEDDING:
+            return
+        raise DomainError(
+            "INGESTION_INVALID_TRANSITION",
+            "Only indexed, failed or flagged jobs can be re-embedded.",
+            409,
+        )
     if rechunk:
-        if (
-            current in {Status.READY_FOR_EMBEDDING, Status.FAILED, Status.NEEDS_REVIEW}
-            and target == Status.READY_FOR_CHUNKING
-        ):
+        if current in RECHUNK_ORIGINS and target == Status.READY_FOR_CHUNKING:
             return
         raise DomainError(
             "INGESTION_INVALID_TRANSITION",
@@ -134,11 +163,14 @@ def transition(
     retry: bool = False,
     reparse: bool = False,
     rechunk: bool = False,
+    reembed: bool = False,
     error_code: str | None = None,
     error_message: str | None = None,
 ) -> None:
-    require_transition(job.status, target, retry=retry, reparse=reparse, rechunk=rechunk)
-    if retry or reparse or rechunk:
+    require_transition(
+        job.status, target, retry=retry, reparse=reparse, rechunk=rechunk, reembed=reembed
+    )
+    if retry or reparse or rechunk or reembed:
         if job.retry_count >= job.max_retries:
             raise DomainError("INGESTION_RETRY_EXHAUSTED", "The retry limit has been reached.", 409)
         job.retry_count += 1
@@ -156,7 +188,9 @@ def transition(
     if target == Status.QUEUED:
         job.queued_at = now
     # READY_FOR_CHUNKING completes the M2 job; it is not readiness for retrieval or answering.
-    if target in FAILURE_STATES or target == Status.READY_FOR_EMBEDDING:
+    # READY_FOR_RETRIEVAL completes the M4 job. It means the index verified, not that the
+    # document can be answered from: retrieval and answering are not implemented.
+    if target in FAILURE_STATES or target == Status.READY_FOR_RETRIEVAL:
         job.completed_at = now
     if target == Status.CANCELLED:
         job.cancelled_at = now
