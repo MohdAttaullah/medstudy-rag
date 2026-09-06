@@ -122,6 +122,52 @@ an index run may only be activated when it is verified and its embedding run suc
 deactivating a chunk dataset automatically deactivates the embedding and index runs built from it,
 so a stale index can never remain the active corpus for a version.
 
+## M5 retrieval tables
+
+`query_encoder_versions` records what a *query* vector means: model id, revision, tokenizer
+revision, both file checksums, dimension, pooling, normalization, metric, dtype, maximum query
+tokens and the query-normalization version. It is separate from `embedding_versions` because the
+query encoder is a different checkpoint with a different tokenizer and a much shorter input limit.
+Rows are keyed by a semantics fingerprint and created on first successful encode, so a report can
+name the encoder that produced a measured number.
+
+The lexical lane lives entirely in PostgreSQL rather than as a second Qdrant vector, and that is a
+deliberate choice: inverse document frequency is then computed over exactly the corpus a query may
+see — one tenant's active, verified, version-aligned indexes — instead of over whatever else shares
+a collection, including other tenants and superseded runs. `sparse_index_versions` holds the
+analyzer identity alone (case policy, compound policy, stopwords, term-length bounds, expansion),
+keyed by an analyzer fingerprint. It deliberately excludes `k1` and `b`: postings store raw term
+frequencies and document lengths, so saturation and length normalization are applied at query time
+and are runtime-safe.
+
+`sparse_indexes` is the per-document-version build, mirroring `index_runs`: chunk-run lineage,
+status, activation, counts, term and posting totals, corpus fingerprint, lease and correlation.
+`sparse_documents` holds one row per indexed chunk with its length and the facets the lane filters
+on. `sparse_postings` holds `(sparse_index_id, chunk_id, term, term_frequency)` with an index on
+`(term, sparse_index_id)` — the lookup every query makes. `sparse_terms` holds the per-index
+document and total frequency, so query-time IDF is a cheap sum across the active indexes rather
+than an aggregation over postings; document frequencies are additive because a chunk belongs to
+exactly one sparse index. `sparse_validation_findings` is the append-only reconciliation audit.
+
+Chunk identity is shared with the dense lane. There is no separate lexical document id, so a
+candidate from either lane resolves through the same chunk to the same source element and page.
+
+Partial unique indexes allow one active and one building sparse index per version.
+`active_sparse_index_verified` allows `is_active` only for a `VERIFIED` index whose indexed and
+verified counts both equal its expected count. Triggers enforce the rest: an index must begin
+`STAGING` and inactive; identity columns are immutable; a completed index may only change its
+activation state, its activation timestamp is written once, and its only permitted status move is
+`VERIFIED` to `SUPERSEDED`; rows of an index that is not `STAGING` cannot be inserted, updated or
+deleted; an index may only be activated alongside an active `VERIFIED` dense index run built from
+the *same* chunk run; and deactivating a chunk dataset automatically deactivates the sparse index
+built from it, exactly as it already deactivates the embedding and index runs.
+
+`outbox_messages` gains a nullable `sparse_index_id` and the `SPARSE_INDEX` kind, which is only
+meaningful while a job sits in `READY_FOR_RETRIEVAL`.
+
+The M5 revision is also the one that widens the status columns, because `VERIFYING_SPARSE_INDEX`
+is longer than any status before it; see [deployment](deployment.md) for what that requires.
+
 ## Future schema (not implemented)
 
 ChunkElement and ChunkRelation will retain ordered parent/neighbor/source joins onto the

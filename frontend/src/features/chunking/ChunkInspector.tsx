@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { AccessGate, useSession } from '../library/Session';
@@ -49,8 +49,9 @@ export function ChunkInspector() {
   return <><p className="eyebrow">CHUNK PROVENANCE</p><h1>Chunk inspector</h1><AccessGate><Inspector runId={runId!} /></AccessGate></>;
 }
 function Inspector({ runId }: { runId: string }) {
+  const [search] = useSearchParams();
   const [offset, setOffset] = useState(0), [kind, setKind] = useState(''), [page, setPage] = useState('');
-  const [selected, setSelected] = useState(''), [parent, setParent] = useState(''), [question, setQuestion] = useState('');
+  const [selected, setSelected] = useState(search.get('chunk') ?? ''), [parent, setParent] = useState(''), [question, setQuestion] = useState('');
   const [warnings, setWarnings] = useState(false), [tab, setTab] = useState<'chunks' | 'questions' | 'findings'>('chunks');
   const run = useData<ChunkRun>(`/chunk-runs/${runId}`);
   const query = new URLSearchParams({ offset: String(offset), limit: '20' });

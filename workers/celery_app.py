@@ -11,6 +11,7 @@ from app.services.chunking import ChunkService
 from app.services.embedding import EmbeddingService
 from app.services.parsing import ParseService
 from app.services.queue import receive
+from app.services.sparse_index import SparseIndexService
 from app.services.storage import S3ObjectStorage
 from app.vectorindex.qdrant import QdrantVectorIndex
 from celery import Celery
@@ -92,6 +93,10 @@ def create_celery(settings: Settings | None = None) -> Any:
             sessions, config.embedding, config.index, model_factory=model, index_factory=index
         )
 
+    def sparse_service(sessions: Any) -> SparseIndexService:
+        """Lexical indexing needs no model: it is the analyzer, PostgreSQL and nothing else."""
+        return SparseIndexService(sessions, config.sparse_analyzer, config.sparse_index)
+
     @application.task(name="ingestion.receive")
     def receipt(message_id: str) -> None:
         """Confirm durable receipt, then run the M2 parse pipeline for the claimed job.
@@ -112,11 +117,18 @@ def create_celery(settings: Settings | None = None) -> Any:
                 kind = message.kind if message else None
                 chunk_run_id = message.chunk_run_id if message else None
                 embedding_run_id = message.embedding_run_id if message else None
+                sparse_index_id = message.sparse_index_id if message else None
             if kind == "CHUNKING" and chunk_run_id:
                 chunks.run(chunk_run_id)
                 embedding_service(sessions).schedule(job_id)
             elif kind == "EMBEDDING" and embedding_run_id:
                 embedding_service(sessions).run(embedding_run_id)
+                # The lexical lane follows the dense one and is built from its chunk set, so it
+                # is scheduled here rather than independently; a dense run that failed leaves
+                # the job outside READY_FOR_RETRIEVAL and schedules nothing.
+                sparse_service(sessions).schedule(job_id)
+            elif kind == "SPARSE_INDEX" and sparse_index_id:
+                sparse_service(sessions).run(sparse_index_id)
             elif kind == "PARSING":
                 parse_service(sessions, storage).run(job_id)
                 chunks.schedule(job_id)

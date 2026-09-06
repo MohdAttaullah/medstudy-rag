@@ -20,7 +20,14 @@ from app.core.config import Settings
 
 FIXTURE = Path("backend/tests/fixtures/parsing/table.pdf")
 DEADLINE_SECONDS = int(sys.argv[1]) if len(sys.argv) > 1 else 1200
-TERMINAL = {"READY_FOR_RETRIEVAL", "NEEDS_REVIEW", "FAILED", "QUARANTINED", "CANCELLED"}
+TERMINAL = {
+    "READY_FOR_RETRIEVAL",
+    "RETRIEVAL_READY",
+    "NEEDS_REVIEW",
+    "FAILED",
+    "QUARANTINED",
+    "CANCELLED",
+}
 
 settings = Settings()
 credential = next(item for item in settings.dev_principals if item.role == "admin")
@@ -58,14 +65,17 @@ with httpx.Client(base_url="http://127.0.0.1:5173", timeout=60) as client:
         if job["status"] in TERMINAL:
             break
         time.sleep(3)
-    assert job.get("status") == "READY_FOR_RETRIEVAL", (
+    assert job.get("status") in {"READY_FOR_RETRIEVAL", "RETRIEVAL_READY"}, (
         f"ended in {job.get('status')}: "
         f"{job.get('last_error_code')} {job.get('last_error_message')}"
     )
     stages = [event["to_status"] for event in job["events"]]
-    assert stages[-4:] == ["EMBEDDING", "INDEXING", "VERIFYING_INDEX", "READY_FOR_RETRIEVAL"], (
-        stages
-    )
+    assert stages[stages.index("EMBEDDING") : stages.index("EMBEDDING") + 4] == [
+        "EMBEDDING",
+        "INDEXING",
+        "VERIFYING_INDEX",
+        "READY_FOR_RETRIEVAL",
+    ], stages
 
     summary = client.get(f"{base}/embedding", headers=headers).json()
     run = summary["embedding_run"]
@@ -136,11 +146,16 @@ with httpx.Client(base_url="http://127.0.0.1:5173", timeout=60) as client:
     versions = client.get(f"{base.rsplit('/', 2)[0]}/versions", headers=headers).json()
     current = next(item for item in versions["items"] if item["id"] == ids["version_id"])
     assert current["searchable"] is False
-    assert current["ingestion_status"] == "READY_FOR_RETRIEVAL"
+    assert current["ingestion_status"] in {
+        "READY_FOR_RETRIEVAL",
+        "SPARSE_INDEXING",
+        "VERIFYING_SPARSE_INDEX",
+        "RETRIEVAL_READY",
+    }
     assert client.get(f"{base}/embedding").status_code == 401
 
 with httpx.Client(base_url="http://127.0.0.1:8000", timeout=30) as client:
-    assert client.get("/health/live").json()["milestone"] == "M4"
+    assert client.get("/health/live").json()["milestone"] == "M5"
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     for series in (

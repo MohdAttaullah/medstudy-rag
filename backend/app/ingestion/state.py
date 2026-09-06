@@ -9,10 +9,17 @@ from app.models.documents import DocumentVersion, IngestionJob, IngestionStageEv
 from app.models.enums import Status
 from app.observability.ingestion import audit
 
-# M4 stops at READY_FOR_RETRIEVAL, which means the corpus index for this version verified and is
-# technically eligible for retrieval. It does not mean the document is medically answerable:
-# query retrieval, reranking, grounding and answering are later milestones and READY stays
-# unreachable until they exist.
+# M5 stops at RETRIEVAL_READY. The states before it mean progressively more, and the difference
+# matters:
+#
+#   READY_FOR_RETRIEVAL  the dense index for this version verified point for point;
+#   RETRIEVAL_READY      the lexical index also verified, and both lanes were built from the same
+#                        chunk dataset, so this version can take part in hybrid retrieval.
+#
+# RETRIEVAL_READY still does **not** mean the document is medically answerable. It says evidence
+# candidates can be found, not that any answer may be generated from them: reranking, context
+# expansion, evidence sufficiency, grounding and citation validation are later milestones, and
+# READY stays unreachable until they exist.
 FAILURE_STATES = frozenset(
     {Status.FAILED, Status.QUARANTINED, Status.NEEDS_REVIEW, Status.CANCELLED}
 )
@@ -33,7 +40,10 @@ TRANSITIONS: dict[Status, frozenset[Status]] = {
     Status.EMBEDDING: frozenset({Status.INDEXING, *FAILURE_STATES}),
     Status.INDEXING: frozenset({Status.VERIFYING_INDEX, *FAILURE_STATES}),
     Status.VERIFYING_INDEX: frozenset({Status.READY_FOR_RETRIEVAL, *FAILURE_STATES}),
-    Status.READY_FOR_RETRIEVAL: frozenset({Status.CANCELLED}),
+    Status.READY_FOR_RETRIEVAL: frozenset({Status.SPARSE_INDEXING, *FAILURE_STATES}),
+    Status.SPARSE_INDEXING: frozenset({Status.VERIFYING_SPARSE_INDEX, *FAILURE_STATES}),
+    Status.VERIFYING_SPARSE_INDEX: frozenset({Status.RETRIEVAL_READY, *FAILURE_STATES}),
+    Status.RETRIEVAL_READY: frozenset({Status.CANCELLED}),
     Status.FAILED: frozenset({Status.CANCELLED}),
     Status.QUARANTINED: frozenset({Status.CANCELLED}),
     Status.NEEDS_REVIEW: frozenset({Status.CANCELLED}),
@@ -47,6 +57,7 @@ REPARSE_ORIGINS = frozenset(
         Status.READY_FOR_CHUNKING,
         Status.READY_FOR_EMBEDDING,
         Status.READY_FOR_RETRIEVAL,
+        Status.RETRIEVAL_READY,
         Status.NEEDS_REVIEW,
         Status.FAILED,
     }
@@ -55,12 +66,20 @@ RECHUNK_ORIGINS = frozenset(
     {
         Status.READY_FOR_EMBEDDING,
         Status.READY_FOR_RETRIEVAL,
+        Status.RETRIEVAL_READY,
         Status.NEEDS_REVIEW,
         Status.FAILED,
     }
 )
-# Re-embedding rebuilds vectors and the index without reparsing or rechunking the source.
-REEMBED_ORIGINS = frozenset({Status.READY_FOR_RETRIEVAL, Status.NEEDS_REVIEW, Status.FAILED})
+# Re-embedding rebuilds vectors and the dense index without reparsing or rechunking the source.
+# It necessarily rebuilds the lexical index too, because the two lanes must stay on one chunk
+# dataset; the pipeline continues through the sparse stages rather than stopping at the dense one.
+REEMBED_ORIGINS = frozenset(
+    {Status.READY_FOR_RETRIEVAL, Status.RETRIEVAL_READY, Status.NEEDS_REVIEW, Status.FAILED}
+)
+# Rebuilding only the lexical lane: the analyzer changed, the vectors did not. Deliberately
+# explicit, and it consumes the same bounded retry budget as every other reprocessing path.
+REINDEX_SPARSE_ORIGINS = frozenset({Status.RETRIEVAL_READY, Status.NEEDS_REVIEW, Status.FAILED})
 
 
 def require_transition(
@@ -71,7 +90,16 @@ def require_transition(
     reparse: bool = False,
     rechunk: bool = False,
     reembed: bool = False,
+    resparse: bool = False,
 ) -> None:
+    if resparse:
+        if current in REINDEX_SPARSE_ORIGINS and target == Status.READY_FOR_RETRIEVAL:
+            return
+        raise DomainError(
+            "INGESTION_INVALID_TRANSITION",
+            "Only indexed, failed or flagged jobs can have their lexical index rebuilt.",
+            409,
+        )
     if reembed:
         if current in REEMBED_ORIGINS and target == Status.READY_FOR_EMBEDDING:
             return
@@ -164,13 +192,20 @@ def transition(
     reparse: bool = False,
     rechunk: bool = False,
     reembed: bool = False,
+    resparse: bool = False,
     error_code: str | None = None,
     error_message: str | None = None,
 ) -> None:
     require_transition(
-        job.status, target, retry=retry, reparse=reparse, rechunk=rechunk, reembed=reembed
+        job.status,
+        target,
+        retry=retry,
+        reparse=reparse,
+        rechunk=rechunk,
+        reembed=reembed,
+        resparse=resparse,
     )
-    if retry or reparse or rechunk or reembed:
+    if retry or reparse or rechunk or reembed or resparse:
         if job.retry_count >= job.max_retries:
             raise DomainError("INGESTION_RETRY_EXHAUSTED", "The retry limit has been reached.", 409)
         job.retry_count += 1
@@ -188,9 +223,10 @@ def transition(
     if target == Status.QUEUED:
         job.queued_at = now
     # READY_FOR_CHUNKING completes the M2 job; it is not readiness for retrieval or answering.
-    # READY_FOR_RETRIEVAL completes the M4 job. It means the index verified, not that the
-    # document can be answered from: retrieval and answering are not implemented.
-    if target in FAILURE_STATES or target == Status.READY_FOR_RETRIEVAL:
+    # READY_FOR_RETRIEVAL is now an intermediate state: the dense index verified and the lexical
+    # index is next. RETRIEVAL_READY completes the M5 job. It means both lanes verified on one
+    # chunk dataset, not that the document can be answered from: answering is not implemented.
+    if target in FAILURE_STATES or target == Status.RETRIEVAL_READY:
         job.completed_at = now
     if target == Status.CANCELLED:
         job.cancelled_at = now

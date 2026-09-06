@@ -1,5 +1,37 @@
 # Changelog
 
+## M5 - 2026-09-06
+
+- Added query-side retrieval with the MedCPT Query Encoder pinned by revision and by both weight
+  and tokenizer checksum, reproducing the released representation: CLS pooling, 768 dimensions,
+  unnormalized, 64-token maximum, inner-product similarity against the M4 article vectors.
+- Added a versioned biomedical BM25 lane in PostgreSQL whose analyzer keeps identifiers intact —
+  HLA-B27, CYP3A4, Na+/K+-ATPase, HbA1c, IL-6, mg/kg, 7.5% — with stopwords disabled and no
+  synonym or abbreviation expansion, enforced by a database constraint.
+- Stored raw term frequencies and document lengths rather than pre-weighted scores, so BM25 k1 and
+  b are runtime-safe and inverse document frequency is scoped to the tenant's own active corpus.
+- Added reciprocal rank fusion with deterministic ties, and DENSE_ONLY, BM25_ONLY and HYBRID_RRF
+  modes. Raw lane scores are carried as diagnostics and never added together.
+- Made dense/lexical corpus alignment fail closed: a version is searchable only when both lanes are
+  active, verified and built from the same chunk dataset.
+- Added a durable sparse-index lifecycle with reconciliation against the dense lane's own recorded
+  chunk set, activation only after verification, and preservation of the previous active index when
+  a replacement fails.
+- Rejected over-long queries with a structured error instead of truncating them, and kept query
+  text out of logs, traces and the bounded query-vector cache.
+- Moved interactive query encoding into its own internal service with an offline provisioned model
+  cache, so the API and dispatcher images carry no torch and no request downloads a model.
+- Added a retrieval API, sparse-index inspection, an explicit lexical rebuild, and a Retrieval
+  Inspector UI with lane comparison, execution trace and candidate to source-page navigation.
+- Added a gold retrieval dataset and an evaluation harness reporting Recall@K, MRR, nDCG, precision,
+  per-category results, per-query diagnostics, failure classification, negative-case score
+  separation and query-boundary behaviour, with the dataset hash recorded in every report.
+- Measured, and reported as measurements: the fused RRF score does not separate answerable from
+  unanswerable queries and must not be used as an evidence-sufficiency signal.
+- Advanced the pipeline to RETRIEVAL_READY. Ask remains disabled, READY remains unreachable, every
+  version remains database-constrained unsearchable, and every retrieval response states
+  answering_enabled: false. No reranking, expansion, grounding or generation exists.
+
 ## M4 - 2026-09-06
 
 - Added document-side embeddings with the MedCPT Article Encoder pinned by revision and weight

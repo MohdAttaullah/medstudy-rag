@@ -43,7 +43,7 @@ with httpx.Client(base_url="http://127.0.0.1:5173", timeout=30) as client:
     assert invalid.json()["error"]["code"] == "UPLOAD_INVALID_PDF"
     assert client.get(f"/documents/{doc['id']}").status_code == 200
 with httpx.Client(base_url="http://127.0.0.1:8000", timeout=30) as client:
-    assert client.get("/health/live").json()["milestone"] == "M4"
+    assert client.get("/health/live").json()["milestone"] == "M5"
     ready = client.get("/health/ready")
     assert ready.status_code == 200 and all(ready.json()["dependencies"].values())
     metrics = client.get("/metrics")

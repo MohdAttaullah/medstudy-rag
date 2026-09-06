@@ -23,7 +23,7 @@ def test_liveness_does_not_require_infrastructure(config: Settings) -> None:
     with TestClient(create_app(config, StubProbe({"postgres": False}))) as client:
         response = client.get("/health/live")
     assert response.status_code == 200
-    assert response.json() == {"status": "alive", "milestone": "M4"}
+    assert response.json() == {"status": "alive", "milestone": "M5"}
     UUID(response.headers["X-Request-ID"])
 
 

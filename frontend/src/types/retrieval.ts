@@ -1,0 +1,102 @@
+/**
+ * M5 wire types.
+ *
+ * There is no answer field, no confidence and no vector, and none may be added: this milestone
+ * returns ranked evidence candidates with their provenance, and a client that could render an
+ * "answer" would be rendering something the server never produced.
+ */
+
+export interface QueryEncoderVersion {
+  id: string; model_id: string; model_revision: string; tokenizer_revision: string;
+  model_checksum: string; tokenizer_checksum: string; embedding_dimension: number;
+  pooling_strategy: string; normalization: string; distance_metric: string;
+  max_query_tokens: number; dtype: string; normalization_version: string;
+  configuration_version: string; semantics_fingerprint: string;
+  library_versions: Record<string, unknown>;
+}
+
+export interface SparseAnalyzer {
+  version: string; analyzer_name: string; analyzer_version: string;
+  unicode_normalization: string; case_policy: string; compound_policy: string;
+  stopwords: string[]; min_term_length: number; max_term_length: number; expansion: string;
+}
+
+export interface SparseIndexVersion {
+  id: string; analyzer_name: string; analyzer_version: string; unicode_normalization: string;
+  case_policy: string; compound_policy: string; stopword_policy: string; stopword_count: number;
+  min_term_length: number; max_term_length: number; expansion: string;
+  configuration_version: string; analyzer_fingerprint: string;
+}
+
+export interface SparseIndex {
+  id: string; document_version_id: string; chunk_run_id: string; sparse_index_version_id: string;
+  status: string; is_active: boolean; expected_chunk_count: number; indexed_chunk_count: number;
+  verified_chunk_count: number; term_count: number; posting_count: number; total_length: number;
+  corpus_fingerprint: string | null; metrics: Record<string, unknown>;
+  activated_at: string | null; duration_ms: number | null;
+  error_code: string | null; error_message: string | null;
+}
+
+export interface SparseFinding {
+  id: string; sparse_index_id: string; chunk_id: string | null;
+  severity: string; code: string; message: string; details: Record<string, unknown>;
+}
+
+export interface SparseIndexSummary {
+  document_version_id: string; ingestion_status: string; sparse_indexes: number;
+  sparse_index: SparseIndex | null; sparse_index_version: SparseIndexVersion | null;
+  finding_counts: Record<string, number>; chunk_types: Record<string, number>;
+  /** Searchable, never answerable. */
+  retrieval_ready: boolean; lanes_aligned: boolean;
+}
+
+export interface RetrievalStatus {
+  tenant_id: string; document_versions: number; chunk_runs: number;
+  dense_index_runs: number; sparse_indexes: number;
+  embedding_version_id: string | null; sparse_index_version_id: string | null;
+  query_encoder: QueryEncoderVersion | null; analyzer: SparseAnalyzer | null;
+  modes: string[]; default_mode: string; dense_top_k: number; sparse_top_k: number;
+  final_top_k: number; rrf_k: number; bm25_k1: number; bm25_b: number;
+  degradation_policy: string; corpus_error: string | null; answering_enabled: false;
+}
+
+export interface Provenance {
+  document_id: string; document_version_id: string; chunk_run_id: string;
+  document_title: string; source_type: string; authority_level: string;
+  subject: string | null; specialty: string | null; chunk_type: string;
+  page_start: number | null; page_end: number | null; sequence_number: number;
+  parent_chunk_id: string | null; question_id: string | null; source_element_ids: string[];
+}
+
+/** Ranks and scores are retrieval diagnostics. They are not confidence and not correctness. */
+export interface Candidate {
+  chunk_id: string; fused_rank: number; fused_score: number;
+  dense_rank: number | null; dense_score: number | null;
+  sparse_rank: number | null; sparse_score: number | null;
+  lanes: string[]; matched_terms: string[]; preview: string; provenance: Provenance;
+}
+
+export interface LaneHit {
+  chunk_id: string; rank: number; score: number;
+  chunk_type: string | null; source_type: string | null; authority_level: string | null;
+  matched_terms: string[];
+}
+
+export interface RetrievalTrace {
+  correlation_id: string; mode: string; retrieval_config_version: string;
+  retrieval_config_fingerprint: string; query_encoder_version_id: string | null;
+  query_encoder_fingerprint: string | null; query_hash: string;
+  query_token_count: number | null; normalization_version: string;
+  embedding_version_id: string | null; sparse_index_version_id: string | null;
+  index_run_ids: string[]; sparse_index_ids: string[]; chunk_run_ids: string[];
+  dense_top_k: number; sparse_top_k: number; final_top_k: number; rrf_k: number;
+  dense_weight: number; sparse_weight: number; bm25_k1: number; bm25_b: number;
+  dense_candidates: number; sparse_candidates: number; fused_candidates: number;
+  durations_ms: Record<string, number>; query_vector_cached: boolean;
+}
+
+export interface SearchResponse {
+  correlation_id: string; mode: string; candidates: Candidate[];
+  dense: LaneHit[]; sparse: LaneHit[]; trace: RetrievalTrace;
+  warnings: string[]; answering_enabled: false;
+}

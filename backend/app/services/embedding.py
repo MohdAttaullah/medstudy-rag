@@ -250,6 +250,7 @@ class EmbeddingService:
             if job.status not in {
                 Status.READY_FOR_EMBEDDING,
                 Status.READY_FOR_RETRIEVAL,
+                Status.RETRIEVAL_READY,
                 Status.NEEDS_REVIEW,
                 Status.FAILED,
             }:

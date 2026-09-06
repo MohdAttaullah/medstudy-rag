@@ -9,6 +9,12 @@ from app.core.chunking_config import ChunkingConfig
 from app.core.embedding_config import EmbeddingConfig, IndexConfig
 from app.core.ingestion_config import IngestionConfig
 from app.core.parsing_config import ParsingConfig
+from app.core.retrieval_config import (
+    QueryEncoderConfig,
+    RetrievalConfig,
+    SparseAnalyzerConfig,
+    SparseIndexConfig,
+)
 from app.security.auth import DevCredential
 
 
@@ -75,9 +81,27 @@ class Settings(BaseSettings):
     chunking: ChunkingConfig = ChunkingConfig()
     embedding: EmbeddingConfig = EmbeddingConfig()
     index: IndexConfig = IndexConfig()
+    query_encoder: QueryEncoderConfig = QueryEncoderConfig()
+    sparse_analyzer: SparseAnalyzerConfig = SparseAnalyzerConfig()
+    sparse_index: SparseIndexConfig = SparseIndexConfig()
+    retrieval: RetrievalConfig = RetrievalConfig()
     dev_principals: tuple[DevCredential, ...] = ()
     generator: ModelSelection | None = None
     verifier: ModelSelection | None = None
+
+    @model_validator(mode="after")
+    def retrieval_vector_spaces_agree(self) -> Self:
+        """The query encoder and the article encoder must describe one vector space.
+
+        Checked at startup rather than at the first query, because a mismatch is a configuration
+        error that would otherwise surface as a plausible-looking but meaningless ranking.
+        """
+        divergent = self.query_encoder.incompatibility(self.embedding)
+        if divergent:
+            raise ValueError(
+                f"Query and article encoders are not in the same vector space: {divergent}"
+            )
+        return self
 
     @model_validator(mode="after")
     def reject_unhardened_production(self) -> Self:

@@ -80,19 +80,14 @@ def test_parse_transitions_rejected(before, after):
         require_transition(Status(before), Status(after))
 
 
-def test_m5_states_are_not_executable():
-    """The pipeline now stops at READY_FOR_RETRIEVAL, and READY remains unreachable.
-
-    The boundary has moved once per milestone, deliberately and with a reviewed migration each
-    time: M2 stopped at READY_FOR_CHUNKING, M3 at READY_FOR_EMBEDDING, M4 at READY_FOR_RETRIEVAL.
-    READY is reserved for a version that is genuinely answerable, which needs query retrieval,
-    grounding and verification. None of those exist, so nothing may enter it.
-    """
+def test_answering_states_remain_unreachable_after_m5():
+    """M5 exposes retrieval candidates; the answering boundary remains closed."""
     reachable = {target for targets in TRANSITIONS.values() for target in targets}
     assert Status.READY not in reachable
     assert Status.READY not in TRANSITIONS
-    # READY_FOR_RETRIEVAL means the index verified, not that the document can be answered from.
-    assert TRANSITIONS[Status.READY_FOR_RETRIEVAL] == frozenset({Status.CANCELLED})
+    assert Status.SPARSE_INDEXING in TRANSITIONS[Status.READY_FOR_RETRIEVAL]
+    assert Status.RETRIEVAL_READY in TRANSITIONS[Status.VERIFYING_SPARSE_INDEX]
+    assert TRANSITIONS[Status.RETRIEVAL_READY] == frozenset({Status.CANCELLED})
 
 
 # --------------------------------------------------------------------------- normalization

@@ -25,6 +25,7 @@ DEADLINE_SECONDS = int(sys.argv[1]) if len(sys.argv) > 1 else 900
 TERMINAL = {
     "READY_FOR_EMBEDDING",
     "READY_FOR_RETRIEVAL",
+    "RETRIEVAL_READY",
     "NEEDS_REVIEW",
     "FAILED",
     "QUARANTINED",
@@ -67,7 +68,7 @@ with httpx.Client(base_url="http://127.0.0.1:5173", timeout=60) as client:
         if job["status"] in TERMINAL:
             break
         time.sleep(3)
-    assert job.get("status") in {"READY_FOR_EMBEDDING", "READY_FOR_RETRIEVAL"}, (
+    assert job.get("status") in {"READY_FOR_EMBEDDING", "READY_FOR_RETRIEVAL", "RETRIEVAL_READY"}, (
         f"ended in {job.get('status')}: "
         f"{job.get('last_error_code')} {job.get('last_error_message')}"
     )
@@ -125,7 +126,7 @@ with httpx.Client(base_url="http://127.0.0.1:5173", timeout=60) as client:
     assert client.get(f"{base}/chunk-runs").status_code == 401
 
 with httpx.Client(base_url="http://127.0.0.1:8000", timeout=30) as client:
-    assert client.get("/health/live").json()["milestone"] == "M4"
+    assert client.get("/health/live").json()["milestone"] == "M5"
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     for series in ("chunk_runs_by_status", "chunk_runs_by_result", "chunks_by_type"):

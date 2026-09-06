@@ -6,6 +6,8 @@ x-api-environment: &api-environment
   MEDRAG_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-medrag}:${POSTGRES_PASSWORD:?Run scripts/init_local_env.py}@postgres:5432/${POSTGRES_DB:-medrag}
   MEDRAG_REDIS_URL: redis://redis:6379/0
   MEDRAG_QDRANT_URL: http://qdrant:6333
+  MEDRAG_QUERY_ENCODER__ENDPOINT: http://retrieval:8010
+  MEDRAG_QUERY_ENCODER__OFFLINE: "true"
   MEDRAG_S3_ENDPOINT: http://minio:9000
   MEDRAG_S3_REGION: ${MEDRAG_S3_REGION:-us-east-1}
   MEDRAG_S3_BUCKET: ${MEDRAG_S3_BUCKET:-medical-rag-originals}
@@ -125,6 +127,25 @@ services:
       redis: {condition: service_healthy}
       minio-init: {condition: service_completed_successfully}
 
+  retrieval:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: infrastructure/docker/worker.Dockerfile
+    environment:
+      MEDRAG_QUERY_ENCODER__MODEL_CACHE_DIR: /home/medrag/models/embeddings
+      MEDRAG_QUERY_ENCODER__OFFLINE: "true"
+      MEDRAG_QUERY_ENCODER__TORCH_THREADS: "4"
+    volumes:
+      - "query-models:/home/medrag/models/embeddings"
+    command: ["uvicorn", "app.retrieval_service:create_app", "--factory", "--host", "0.0.0.0", "--port", "8010", "--no-access-log"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8010/health/ready', timeout=30)"]
+      interval: 15s
+      timeout: 35s
+      start_period: 60s
+      retries: 10
+
   dispatcher:
     profiles: ["app", "workers"]
     build:
@@ -138,6 +159,7 @@ services:
       minio-init: {condition: service_completed_successfully}
 
 volumes:
+  query-models:
   parser-models:
   postgres-data:
   qdrant-data:

@@ -43,6 +43,15 @@ class StoredPoint:
     payload: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True, slots=True)
+class ScoredPoint:
+    """One search result. `score` is the configured similarity, a retrieval diagnostic only."""
+
+    point_id: UUID
+    score: float
+    payload: dict[str, Any] = field(default_factory=dict)
+
+
 class VectorIndex(Protocol):
     def ensure_schema(self, schema: VectorSchema) -> bool:
         """Create the collection and payload indexes if absent. True when newly created.
@@ -62,6 +71,23 @@ class VectorIndex(Protocol):
     ) -> tuple[StoredPoint, ...]: ...
 
     def scroll_ids(self, schema: VectorSchema, selector: dict[str, Any]) -> tuple[UUID, ...]: ...
+
+    def search(
+        self,
+        schema: VectorSchema,
+        vector: tuple[float, ...],
+        *,
+        limit: int,
+        selector: dict[str, Any],
+        any_selector: dict[str, tuple[str, ...]] | None = None,
+    ) -> tuple[ScoredPoint, ...]:
+        """Nearest points under the schema's metric, filtered server-side.
+
+        `selector` and `any_selector` are combined as a conjunction and are the only way to reach
+        points: there is no unfiltered search on this interface, because a retrieval that forgot
+        its tenant scope would be a cross-tenant disclosure rather than a bug in ranking.
+        """
+        ...
 
     def delete(self, schema: VectorSchema, selector: dict[str, Any]) -> int: ...
 

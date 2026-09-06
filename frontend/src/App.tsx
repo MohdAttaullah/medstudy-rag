@@ -1,3 +1,4 @@
+import { RetrievalInspector } from './features/retrieval/RetrievalInspector';
 import { ChunkInspector } from './features/chunking/ChunkInspector';
 import { IndexInspector } from './features/embedding/IndexInspector';
 import { useQuery } from '@tanstack/react-query';
@@ -11,7 +12,7 @@ import { ParseInspector } from './features/parsing/ParseInspector';
 
 const navigation = [
   ['ask', 'Ask'], ['library', 'Library'], ['settings', 'Settings'],
-  ['evaluations', 'Evaluations'], ['operations', 'Operations'], ['audit', 'Audit'],
+  ['retrieval', 'Retrieval inspector'], ['evaluations', 'Evaluations'], ['operations', 'Operations'], ['audit', 'Audit'],
 ] as const;
 
 function Ask() {
@@ -21,8 +22,8 @@ function Ask() {
     <p className="intro">Explore medical knowledge with answers grounded in your source library.</p>
     <section className="notice" aria-labelledby="evidence-title">
       <span className="status-dot" aria-hidden="true" />
-      <div><h2 id="evidence-title">No indexed evidence available</h2>
-        <p>Answering will become available when ingestion, retrieval, and verification are implemented.
+      <div><h2 id="evidence-title">Answering is not available</h2>
+        <p>Answering will become available when evidence verification and grounded generation are implemented.
           This workspace cannot answer medical questions yet.</p></div>
     </section>
     <label htmlFor="question">Your educational medical question</label>
@@ -68,7 +69,7 @@ function Workspace() {
         <NavLink key={path} to={`/${path}`}>{label}</NavLink>)}</nav>
       <div className="sidebar-note">Educational use<br /><span>Not for patient diagnosis or treatment.</span></div>
     </aside>
-    <div className="content"><header><span>Knowledge workspace</span><span className="badge">M4 / Indexing</span></header>
+    <div className="content"><header><span>Knowledge workspace</span><span className="badge">M5 / Retrieval</span></header>
       <main id="main" tabIndex={-1}><Routes>
         <Route path="/" element={<Navigate to="/ask" replace />} />
         <Route path="/ask" element={<Ask />} />
@@ -79,6 +80,7 @@ function Workspace() {
         <Route path="/documents/:id/versions/:versionId/parse/:runId" element={<ParseInspector />} />
         <Route path="/settings" element={<PlannedPage title="Settings" description="Versioned configuration for chunking, retrieval, models, and evidence policy." />} />
         <Route path="/evaluations" element={<PlannedPage title="Evaluations" description="Measure retrieval, citation support, and appropriate abstention independently." />} />
+        <Route path="/retrieval" element={<RetrievalInspector />} />
         <Route path="/operations" element={<Operations />} />
         <Route path="/audit" element={<PlannedPage title="Audit history" description="Inspect authorized activity and reproducible answer provenance." />} />
         <Route path="*" element={<PlannedPage title="Page not found" description="Choose a workspace page from the navigation." />} />

@@ -171,6 +171,7 @@ class OutboxMessage(UUIDTimestampMixin, Base):
     kind: Mapped[str] = mapped_column(String(20), default="PARSING", server_default="PARSING")
     chunk_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("chunk_runs.id"))
     embedding_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("embedding_runs.id"))
+    sparse_index_id: Mapped[UUID | None] = mapped_column(ForeignKey("sparse_indexes.id"))
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attempts: Mapped[int] = mapped_column(default=0)

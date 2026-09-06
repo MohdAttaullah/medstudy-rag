@@ -58,6 +58,8 @@ with httpx.Client(base_url="http://127.0.0.1:5173", timeout=60) as client:
         if summary["ingestion_status"] in {
             "READY_FOR_CHUNKING",
             "READY_FOR_EMBEDDING",
+            "READY_FOR_RETRIEVAL",
+            "RETRIEVAL_READY",
             "NEEDS_REVIEW",
             "FAILED",
             "QUARANTINED",
@@ -67,9 +69,12 @@ with httpx.Client(base_url="http://127.0.0.1:5173", timeout=60) as client:
     # M3 chunks immediately after parsing, so the version may already have advanced past
     # READY_FOR_CHUNKING by the time this poll observes it. Either state proves the parse.
     status = summary.get("ingestion_status")
-    assert status in {"READY_FOR_CHUNKING", "READY_FOR_EMBEDDING"}, (
-        f"ended in {status}: {summary.get('parse_run')}"
-    )
+    assert status in {
+        "READY_FOR_CHUNKING",
+        "READY_FOR_EMBEDDING",
+        "READY_FOR_RETRIEVAL",
+        "RETRIEVAL_READY",
+    }, f"ended in {status}: {summary.get('parse_run')}"
 
     run = summary["parse_run"]
     assert run["is_active"] and run["status"] == "SUCCEEDED"
@@ -112,7 +117,7 @@ with httpx.Client(base_url="http://127.0.0.1:5173", timeout=60) as client:
     assert client.get(f"{base}/parse", headers={}).status_code == 401
 
 with httpx.Client(base_url="http://127.0.0.1:8000", timeout=30) as client:
-    assert client.get("/health/live").json()["milestone"] == "M4"
+    assert client.get("/health/live").json()["milestone"] == "M5"
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     for series in ("parse_runs_by_status", "parse_runs_by_result", "parse_pages_total"):

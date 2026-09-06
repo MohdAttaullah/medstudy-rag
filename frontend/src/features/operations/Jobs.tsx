@@ -28,14 +28,14 @@ export function Jobs({ documentId }: { documentId?: string }) {
   const [error, setError] = useState('');
   const jobs = useQuery({ queryKey: ['jobs', documentId, offset, status],
     queryFn: () => api<Page<Job>>(token, `/ingestion/jobs?offset=${offset}${documentId ? '&document_id=' + documentId : ''}${status ? '&status=' + status : ''}`), refetchInterval: 5000 });
-  async function action(job: Job, name: 'retry' | 'reparse' | 'rechunk' | 'reembed' | 'cancel') {
+  async function action(job: Job, name: 'retry' | 'reparse' | 'rechunk' | 'reembed' | 'reindex-sparse' | 'cancel') {
     setBusy(job.id); setError('');
-    try { await api(token, '/ingestion/jobs/' + job.id + '/' + name, { method: 'POST', ...(['rechunk', 'reembed'].includes(name) ? { body: JSON.stringify({ force: true }) } : {}) });
+    try { await api(token, '/ingestion/jobs/' + job.id + '/' + name, { method: 'POST', ...(['rechunk', 'reembed'].includes(name) ? { body: JSON.stringify({ force: true }) } : name === 'reindex-sparse' ? { body: '{}' } : {}) });
       for (const queryKey of [['jobs'], ['document']]) await queries.invalidateQueries({ queryKey }); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'The action failed.'); } finally { setBusy(''); }
   }
   return <section className="panel"><div className="section-heading"><h2>Ingestion jobs</h2><label>Status filter<select value={status} onChange={e => { setStatus(e.target.value); setOffset(0); }}>
-    <option value="">All states</option>{['UPLOADED', 'VALIDATING', 'QUEUED', 'PARSING', 'NORMALIZING', 'ENRICHING', 'READY_FOR_CHUNKING', 'CHUNKING', 'VALIDATING_CHUNKS', 'READY_FOR_EMBEDDING', 'EMBEDDING', 'INDEXING', 'VERIFYING_INDEX', 'READY_FOR_RETRIEVAL', 'FAILED', 'QUARANTINED', 'NEEDS_REVIEW', 'CANCELLED'].map(item => <option key={item}>{item}</option>)}</select></label></div>
+    <option value="">All states</option>{['UPLOADED', 'VALIDATING', 'QUEUED', 'PARSING', 'NORMALIZING', 'ENRICHING', 'READY_FOR_CHUNKING', 'CHUNKING', 'VALIDATING_CHUNKS', 'READY_FOR_EMBEDDING', 'EMBEDDING', 'INDEXING', 'VERIFYING_INDEX', 'READY_FOR_RETRIEVAL', 'SPARSE_INDEXING', 'VERIFYING_SPARSE_INDEX', 'RETRIEVAL_READY', 'FAILED', 'QUARANTINED', 'NEEDS_REVIEW', 'CANCELLED'].map(item => <option key={item}>{item}</option>)}</select></label></div>
     {error && <p role="alert" className="error">{error}</p>}
     {jobs.isPending ? <p>Loading jobs…</p> : jobs.isError ? <p role="alert">Could not load ingestion jobs.</p> : <>
       {!jobs.data.items.length ? <p>No ingestion jobs in this view.</p> : <div className="job-list">
@@ -50,6 +50,7 @@ export function Jobs({ documentId }: { documentId?: string }) {
             {identity?.permissions.includes('ingestion:reparse') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_CHUNKING', 'READY_FOR_EMBEDDING', 'READY_FOR_RETRIEVAL', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'reparse')}>Reparse</button>}
             {identity?.permissions.includes('ingestion:rechunk') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_EMBEDDING', 'READY_FOR_RETRIEVAL', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'rechunk')}>Rechunk</button>}
             {identity?.permissions.includes('ingestion:reembed') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_EMBEDDING', 'READY_FOR_RETRIEVAL', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'reembed')}>Re-embed</button>}
+            {identity?.permissions.includes('ingestion:reindex') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_RETRIEVAL', 'RETRIEVAL_READY', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'reindex-sparse')}>Rebuild lexical index</button>}
             {identity?.permissions.includes('ingestion:cancel') && <button className="secondary" disabled={busy === job.id || job.status === 'CANCELLED'} onClick={() => void action(job, 'cancel')}>Cancel job</button>}
           </div>{selected === job.id && <JobHistory jobId={job.id} />}</article>)}</div>}
       <Pagination offset={offset} total={jobs.data.total} onChange={setOffset} />

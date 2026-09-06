@@ -1,0 +1,1343 @@
+{
+  "dataset_version": "retrieval-gold-m5-v1",
+  "notice": "SYNTHETIC EVALUATION SCAFFOLDING. Every passage below was written for this repository to exercise retrieval mechanics. It is not licensed medical content, it has not been reviewed by a clinician, and it must never be presented, quoted or relied on as medical information. Its only purpose is to make Recall@K, MRR and nDCG computable over text whose correct answers are known by construction. Replace it with a licensed, de-identified, clinician-reviewed corpus before any retrieval number is treated as evidence about real performance.",
+  "documents": [
+    {
+      "label": "d-ref",
+      "title": "Synthetic Clinical Reference (Evaluation Corpus)",
+      "source_type": "REFERENCE_BOOK",
+      "authority_level": "REFERENCE",
+      "subject": "General Medicine",
+      "specialty": "Internal Medicine"
+    },
+    {
+      "label": "d-guide",
+      "title": "Synthetic Practice Guideline (Evaluation Corpus)",
+      "source_type": "GUIDELINE",
+      "authority_level": "HIGH",
+      "subject": "General Medicine",
+      "specialty": "Cardiology"
+    },
+    {
+      "label": "d-course",
+      "title": "Synthetic Course Handout (Evaluation Corpus)",
+      "source_type": "COURSE_MATERIAL",
+      "authority_level": "UNREVIEWED",
+      "subject": "General Medicine",
+      "specialty": "Internal Medicine"
+    },
+    {
+      "label": "d-qbank",
+      "title": "Synthetic Question Bank (Evaluation Corpus)",
+      "source_type": "QUESTION_BANK",
+      "authority_level": "ASSESSMENT",
+      "subject": "General Medicine",
+      "specialty": "Internal Medicine"
+    },
+    {
+      "label": "d-key",
+      "title": "Synthetic Answer Key (Evaluation Corpus)",
+      "source_type": "ANSWER_KEY",
+      "authority_level": "ASSESSMENT",
+      "subject": "General Medicine",
+      "specialty": "Internal Medicine"
+    }
+  ],
+  "chunks": [
+    {
+      "label": "c-hla-1",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 11,
+      "page_end": 11,
+      "hierarchy": [
+        "Rheumatology",
+        "Spondyloarthropathies"
+      ],
+      "text": "HLA-B27 is a class I major histocompatibility antigen that shows a strong association with ankylosing spondylitis. The association is far from universal: many carriers of HLA-B27 never develop inflammatory back pain, and the antigen is present in a minority of the general population, so it is used to support a clinical diagnosis rather than to establish one on its own."
+    },
+    {
+      "label": "c-hla-2",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 12,
+      "page_end": 12,
+      "hierarchy": [
+        "Rheumatology",
+        "Spondyloarthropathies",
+        "Laboratory assessment"
+      ],
+      "text": "Testing for HLA-B27 is most informative when the pre-test probability of axial spondyloarthritis is intermediate. In a patient with inflammatory back pain, sacroiliitis on imaging and a positive HLA-B27 result, the combination supports the diagnosis; a negative result in the same patient does not exclude it."
+    },
+    {
+      "label": "c-cyp3a4-1",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 31,
+      "page_end": 31,
+      "hierarchy": [
+        "Clinical Pharmacology",
+        "Drug metabolism"
+      ],
+      "text": "CYP3A4 is the most abundant cytochrome P450 isoenzyme in the human liver and intestine and takes part in the metabolism of a large share of prescribed medicines. Strong inhibitors of CYP3A4 reduce the clearance of substrate drugs and raise their plasma concentrations, while strong inducers do the opposite."
+    },
+    {
+      "label": "c-cyp3a4-2",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 32,
+      "page_end": 32,
+      "hierarchy": [
+        "Clinical Pharmacology",
+        "Drug metabolism",
+        "Interactions"
+      ],
+      "text": "When a CYP3A4 inhibitor is started in a patient already taking a narrow therapeutic index substrate, the dose of the substrate may need to be reduced and the response monitored. Grapefruit juice inhibits intestinal CYP3A4 and can raise the bioavailability of some oral substrates."
+    },
+    {
+      "label": "c-brca1",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 45,
+      "page_end": 45,
+      "hierarchy": [
+        "Oncology",
+        "Hereditary cancer syndromes"
+      ],
+      "text": "BRCA1 is a tumour suppressor gene involved in homologous recombination repair of double-strand DNA breaks. Pathogenic variants in BRCA1 are inherited in an autosomal dominant pattern and are associated with a substantially increased lifetime risk of breast and ovarian cancer."
+    },
+    {
+      "label": "c-brca2",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 46,
+      "page_end": 46,
+      "hierarchy": [
+        "Oncology",
+        "Hereditary cancer syndromes"
+      ],
+      "text": "BRCA2 also participates in homologous recombination repair. Pathogenic variants confer an increased risk of breast cancer in both sexes and of ovarian, pancreatic and prostate cancer, with a risk profile that differs from BRCA1 in the pattern and typical age of onset."
+    },
+    {
+      "label": "c-il6",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 52,
+      "page_end": 52,
+      "hierarchy": [
+        "Immunology",
+        "Cytokines"
+      ],
+      "text": "IL-6 is a pleiotropic cytokine released by macrophages, fibroblasts and endothelial cells during inflammation. It drives the hepatic acute phase response, including the production of C-reactive protein, and contributes to fever and to the anaemia seen in chronic inflammatory disease."
+    },
+    {
+      "label": "c-her2",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 58,
+      "page_end": 58,
+      "hierarchy": [
+        "Oncology",
+        "Breast disease",
+        "Receptor status"
+      ],
+      "text": "HER2 is a receptor tyrosine kinase encoded by the ERBB2 gene. Amplification or overexpression of HER2 defines a distinct subgroup of breast tumours with a characteristic natural history, and receptor status is reported alongside oestrogen and progesterone receptor results."
+    },
+    {
+      "label": "c-hba1c",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 64,
+      "page_end": 64,
+      "hierarchy": [
+        "Endocrinology",
+        "Diabetes mellitus",
+        "Monitoring"
+      ],
+      "text": "HbA1c reflects average glycaemia over the preceding two to three months because glucose binds irreversibly to haemoglobin over the life span of the red cell. A value of 6.5% or above on two occasions is conventionally used as a diagnostic threshold, and conditions that shorten red cell survival make the result unreliable."
+    },
+    {
+      "label": "c-digoxin",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 71,
+      "page_end": 71,
+      "hierarchy": [
+        "Cardiology",
+        "Pharmacology",
+        "Cardiac glycosides"
+      ],
+      "text": "Digoxin inhibits the Na+/K+-ATPase pump in the cardiac myocyte membrane. The resulting rise in intracellular sodium reduces calcium extrusion through the sodium-calcium exchanger, raising intracellular calcium and increasing contractile force. Hypokalaemia increases binding to the pump and therefore the risk of toxicity."
+    },
+    {
+      "label": "c-warfarin",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 78,
+      "page_end": 78,
+      "hierarchy": [
+        "Haematology",
+        "Anticoagulation"
+      ],
+      "text": "Warfarin inhibits vitamin K epoxide reductase and so reduces the synthesis of clotting factors II, VII, IX and X. Its effect is monitored with the international normalised ratio, and because factor VII has the shortest half-life the INR rises before full antithrombotic effect is established."
+    },
+    {
+      "label": "c-amoxicillin",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 83,
+      "page_end": 83,
+      "hierarchy": [
+        "Infectious Disease",
+        "Antibacterial agents",
+        "Penicillins"
+      ],
+      "text": "Amoxicillin is an aminopenicillin with improved oral absorption compared with ampicillin. It acts by binding penicillin-binding proteins and disrupting cell wall cross-linking, and it is inactivated by beta-lactamase unless combined with an inhibitor such as clavulanic acid."
+    },
+    {
+      "label": "c-mi",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 90,
+      "page_end": 90,
+      "hierarchy": [
+        "Cardiology",
+        "Acute coronary syndromes"
+      ],
+      "text": "Myocardial infarction is myocardial cell death caused by prolonged ischaemia. It is distinguished from unstable angina by the release of cardiac troponin above the reference limit, and the electrocardiogram separates presentations with persistent ST elevation from those without."
+    },
+    {
+      "label": "c-hypertension",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 95,
+      "page_end": 95,
+      "hierarchy": [
+        "Cardiology",
+        "Hypertension"
+      ],
+      "text": "Hypertension is a sustained elevation of arterial blood pressure and is usually asymptomatic until end-organ damage appears. It is a leading modifiable contributor to stroke, ischaemic heart disease, heart failure and chronic kidney disease, and diagnosis rests on repeated measurement rather than a single reading."
+    },
+    {
+      "label": "c-hf",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 101,
+      "page_end": 101,
+      "hierarchy": [
+        "Cardiology",
+        "Heart failure"
+      ],
+      "text": "Heart failure is a clinical syndrome in which cardiac output is inadequate for the metabolic demands of the tissues, or is adequate only at the cost of raised filling pressures. Breathlessness on exertion, orthopnoea, fatigue and peripheral oedema are the characteristic features, and neurohormonal activation drives progression."
+    },
+    {
+      "label": "c-erdheim",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 108,
+      "page_end": 108,
+      "hierarchy": [
+        "Haematology",
+        "Histiocytic disorders"
+      ],
+      "text": "Erdheim-Chester disease is a rare non-Langerhans cell histiocytosis characterised by infiltration of tissues with foamy histiocytes. Symmetrical sclerosis of the long bone metadiaphyses is the classic radiological finding, and the disease may also involve the retroperitoneum, the central nervous system and the heart."
+    },
+    {
+      "label": "c-dm1",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 112,
+      "page_end": 112,
+      "hierarchy": [
+        "Endocrinology",
+        "Diabetes mellitus",
+        "Type 1"
+      ],
+      "text": "Type 1 diabetes mellitus results from immune-mediated destruction of pancreatic beta cells, producing absolute insulin deficiency. Presentation is often abrupt, with weight loss, marked polyuria and a tendency to ketoacidosis, and treatment requires insulin replacement from diagnosis."
+    },
+    {
+      "label": "c-dm2",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 113,
+      "page_end": 113,
+      "hierarchy": [
+        "Endocrinology",
+        "Diabetes mellitus",
+        "Type 2"
+      ],
+      "text": "Type 2 diabetes mellitus arises from a combination of insulin resistance and progressive beta cell failure. Onset is usually gradual and may be detected on screening before symptoms appear, and management begins with lifestyle measures alongside oral glucose-lowering therapy."
+    },
+    {
+      "label": "c-cross-1",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 120,
+      "page_end": 120,
+      "hierarchy": [
+        "Nephrology",
+        "Acute kidney injury",
+        "Staging"
+      ],
+      "text": "Acute kidney injury is staged by the rise in serum creatinine from the patient's baseline and by urine output over a defined period. Stage 1 corresponds to the smallest sustained rise, and each subsequent stage reflects a larger increment or a longer period of reduced urine output."
+    },
+    {
+      "label": "c-cross-2",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 121,
+      "page_end": 121,
+      "hierarchy": [
+        "Nephrology",
+        "Acute kidney injury",
+        "Staging"
+      ],
+      "text": "The continuation of the staging discussion notes that creatinine is a delayed marker: the concentration lags behind the fall in glomerular filtration rate, so a patient may already have significant injury when the first abnormal result is reported. Urine output criteria therefore detect some cases earlier."
+    },
+    {
+      "label": "c-table-dose",
+      "document": "d-ref",
+      "chunk_type": "TABLE",
+      "page_start": 130,
+      "page_end": 130,
+      "hierarchy": [
+        "Clinical Pharmacology",
+        "Reference tables"
+      ],
+      "caption": "Table 7.2 Illustrative oral dosing intervals for the synthetic evaluation corpus",
+      "text": "Table 7.2 Illustrative oral dosing intervals. Drug | Illustrative adult oral dose | Interval. Amoxicillin | 500 mg | every 8 hours. Metformin | 500 mg | twice daily with food. Atorvastatin | 20 mg | once daily. Ramipril | 2.5 mg | once daily. These figures are synthetic and exist only to give the evaluation corpus a table to retrieve."
+    },
+    {
+      "label": "c-formula-crcl",
+      "document": "d-ref",
+      "chunk_type": "FORMULA",
+      "page_start": 134,
+      "page_end": 134,
+      "hierarchy": [
+        "Nephrology",
+        "Reference formulae"
+      ],
+      "caption": "Estimated creatinine clearance",
+      "text": "Estimated creatinine clearance = ((140 - age) x weight in kg) / (72 x serum creatinine in mg/dL), multiplied by 0.85 for female patients. The estimate assumes stable renal function and becomes unreliable when creatinine is changing rapidly or when body composition is unusual."
+    },
+    {
+      "label": "c-formula-map",
+      "document": "d-ref",
+      "chunk_type": "FORMULA",
+      "page_start": 135,
+      "page_end": 135,
+      "hierarchy": [
+        "Cardiology",
+        "Reference formulae"
+      ],
+      "caption": "Mean arterial pressure",
+      "text": "Mean arterial pressure = diastolic pressure + (systolic pressure - diastolic pressure) / 3. The approximation assumes a normal heart rate; at high rates diastole shortens and the true mean lies closer to the arithmetic average of the two pressures."
+    },
+    {
+      "label": "c-figure-cardiac",
+      "document": "d-ref",
+      "chunk_type": "FIGURE_CONTEXT",
+      "page_start": 140,
+      "page_end": 140,
+      "hierarchy": [
+        "Cardiology",
+        "Physiology"
+      ],
+      "caption": "Figure 9.1 Pressure and volume changes through one cardiac cycle",
+      "text": "Figure 9.1 Pressure and volume changes through one cardiac cycle. The figure plots left ventricular, aortic and left atrial pressure against time, with the ventricular volume trace beneath. Isovolumetric contraction, ejection, isovolumetric relaxation and filling are labelled, and valve opening and closure are marked on the pressure curves."
+    },
+    {
+      "label": "c-figure-nephron",
+      "document": "d-ref",
+      "chunk_type": "FIGURE_CONTEXT",
+      "page_start": 141,
+      "page_end": 141,
+      "hierarchy": [
+        "Nephrology",
+        "Physiology"
+      ],
+      "caption": "Figure 9.2 Sites of action of diuretic classes along the nephron",
+      "text": "Figure 9.2 Sites of action of diuretic classes along the nephron. The schematic follows the tubule from the proximal convoluted tubule through the loop of Henle to the collecting duct, marking where carbonic anhydrase inhibitors, loop diuretics, thiazides and potassium-sparing agents act."
+    },
+    {
+      "label": "c-bp-guideline",
+      "document": "d-guide",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 4,
+      "page_end": 4,
+      "hierarchy": [
+        "Blood pressure targets"
+      ],
+      "text": "This synthetic guideline states an office blood pressure target below 130/80 mmHg for most treated adults, provided the target is reached without symptomatic hypotension. It notes that the target should be individualised in frailty and in older patients, and that home readings run lower than office readings."
+    },
+    {
+      "label": "c-bp-course",
+      "document": "d-course",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 2,
+      "page_end": 2,
+      "hierarchy": [
+        "Cardiovascular revision notes"
+      ],
+      "text": "These synthetic revision notes state an office blood pressure target below 140/90 mmHg for treated adults. The figure conflicts with the synthetic guideline in the same corpus, and the pair exists so that retrieval of a disagreement between sources of different authority can be observed."
+    },
+    {
+      "label": "c-guide-af",
+      "document": "d-guide",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 9,
+      "page_end": 9,
+      "hierarchy": [
+        "Atrial fibrillation"
+      ],
+      "text": "In this synthetic guideline, the decision to anticoagulate in atrial fibrillation is based on estimated stroke risk rather than on the pattern of the arrhythmia, and paroxysmal atrial fibrillation is treated as carrying the same risk as persistent atrial fibrillation for that purpose."
+    },
+    {
+      "label": "c-guide-sepsis",
+      "document": "d-guide",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 14,
+      "page_end": 14,
+      "hierarchy": [
+        "Sepsis"
+      ],
+      "text": "This synthetic guideline recommends that blood cultures be taken before antimicrobial therapy where doing so does not materially delay treatment, and that the initial regimen be reviewed once culture results are available so that therapy can be narrowed."
+    },
+    {
+      "label": "c-course-abg",
+      "document": "d-course",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 6,
+      "page_end": 6,
+      "hierarchy": [
+        "Respiratory revision notes"
+      ],
+      "text": "A stepwise reading of an arterial blood gas begins with the pH, then the carbon dioxide tension, then the bicarbonate, and finally asks whether compensation is appropriate for the duration of the disturbance. A mixed picture is suggested when compensation is greater or smaller than expected."
+    },
+    {
+      "label": "c-course-list",
+      "document": "d-course",
+      "chunk_type": "LIST",
+      "page_start": 7,
+      "page_end": 7,
+      "hierarchy": [
+        "Respiratory revision notes",
+        "Causes"
+      ],
+      "text": "Causes of a raised anion gap metabolic acidosis in these synthetic notes: lactic acidosis; ketoacidosis; established renal failure; and ingestion of certain toxic alcohols. Each entry is a heading in the notes rather than a full account of the underlying mechanism."
+    },
+    {
+      "label": "c-q-hla",
+      "document": "d-qbank",
+      "chunk_type": "QUESTION",
+      "page_start": 3,
+      "page_end": 3,
+      "hierarchy": [
+        "Rheumatology questions"
+      ],
+      "text": "Question 14. A 24-year-old presents with several months of inflammatory back pain and morning stiffness lasting more than an hour. Which antigen is most strongly associated with the suspected diagnosis? A. HLA-DR4  B. HLA-B27  C. HLA-DQ2  D. HLA-A3"
+    },
+    {
+      "label": "c-q-digoxin",
+      "document": "d-qbank",
+      "chunk_type": "QUESTION",
+      "page_start": 5,
+      "page_end": 5,
+      "hierarchy": [
+        "Pharmacology questions"
+      ],
+      "text": "Question 22. Which membrane transporter is directly inhibited by digoxin in the cardiac myocyte? A. The sodium-calcium exchanger  B. The Na+/K+-ATPase pump  C. The L-type calcium channel  D. The sarcoplasmic reticulum calcium ATPase"
+    },
+    {
+      "label": "c-q-explanation",
+      "document": "d-qbank",
+      "chunk_type": "QUESTION_EXPLANATION",
+      "page_start": 5,
+      "page_end": 5,
+      "hierarchy": [
+        "Pharmacology questions",
+        "Explanations"
+      ],
+      "text": "Explanation for question 22. Inhibition of the sodium pump raises intracellular sodium, which reduces the driving force for calcium extrusion by the sodium-calcium exchanger. The exchanger is affected indirectly, which is why it is not the transporter the question asks about."
+    },
+    {
+      "label": "c-key-1",
+      "document": "d-key",
+      "chunk_type": "OTHER_STRUCTURED",
+      "page_start": 1,
+      "page_end": 1,
+      "hierarchy": [
+        "Answer key"
+      ],
+      "text": "Answer key, synthetic evaluation set, questions 11 to 25. 11 C. 12 A. 13 D. 14 B. 15 A. 16 C. 17 B. 18 D. 19 A. 20 C. 21 B. 22 B. 23 D. 24 A. 25 C. The key records the recorded letter only and carries no reasoning."
+    },
+    {
+      "label": "c-ref-troponin",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 91,
+      "page_end": 91,
+      "hierarchy": [
+        "Cardiology",
+        "Acute coronary syndromes",
+        "Biomarkers"
+      ],
+      "text": "Cardiac troponin I and T are structural proteins of the contractile apparatus and are released when myocytes are damaged. A rising or falling pattern on serial sampling distinguishes acute injury from a chronically raised concentration, which is common in renal impairment and in structural heart disease."
+    },
+    {
+      "label": "c-ref-asthma",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 150,
+      "page_end": 150,
+      "hierarchy": [
+        "Respiratory",
+        "Asthma"
+      ],
+      "text": "Asthma is characterised by variable airflow limitation and airway hyper-responsiveness with an underlying inflammatory process. Variability over time and in response to bronchodilator is what distinguishes it from fixed obstruction, and objective demonstration of that variability supports the diagnosis."
+    },
+    {
+      "label": "c-ref-copd",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 151,
+      "page_end": 151,
+      "hierarchy": [
+        "Respiratory",
+        "Chronic obstructive pulmonary disease"
+      ],
+      "text": "Chronic obstructive pulmonary disease is characterised by persistent airflow limitation that is not fully reversible. Spirometry after bronchodilator is required for the diagnosis, and the clinical picture combines emphysematous destruction with chronic airway inflammation in proportions that vary between patients."
+    },
+    {
+      "label": "c-ref-anaemia",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 160,
+      "page_end": 160,
+      "hierarchy": [
+        "Haematology",
+        "Anaemia"
+      ],
+      "text": "Anaemia is classified by red cell size into microcytic, normocytic and macrocytic groups, and this classification narrows the differential before further tests are ordered. Iron studies, reticulocyte count and a blood film usually separate the common causes within each group."
+    },
+    {
+      "label": "c-ref-thyroid",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 165,
+      "page_end": 165,
+      "hierarchy": [
+        "Endocrinology",
+        "Thyroid disease"
+      ],
+      "text": "Primary hypothyroidism produces a raised thyroid stimulating hormone with a low free thyroxine, because the pituitary responds to the falling peripheral hormone. In secondary disease the stimulating hormone is inappropriately normal or low despite the low thyroxine."
+    },
+    {
+      "label": "c-ref-stroke",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 170,
+      "page_end": 170,
+      "hierarchy": [
+        "Neurology",
+        "Cerebrovascular disease"
+      ],
+      "text": "An ischaemic stroke follows occlusion of a cerebral artery, while a haemorrhagic stroke follows rupture. The two cannot be separated clinically with sufficient confidence, so imaging is required before any treatment that would be harmful in the presence of bleeding."
+    },
+    {
+      "label": "c-ref-hepatitis",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 175,
+      "page_end": 175,
+      "hierarchy": [
+        "Gastroenterology",
+        "Liver disease"
+      ],
+      "text": "Acute hepatitis produces a predominantly hepatocellular pattern of liver enzyme rise, with aminotransferases raised out of proportion to alkaline phosphatase. A cholestatic pattern shows the reverse, and the distinction directs the initial investigation towards parenchymal or biliary disease."
+    },
+    {
+      "label": "c-ref-electrolyte",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 180,
+      "page_end": 180,
+      "hierarchy": [
+        "Nephrology",
+        "Electrolytes"
+      ],
+      "text": "Hyponatraemia is assessed by first establishing the serum osmolality, then the volume status, and then the urinary sodium concentration. The sequence matters because the same sodium concentration arises from mechanisms whose treatments are opposite to one another."
+    },
+    {
+      "label": "c-ref-immunisation",
+      "document": "d-course",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 11,
+      "page_end": 11,
+      "hierarchy": [
+        "Public health revision notes"
+      ],
+      "text": "Herd protection describes the indirect protection of unvaccinated individuals that arises when a sufficient proportion of a population is immune. The threshold proportion depends on how transmissible the organism is, so a highly transmissible infection requires a higher coverage."
+    },
+    {
+      "label": "c-ref-statistics",
+      "document": "d-course",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 13,
+      "page_end": 13,
+      "hierarchy": [
+        "Evidence revision notes"
+      ],
+      "text": "Sensitivity is the proportion of those with the condition whom a test identifies, and specificity the proportion without it whom the test correctly clears. Predictive values depend additionally on how common the condition is in the population being tested."
+    },
+    {
+      "label": "c-ref-ethics",
+      "document": "d-course",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 15,
+      "page_end": 15,
+      "hierarchy": [
+        "Professional practice revision notes"
+      ],
+      "text": "Valid consent requires that the person has capacity for the decision in question, has been given the information a reasonable person would want, and is deciding voluntarily. Capacity is assessed for a specific decision at a specific time rather than as a general attribute."
+    },
+    {
+      "label": "c-ref-abx-resistance",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 84,
+      "page_end": 84,
+      "hierarchy": [
+        "Infectious Disease",
+        "Antibacterial agents",
+        "Resistance"
+      ],
+      "text": "Beta-lactamase production is a common mechanism of resistance to penicillins, and the enzyme hydrolyses the beta-lactam ring before the drug can bind its target. Combining the antibiotic with a beta-lactamase inhibitor restores activity against organisms whose resistance depends on that enzyme."
+    },
+    {
+      "label": "c-d-hla-dr4",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 13,
+      "page_end": 13,
+      "hierarchy": [
+        "Rheumatology",
+        "Immunogenetics"
+      ],
+      "caption": null,
+      "text": "HLA-DR4 is a class II major histocompatibility antigen associated with rheumatoid arthritis in several populations. The strength of the association varies with the specific allele and with ancestry, and the antigen is not used as a diagnostic test in routine rheumatology practice."
+    },
+    {
+      "label": "c-d-hla-dq2",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 14,
+      "page_end": 14,
+      "hierarchy": [
+        "Gastroenterology",
+        "Immunogenetics"
+      ],
+      "caption": null,
+      "text": "HLA-DQ2 and HLA-DQ8 are class II antigens present in almost everyone with coeliac disease. Because they are also common in unaffected people their value is in exclusion: a negative result makes the diagnosis very unlikely, while a positive result adds little on its own."
+    },
+    {
+      "label": "c-d-mhc",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 15,
+      "page_end": 15,
+      "hierarchy": [
+        "Immunology",
+        "Major histocompatibility complex"
+      ],
+      "caption": null,
+      "text": "The major histocompatibility complex encodes class I antigens expressed on nearly all nucleated cells and class II antigens restricted largely to professional antigen presenting cells. Class I molecules present peptides to cytotoxic T cells and class II molecules to helper T cells."
+    },
+    {
+      "label": "c-d-cyp2d6",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 33,
+      "page_end": 33,
+      "hierarchy": [
+        "Clinical Pharmacology",
+        "Drug metabolism"
+      ],
+      "caption": null,
+      "text": "CYP2D6 shows marked genetic polymorphism, and the population divides into poor, intermediate, extensive and ultrarapid metabolisers. For a prodrug activated by CYP2D6 a poor metaboliser may obtain little effect, while an ultrarapid metaboliser may reach unexpectedly high active concentrations."
+    },
+    {
+      "label": "c-d-cyp2c19",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 34,
+      "page_end": 34,
+      "hierarchy": [
+        "Clinical Pharmacology",
+        "Drug metabolism"
+      ],
+      "caption": null,
+      "text": "CYP2C19 activity varies with genotype and influences the metabolism of several proton pump inhibitors and of clopidogrel, which requires the enzyme for activation. Loss-of-function variants are more frequent in some populations than others."
+    },
+    {
+      "label": "c-d-cyp1a2",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 35,
+      "page_end": 35,
+      "hierarchy": [
+        "Clinical Pharmacology",
+        "Drug metabolism"
+      ],
+      "caption": null,
+      "text": "CYP1A2 is induced by polycyclic aromatic hydrocarbons in tobacco smoke, so clearance of its substrates falls when a patient stops smoking. The change is a property of the smoke rather than of nicotine, and nicotine replacement does not maintain the induction."
+    },
+    {
+      "label": "c-d-pgp",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 36,
+      "page_end": 36,
+      "hierarchy": [
+        "Clinical Pharmacology",
+        "Transporters"
+      ],
+      "caption": null,
+      "text": "P-glycoprotein is an efflux transporter in the intestinal epithelium, the biliary canaliculus and the blood-brain barrier. Inhibition raises the systemic exposure of substrate drugs, and several inhibitors of CYP3A4 inhibit P-glycoprotein as well, so the two effects often occur together."
+    },
+    {
+      "label": "c-d-heparin",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 79,
+      "page_end": 79,
+      "hierarchy": [
+        "Haematology",
+        "Anticoagulation"
+      ],
+      "caption": null,
+      "text": "Unfractionated heparin potentiates antithrombin and is monitored with the activated partial thromboplastin time, while low molecular weight heparin has a more predictable response and is usually given by weight without routine monitoring. Neither agent depends on vitamin K."
+    },
+    {
+      "label": "c-d-doac",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 80,
+      "page_end": 80,
+      "hierarchy": [
+        "Haematology",
+        "Anticoagulation"
+      ],
+      "caption": null,
+      "text": "Direct oral anticoagulants inhibit thrombin or activated factor X directly and do not require routine monitoring of the international normalised ratio. Dose adjustment depends chiefly on renal function, age and weight rather than on a coagulation result."
+    },
+    {
+      "label": "c-d-inr",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 81,
+      "page_end": 81,
+      "hierarchy": [
+        "Haematology",
+        "Laboratory tests"
+      ],
+      "caption": null,
+      "text": "The international normalised ratio standardises the prothrombin time against an international reference preparation so that results are comparable between laboratories. It is also raised in liver disease and in vitamin K deficiency, where it reflects synthetic function rather than anticoagulation."
+    },
+    {
+      "label": "c-d-cephalosporin",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 85,
+      "page_end": 85,
+      "hierarchy": [
+        "Infectious Disease",
+        "Antibacterial agents",
+        "Cephalosporins"
+      ],
+      "caption": null,
+      "text": "Cephalosporins are beta-lactam agents grouped into generations that broadly describe their spectrum. Later generations gain activity against Gram-negative organisms while often losing some activity against staphylococci, and stability to beta-lactamase varies within each generation."
+    },
+    {
+      "label": "c-d-flucloxacillin",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 86,
+      "page_end": 86,
+      "hierarchy": [
+        "Infectious Disease",
+        "Antibacterial agents",
+        "Penicillins"
+      ],
+      "caption": null,
+      "text": "Flucloxacillin is a penicillinase-stable penicillin whose side chain protects the beta-lactam ring from staphylococcal beta-lactamase. Its spectrum is narrow, and it has little useful activity against Gram-negative organisms or enterococci."
+    },
+    {
+      "label": "c-d-macrolide",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 87,
+      "page_end": 87,
+      "hierarchy": [
+        "Infectious Disease",
+        "Antibacterial agents",
+        "Macrolides"
+      ],
+      "caption": null,
+      "text": "Macrolides bind the 50S ribosomal subunit and inhibit protein synthesis. Several are inhibitors of CYP3A4, so starting one in a patient taking a substrate can raise that drug concentration, and the interaction is a common reason to choose an alternative agent."
+    },
+    {
+      "label": "c-d-fructosamine",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 65,
+      "page_end": 65,
+      "hierarchy": [
+        "Endocrinology",
+        "Diabetes mellitus",
+        "Monitoring"
+      ],
+      "caption": null,
+      "text": "Fructosamine reflects glycation of serum proteins over the preceding two to three weeks and is used when haemoglobin-based measurement is unreliable, for instance in haemoglobinopathy or after a recent transfusion. Its reference intervals are laboratory specific."
+    },
+    {
+      "label": "c-d-cgm",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 66,
+      "page_end": 66,
+      "hierarchy": [
+        "Endocrinology",
+        "Diabetes mellitus",
+        "Monitoring"
+      ],
+      "caption": null,
+      "text": "Continuous glucose monitoring reports interstitial glucose at short intervals and describes time in range, time above range and glycaemic variability. It complements a longer-term average measure rather than replacing it, because the two summarise different windows."
+    },
+    {
+      "label": "c-d-fasting-glucose",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 67,
+      "page_end": 67,
+      "hierarchy": [
+        "Endocrinology",
+        "Diabetes mellitus",
+        "Diagnosis"
+      ],
+      "caption": null,
+      "text": "A fasting plasma glucose of 7.0 mmol/L or above on two occasions is a conventional diagnostic threshold, and an oral glucose tolerance test remains useful where fasting values are equivocal. Thresholds differ between the fasting and post-load measurements."
+    },
+    {
+      "label": "c-d-betablocker",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 72,
+      "page_end": 72,
+      "hierarchy": [
+        "Cardiology",
+        "Pharmacology"
+      ],
+      "caption": null,
+      "text": "Beta blockers reduce heart rate and contractility by antagonising beta-adrenoceptors, lowering myocardial oxygen demand. In heart failure with reduced ejection fraction they are introduced at low dose and increased slowly, because the initial negative inotropic effect can be poorly tolerated."
+    },
+    {
+      "label": "c-d-ccb",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 73,
+      "page_end": 73,
+      "hierarchy": [
+        "Cardiology",
+        "Pharmacology"
+      ],
+      "caption": null,
+      "text": "Dihydropyridine calcium channel blockers act mainly on vascular smooth muscle and lower peripheral resistance, while the non-dihydropyridine agents also slow conduction through the atrioventricular node. The distinction matters when rate control rather than vasodilatation is intended."
+    },
+    {
+      "label": "c-d-sodium-channel",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 74,
+      "page_end": 74,
+      "hierarchy": [
+        "Cardiology",
+        "Electrophysiology"
+      ],
+      "caption": null,
+      "text": "Fast sodium channels open at the start of the cardiac action potential and produce rapid depolarisation in atrial and ventricular myocytes. Agents that block them slow conduction, and their effect is greater at faster rates because more channels are in the inactivated state."
+    },
+    {
+      "label": "c-d-serca",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 75,
+      "page_end": 75,
+      "hierarchy": [
+        "Cardiology",
+        "Physiology"
+      ],
+      "caption": null,
+      "text": "The sarcoplasmic reticulum calcium ATPase returns calcium to intracellular stores during relaxation, and its activity is regulated by phospholamban. Impaired function prolongs relaxation and contributes to diastolic dysfunction independently of contractile strength."
+    },
+    {
+      "label": "c-d-cardiomyopathy",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 102,
+      "page_end": 102,
+      "hierarchy": [
+        "Cardiology",
+        "Cardiomyopathy"
+      ],
+      "caption": null,
+      "text": "Dilated cardiomyopathy describes ventricular dilatation with impaired systolic function in the absence of loading conditions or coronary disease sufficient to explain it. Causes include genetic variants, previous myocarditis, toxins and sustained tachycardia."
+    },
+    {
+      "label": "c-d-valve",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 103,
+      "page_end": 103,
+      "hierarchy": [
+        "Cardiology",
+        "Valvular disease"
+      ],
+      "caption": null,
+      "text": "Aortic stenosis produces a pressure-loaded left ventricle that hypertrophies to maintain wall stress. Symptoms appear late and their onset marks a change in prognosis, because the hypertrophied ventricle eventually fails to compensate for the fixed obstruction."
+    },
+    {
+      "label": "c-d-preload",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 104,
+      "page_end": 104,
+      "hierarchy": [
+        "Cardiology",
+        "Physiology"
+      ],
+      "caption": null,
+      "text": "Stroke volume depends on preload, afterload and contractility. Increasing end-diastolic fibre length raises the force of contraction up to a point, beyond which further filling does not increase output and instead raises filling pressures."
+    },
+    {
+      "label": "c-d-lch",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 109,
+      "page_end": 109,
+      "hierarchy": [
+        "Haematology",
+        "Histiocytic disorders"
+      ],
+      "caption": null,
+      "text": "Langerhans cell histiocytosis is a clonal proliferation of cells with dendritic features, and its presentation ranges from a solitary bone lesion to multisystem disease. It is distinguished from non-Langerhans histiocytoses by immunophenotype rather than by site."
+    },
+    {
+      "label": "c-d-sarcoid",
+      "document": "d-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 110,
+      "page_end": 110,
+      "hierarchy": [
+        "Respiratory",
+        "Granulomatous disease"
+      ],
+      "caption": null,
+      "text": "Sarcoidosis is a multisystem granulomatous disorder of unknown cause, most often affecting the lungs and intrathoracic lymph nodes. Non-caseating granulomas are the histological hallmark, and the differential includes infection and other granulomatous conditions."
+    },
+    {
+      "label": "c-d-table-fluids",
+      "document": "d-ref",
+      "chunk_type": "TABLE",
+      "page_start": 131,
+      "page_end": 131,
+      "hierarchy": [
+        "Clinical Pharmacology",
+        "Reference tables"
+      ],
+      "caption": "Table 7.3 Illustrative composition of intravenous fluids in the synthetic evaluation corpus",
+      "text": "Table 7.3 Illustrative composition of intravenous fluids. Fluid | Sodium mmol/L | Potassium mmol/L | Chloride mmol/L. 0.9% sodium chloride | 154 | 0 | 154. Compound sodium lactate | 131 | 5 | 111. 5% glucose | 0 | 0 | 0. These figures are synthetic and exist only to give the corpus a second table."
+    },
+    {
+      "label": "c-d-table-scores",
+      "document": "d-ref",
+      "chunk_type": "TABLE",
+      "page_start": 132,
+      "page_end": 132,
+      "hierarchy": [
+        "Cardiology",
+        "Reference tables"
+      ],
+      "caption": "Table 7.4 Illustrative risk score weights in the synthetic evaluation corpus",
+      "text": "Table 7.4 Illustrative risk score weights. Factor | Illustrative points. Age 65 to 74 | 1. Age 75 or above | 2. Hypertension | 1. Diabetes | 1. Prior stroke | 2. These weights are synthetic and are not any published score."
+    },
+    {
+      "label": "c-d-formula-bmi",
+      "document": "d-ref",
+      "chunk_type": "FORMULA",
+      "page_start": 136,
+      "page_end": 136,
+      "hierarchy": [
+        "General",
+        "Reference formulae"
+      ],
+      "caption": "Body mass index",
+      "text": "Body mass index = weight in kilograms / (height in metres squared). The index does not distinguish lean from fat mass, so it misclassifies people with unusual body composition in either direction, and interpretation thresholds differ between populations."
+    },
+    {
+      "label": "c-d-formula-anion",
+      "document": "d-ref",
+      "chunk_type": "FORMULA",
+      "page_start": 137,
+      "page_end": 137,
+      "hierarchy": [
+        "Nephrology",
+        "Reference formulae"
+      ],
+      "caption": "Anion gap",
+      "text": "Anion gap = (sodium + potassium) - (chloride + bicarbonate), or sodium - (chloride + bicarbonate) when potassium is omitted. The value must be interpreted alongside the albumin concentration, because albumin contributes most of the unmeasured anion."
+    },
+    {
+      "label": "c-d-figure-ecg",
+      "document": "d-ref",
+      "chunk_type": "FIGURE_CONTEXT",
+      "page_start": 142,
+      "page_end": 142,
+      "hierarchy": [
+        "Cardiology",
+        "Electrocardiography"
+      ],
+      "caption": "Figure 9.3 Timing of the electrocardiogram against the cardiac action potential",
+      "text": "Figure 9.3 Timing of the electrocardiogram against the cardiac action potential. The schematic aligns the P wave, QRS complex and T wave with atrial and ventricular depolarisation and repolarisation, and marks where the refractory periods fall relative to the surface trace."
+    },
+    {
+      "label": "c-d-figure-spirometry",
+      "document": "d-ref",
+      "chunk_type": "FIGURE_CONTEXT",
+      "page_start": 143,
+      "page_end": 143,
+      "hierarchy": [
+        "Respiratory",
+        "Lung function"
+      ],
+      "caption": "Figure 9.4 Flow-volume loops in obstructive and restrictive disease",
+      "text": "Figure 9.4 Flow-volume loops in obstructive and restrictive disease. The figure contrasts the scooped expiratory limb of airflow obstruction with the narrow, tall loop of a restrictive defect, and marks where a fixed large-airway obstruction flattens both limbs."
+    },
+    {
+      "label": "c-d-q-cyp",
+      "document": "d-qbank",
+      "chunk_type": "QUESTION",
+      "page_start": 7,
+      "page_end": 7,
+      "hierarchy": [
+        "Pharmacology questions"
+      ],
+      "caption": null,
+      "text": "Question 18. A patient stabilised on a narrow therapeutic index drug is started on a macrolide antibiotic and becomes toxic. Which enzyme is most likely responsible? A. CYP1A2  B. CYP2D6  C. CYP3A4  D. CYP2C19"
+    },
+    {
+      "label": "c-d-q-hba1c",
+      "document": "d-qbank",
+      "chunk_type": "QUESTION",
+      "page_start": 9,
+      "page_end": 9,
+      "hierarchy": [
+        "Endocrinology questions"
+      ],
+      "caption": null,
+      "text": "Question 25. Which measurement best reflects average glycaemia over the preceding two to three months? A. Fasting plasma glucose  B. Random plasma glucose  C. HbA1c  D. Fructosamine"
+    },
+    {
+      "label": "c-d-q-explanation-2",
+      "document": "d-qbank",
+      "chunk_type": "QUESTION_EXPLANATION",
+      "page_start": 9,
+      "page_end": 9,
+      "hierarchy": [
+        "Endocrinology questions",
+        "Explanations"
+      ],
+      "caption": null,
+      "text": "Explanation for question 25. The correct option reflects a window set by the life span of the red cell. Fructosamine covers a shorter window, and a single plasma glucose describes only the moment of sampling, which is why neither is the best answer here."
+    },
+    {
+      "label": "c-d-bp-elderly",
+      "document": "d-guide",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 5,
+      "page_end": 5,
+      "hierarchy": [
+        "Blood pressure targets"
+      ],
+      "caption": null,
+      "text": "This synthetic guideline adds that in adults over eighty, or in those with significant frailty, the treated target should be relaxed and the decision reviewed against symptoms, postural change and overall burden of treatment rather than applied uniformly."
+    },
+    {
+      "label": "c-d-bp-home",
+      "document": "d-guide",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 6,
+      "page_end": 6,
+      "hierarchy": [
+        "Blood pressure measurement"
+      ],
+      "caption": null,
+      "text": "Home and ambulatory readings run lower than readings taken in a clinic, and this synthetic guideline states that a target expressed for office measurement should be reduced correspondingly when out-of-office readings are used for monitoring."
+    }
+  ],
+  "cases": [
+    {
+      "id": "q-factual-warfarin",
+      "category": "factual",
+      "query": "How is the effect of warfarin monitored?",
+      "relevant": {
+        "c-warfarin": 3
+      },
+      "graded": true,
+      "notes": "Straightforward factual statement present verbatim in one passage."
+    },
+    {
+      "id": "q-drug-amoxicillin",
+      "category": "exact_drug_name",
+      "query": "amoxicillin beta-lactamase clavulanic acid",
+      "relevant": {
+        "c-amoxicillin": 3,
+        "c-ref-abx-resistance": 1
+      },
+      "graded": true,
+      "notes": "Exact drug name plus a related resistance passage graded lower."
+    },
+    {
+      "id": "q-gene-hla",
+      "category": "gene_biomarker",
+      "query": "HLA-B27 ankylosing spondylitis",
+      "relevant": {
+        "c-hla-1": 3,
+        "c-hla-2": 2,
+        "c-q-hla": 1
+      },
+      "graded": true,
+      "notes": "Exact identifier with two reference passages and one question-bank item."
+    },
+    {
+      "id": "q-gene-brca1",
+      "category": "short_keyword",
+      "query": "BRCA1",
+      "relevant": {
+        "c-brca1": 3,
+        "c-brca2": 1
+      },
+      "graded": true,
+      "notes": "Two-token keyword query; BRCA2 is related but not the subject."
+    },
+    {
+      "id": "q-gene-her2",
+      "category": "exact_case",
+      "query": "HER2 receptor status in breast tumours",
+      "relevant": {
+        "c-her2": 3
+      },
+      "graded": true,
+      "notes": "Uppercase identifier that the case-exact analyzer lane should reward."
+    },
+    {
+      "id": "q-cytokine-il6",
+      "category": "gene_biomarker",
+      "query": "IL-6 acute phase response",
+      "relevant": {
+        "c-il6": 3
+      },
+      "graded": true
+    },
+    {
+      "id": "q-abbrev-mi",
+      "category": "abbreviation",
+      "query": "What distinguishes MI from unstable angina?",
+      "relevant": {
+        "c-mi": 3,
+        "c-ref-troponin": 1
+      },
+      "graded": true,
+      "notes": "The corpus writes the term out in full; the query uses the abbreviation, and no expansion list exists by design."
+    },
+    {
+      "id": "q-synonym-hypertension",
+      "category": "synonym_wording",
+      "query": "What are the risks of persistently high blood pressure?",
+      "relevant": {
+        "c-hypertension": 3
+      },
+      "graded": true,
+      "notes": "Everyday wording against a passage that uses the clinical term."
+    },
+    {
+      "id": "q-table-dosing",
+      "category": "table",
+      "query": "amoxicillin 500 mg dosing interval table",
+      "relevant": {
+        "c-table-dose": 3
+      },
+      "graded": true,
+      "notes": "The fact lives only in a table chunk."
+    },
+    {
+      "id": "q-formula-crcl",
+      "category": "formula",
+      "query": "estimated creatinine clearance formula 140 minus age",
+      "relevant": {
+        "c-formula-crcl": 3
+      },
+      "graded": true
+    },
+    {
+      "id": "q-figure-cardiac",
+      "category": "figure",
+      "query": "figure showing isovolumetric contraction and ejection in the cardiac cycle",
+      "relevant": {
+        "c-figure-cardiac": 3
+      },
+      "graded": true,
+      "notes": "Only the figure caption and its surrounding context describe this."
+    },
+    {
+      "id": "q-long-question",
+      "category": "long_question",
+      "query": "In a patient with inflammatory back pain and sacroiliitis on imaging, how should a positive result for the class I antigen be interpreted diagnostically?",
+      "relevant": {
+        "c-hla-2": 3,
+        "c-hla-1": 2
+      },
+      "graded": true,
+      "notes": "Long but within the 64-token query limit; sits close to the boundary on purpose."
+    },
+    {
+      "id": "q-numeric-hba1c",
+      "category": "numeric_units",
+      "query": "HbA1c 6.5% diagnostic threshold",
+      "relevant": {
+        "c-hba1c": 3
+      },
+      "graded": true,
+      "notes": "The percentage and the decimal must survive analysis to match exactly."
+    },
+    {
+      "id": "q-ion-pump",
+      "category": "rare_terminology",
+      "query": "Na+/K+-ATPase inhibition by digoxin",
+      "relevant": {
+        "c-digoxin": 3,
+        "c-q-digoxin": 1,
+        "c-q-explanation": 1
+      },
+      "graded": true,
+      "notes": "Punctuation-heavy identifier that a naive tokenizer destroys."
+    },
+    {
+      "id": "q-rare-erdheim",
+      "category": "rare_terminology",
+      "query": "Erdheim-Chester disease",
+      "relevant": {
+        "c-erdheim": 3
+      },
+      "graded": true,
+      "notes": "A term that appears exactly once in the corpus, so inverse document frequency is at its highest."
+    },
+    {
+      "id": "q-multi-cyp3a4",
+      "category": "multiple_relevant",
+      "query": "CYP3A4 inhibitor interaction with a narrow therapeutic index drug",
+      "relevant": {
+        "c-cyp3a4-2": 3,
+        "c-cyp3a4-1": 2
+      },
+      "graded": true,
+      "notes": "Two passages both carry part of the evidence."
+    },
+    {
+      "id": "q-competing-dm",
+      "category": "competing_topics",
+      "query": "insulin resistance and progressive beta cell failure with gradual onset",
+      "relevant": {
+        "c-dm2": 3
+      },
+      "graded": true,
+      "notes": "Type 1 diabetes is a near neighbour that must not outrank type 2."
+    },
+    {
+      "id": "q-cross-page",
+      "category": "cross_page",
+      "query": "why creatinine lags behind the fall in glomerular filtration rate in acute kidney injury staging",
+      "relevant": {
+        "c-cross-2": 3,
+        "c-cross-1": 1
+      },
+      "graded": true,
+      "notes": "The evidence continues across a page boundary into a second chunk."
+    },
+    {
+      "id": "q-qbank",
+      "category": "question_bank",
+      "query": "Which antigen is most strongly associated with the suspected diagnosis in a 24-year-old with inflammatory back pain?",
+      "relevant": {
+        "c-q-hla": 3,
+        "c-hla-1": 2,
+        "c-hla-2": 1
+      },
+      "graded": true,
+      "notes": "Wording deliberately close to the question-bank item. The reference passages are the evidence; the question item is the nearest textual match, and the two must remain distinguishable by source type."
+    },
+    {
+      "id": "q-answer-key",
+      "category": "answer_key",
+      "query": "answer key questions 11 to 25 recorded letters",
+      "relevant": {
+        "c-key-1": 3
+      },
+      "graded": true,
+      "notes": "An answer key is retrievable but carries ASSESSMENT authority; retrieving it is not evidence of anything medical."
+    },
+    {
+      "id": "q-authority-conflict",
+      "category": "authority_conflict",
+      "query": "office blood pressure target for treated adults",
+      "relevant": {
+        "c-bp-guideline": 3,
+        "c-bp-course": 3
+      },
+      "graded": true,
+      "notes": "Two sources of different authority give different numbers. M5 retrieves both and labels their authority; it does not resolve the conflict, which is M7's concern."
+    },
+    {
+      "id": "q-lexically-weak",
+      "category": "lexically_weak",
+      "query": "the heart cannot pump enough blood for what the body needs",
+      "relevant": {
+        "c-hf": 3
+      },
+      "graded": true,
+      "notes": "Almost no content term overlaps the passage, which says cardiac output is inadequate for metabolic demands. This case exists to show where the dense lane earns its place."
+    },
+    {
+      "id": "q-negative-absent",
+      "category": "negative",
+      "query": "recommended dose of pembrolizumab in metastatic melanoma",
+      "relevant": {},
+      "notes": "No passage in this corpus addresses it. Recall is undefined; the top scores and candidate count are recorded instead, for M7's evidence gate to be calibrated against later."
+    },
+    {
+      "id": "q-negative-unrelated",
+      "category": "negative",
+      "query": "how to replace a bicycle inner tube",
+      "relevant": {},
+      "notes": "Entirely outside the corpus domain. Both lanes will still return their top-k; the point is to observe what a confident-looking ranking over irrelevant evidence looks like."
+    },
+    {
+      "id": "q-over-limit",
+      "category": "query_limit",
+      "query": "In a 62-year-old patient with a long and complicated history of poorly controlled type 2 diabetes mellitus, chronic kidney disease of uncertain duration, previous myocardial infarction treated with primary percutaneous coronary intervention, atrial fibrillation managed with rate control, and a recent admission for decompensated heart failure requiring intravenous diuresis, what considerations apply to the choice and dosing of glucose-lowering therapy?",
+      "relevant": {},
+      "expect_error": "QUERY_TOO_LONG",
+      "notes": "Longer than the encoder accepts. The expected behaviour is a structured rejection naming the limit, never a silently shortened question."
+    }
+  ]
+}

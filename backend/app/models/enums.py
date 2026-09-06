@@ -30,10 +30,13 @@ class Status(StrEnum):
     VALIDATING_CHUNKS = "VALIDATING_CHUNKS"
     READY_FOR_EMBEDDING = "READY_FOR_EMBEDDING"
     READY_FOR_RETRIEVAL = "READY_FOR_RETRIEVAL"
+    RETRIEVAL_READY = "RETRIEVAL_READY"
     CHUNKING = "CHUNKING"
     EMBEDDING = "EMBEDDING"
     INDEXING = "INDEXING"
     VERIFYING_INDEX = "VERIFYING_INDEX"
+    SPARSE_INDEXING = "SPARSE_INDEXING"
+    VERIFYING_SPARSE_INDEX = "VERIFYING_SPARSE_INDEX"
     READY = "READY"
     FAILED = "FAILED"
     QUARANTINED = "QUARANTINED"
@@ -66,6 +69,25 @@ class IndexRunStatus(StrEnum):
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
     SUPERSEDED = "SUPERSEDED"
+
+
+class SparseIndexStatus(StrEnum):
+    """Lifecycle of one durable lexical index build. Only VERIFIED is eligible to become active."""
+
+    STAGING = "STAGING"
+    VERIFYING = "VERIFYING"
+    VERIFIED = "VERIFIED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    SUPERSEDED = "SUPERSEDED"
+
+
+class RetrievalMode(StrEnum):
+    """First-stage strategies. They exist so lane quality can be compared, not as user settings."""
+
+    DENSE_ONLY = "DENSE_ONLY"
+    BM25_ONLY = "BM25_ONLY"
+    HYBRID_RRF = "HYBRID_RRF"
 
 
 class ParseRunStatus(StrEnum):

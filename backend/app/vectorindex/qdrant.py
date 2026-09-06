@@ -20,7 +20,8 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models as rest
 
 from app.embeddings.errors import EmbeddingError
-from app.vectorindex.model import StoredPoint, VectorPoint, VectorSchema
+from app.retrieval.errors import RetrievalError
+from app.vectorindex.model import ScoredPoint, StoredPoint, VectorPoint, VectorSchema
 
 DISTANCES = {
     "DOT": rest.Distance.DOT,
@@ -29,15 +30,24 @@ DISTANCES = {
 }
 
 
-def _filter(selector: dict[str, Any]) -> rest.Filter | None:
-    if not selector:
-        return None
-    return rest.Filter(
-        must=[
-            rest.FieldCondition(key=key, match=rest.MatchValue(value=str(value)))
-            for key, value in sorted(selector.items())
-        ]
-    )
+def _filter(
+    selector: dict[str, Any], any_selector: dict[str, tuple[str, ...]] | None = None
+) -> rest.Filter | None:
+    """Conjunction of exact-match and any-of conditions, all evaluated inside Qdrant.
+
+    Filtering server-side is what makes tenant isolation real: the alternative — searching the
+    whole collection and discarding foreign rows afterwards — would already have read another
+    tenant's points into this process and would silently lose result slots to them.
+    """
+    conditions: list[Any] = [
+        rest.FieldCondition(key=key, match=rest.MatchValue(value=str(value)))
+        for key, value in sorted(selector.items())
+    ]
+    for key, values in sorted((any_selector or {}).items()):
+        conditions.append(
+            rest.FieldCondition(key=key, match=rest.MatchAny(any=[str(value) for value in values]))
+        )
+    return rest.Filter(must=conditions) if conditions else None
 
 
 class QdrantVectorIndex:
@@ -211,6 +221,45 @@ class QdrantVectorIndex:
             found.extend(UUID(str(record.id)) for record in records)
             if offset is None:
                 return tuple(found)
+
+    def search(
+        self,
+        schema: VectorSchema,
+        vector: tuple[float, ...],
+        *,
+        limit: int,
+        selector: dict[str, Any],
+        any_selector: dict[str, tuple[str, ...]] | None = None,
+    ) -> tuple[ScoredPoint, ...]:
+        if len(vector) != schema.dimension:
+            raise RetrievalError(
+                "RETRIEVAL_VECTOR_SPACE_MISMATCH",
+                {"expected_dimension": schema.dimension, "query_dimension": len(vector)},
+            )
+        condition = _filter(selector, any_selector)
+        if condition is None:
+            # Refused rather than defaulted: an unscoped search is never what retrieval wants.
+            raise RetrievalError("DENSE_SEARCH_FAILED", {"reason": "refusing unfiltered search"})
+        try:
+            result = self.client.query_points(
+                collection_name=schema.collection,
+                query=list(vector),
+                using=schema.vector_name,
+                limit=limit,
+                query_filter=condition,
+                with_payload=True,
+                with_vectors=False,
+            )
+        except Exception as exc:  # noqa: BLE001 - vendor exception hierarchy is broad
+            raise RetrievalError("DENSE_SEARCH_FAILED") from exc
+        return tuple(
+            ScoredPoint(
+                point_id=UUID(str(point.id)),
+                score=float(point.score),
+                payload=dict(point.payload or {}),
+            )
+            for point in result.points
+        )
 
     def delete(self, schema: VectorSchema, selector: dict[str, Any]) -> int:
         condition = _filter(selector)

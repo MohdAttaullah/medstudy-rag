@@ -14,7 +14,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('M0 workspace', () => {
   it('does not offer medical generation without an implemented evidence pipeline', () => {
     show('/ask');
-    expect(screen.getByRole('heading', { name: 'No indexed evidence available' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Answering is not available' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Ask with evidence' })).toBeDisabled();
     expect(screen.getByLabelText('Your educational medical question')).toBeDisabled();
   });

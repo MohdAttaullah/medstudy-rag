@@ -16,6 +16,7 @@ from app.api.chunking import router as chunking_router
 from app.api.documents import router
 from app.api.embeddings import router as embedding_router
 from app.api.parsing import router as parsing_router
+from app.api.retrieval import router as retrieval_router
 from app.core.config import Settings
 from app.core.errors import DomainError
 from app.db.session import make_engine, make_sessions
@@ -34,7 +35,14 @@ from app.models.embeddings import (
 )
 from app.models.enums import ParseRunStatus
 from app.models.parsing import ParseRun, ParseValidationFinding
+from app.models.retrieval import (
+    SparseIndex,
+    SparsePosting,
+    SparseTerm,
+    SparseValidationFinding,
+)
 from app.observability.ingestion import IngestionMetrics
+from app.observability.retrieval import RetrievalMetrics
 from app.services.control import ControlPlane
 from app.services.health import DependencyProbe, InfrastructureProbe
 from app.services.storage import S3ObjectStorage
@@ -179,6 +187,72 @@ def _index_metric_lines(service: ControlPlane) -> list[str]:
     return lines
 
 
+def _retrieval_metric_lines(service: ControlPlane) -> list[str]:
+    """Lexical index counters from durable PostgreSQL state.
+
+    Lexical indexing runs in the Celery worker, which is not scraped, so the authoritative counts
+    come from committed rows. Labels are bounded enum values only: no query, query hash, term,
+    chunk, document or tenant identifier is ever a label. None of these is a retrieval quality or
+    medical accuracy measure — retrieval quality is measured offline against a gold query set.
+    """
+    with service.sessions() as session:
+        indexes = session.execute(
+            select(SparseIndex.status, func.count()).group_by(SparseIndex.status)
+        ).all()
+        findings = session.execute(
+            select(SparseValidationFinding.severity, func.count()).group_by(
+                SparseValidationFinding.severity
+            )
+        ).all()
+        chunks, terms, length = session.execute(
+            select(
+                func.coalesce(func.sum(SparseIndex.indexed_chunk_count), 0),
+                func.coalesce(func.sum(SparseIndex.term_count), 0),
+                func.coalesce(func.sum(SparseIndex.total_length), 0),
+            ).where(SparseIndex.is_active.is_(True))
+        ).one()
+        postings = session.scalar(select(func.count()).select_from(SparsePosting)) or 0
+        vocabulary = session.scalar(select(func.count()).select_from(SparseTerm)) or 0
+    lines = ["# TYPE sparse_indexes_by_status gauge"]
+    lines += [f'sparse_indexes_by_status{{status="{status}"}} {count}' for status, count in indexes]
+    lines += ["# TYPE sparse_validation_findings gauge"]
+    lines += [
+        f'sparse_validation_findings{{severity="{severity}"}} {count}'
+        for severity, count in findings
+    ]
+    for name, value in (
+        ("sparse_active_chunks_total", chunks),
+        ("sparse_active_terms_total", terms),
+        ("sparse_active_length_total", length),
+        ("sparse_postings_total", postings),
+        ("sparse_vocabulary_total", vocabulary),
+    ):
+        lines += [f"# TYPE {name} gauge", f"{name} {int(value)}"]
+    return lines
+
+
+def _query_encoder_factory(config: Settings) -> object | None:
+    """How this process reaches a query encoder.
+
+    With an endpoint configured — the deployed arrangement — the API holds only an HTTP client and
+    never loads torch. Without one, the encoder is constructed in this process, which is what the
+    evaluation harness and the tests use. The import stays inside the closure so an image built
+    without the embedding extra can still start and simply report the encoder unavailable.
+    """
+    if config.query_encoder.endpoint:
+        from app.retrieval.query.remote import HttpQueryEncoder
+
+        return lambda: HttpQueryEncoder(config.query_encoder)
+
+    def local() -> object:
+        from app.retrieval.query.medcpt import MedCPTQueryEncoder, configure_offline_environment
+
+        configure_offline_environment(config.query_encoder)
+        return MedCPTQueryEncoder(config.query_encoder)
+
+    return local
+
+
 def create_app(
     settings: Settings | None = None,
     probe: DependencyProbe | None = None,
@@ -188,6 +262,7 @@ def create_app(
     dependencies = probe if probe is not None else InfrastructureProbe(config)
     registry = CollectorRegistry()
     metrics = IngestionMetrics(registry)
+    retrieval_metrics = RetrievalMetrics(registry)
     engine = None
     service = control_plane
     if service is None and config.database_url.get_secret_value():
@@ -203,6 +278,8 @@ def create_app(
             vector_index=QdrantVectorIndex(
                 config.qdrant_url, timeout=config.index.request_timeout_seconds
             ),
+            retrieval_metrics=retrieval_metrics,
+            query_encoder_factory=_query_encoder_factory(config),
         )
 
     @asynccontextmanager
@@ -211,7 +288,7 @@ def create_app(
         if engine is not None:
             engine.dispose()
 
-    app = FastAPI(title="Medical RAG - M4", version="0.4.0", lifespan=lifespan)
+    app = FastAPI(title="Medical RAG - M5", version="0.5.0", lifespan=lifespan)
     app.state.settings, app.state.control = config, service
     requests = Counter(
         "medrag_http_requests_total", "Completed HTTP requests", ["status"], registry=registry
@@ -303,7 +380,7 @@ def create_app(
 
     @app.get("/health/live")
     async def live() -> dict[str, str]:
-        return {"status": "alive", "milestone": "M4"}
+        return {"status": "alive", "milestone": "M5"}
 
     @app.get("/health/ready")
     async def ready() -> JSONResponse:
@@ -342,6 +419,7 @@ def create_app(
             lines += _parse_metric_lines(service)
             lines += _chunk_metric_lines(service)
             lines += _index_metric_lines(service)
+            lines += _retrieval_metric_lines(service)
             result += ("\n".join(lines) + "\n").encode()
         return Response(result, headers={"Content-Type": CONTENT_TYPE_LATEST})
 
@@ -349,4 +427,5 @@ def create_app(
     app.include_router(parsing_router)
     app.include_router(chunking_router)
     app.include_router(embedding_router)
+    app.include_router(retrieval_router)
     return app

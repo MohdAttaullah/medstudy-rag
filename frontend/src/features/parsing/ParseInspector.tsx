@@ -76,7 +76,7 @@ function Inspector({ documentId, versionId, runId }: { documentId: string; versi
       if (!response.ok) return;
       revoked = URL.createObjectURL(await response.blob());
       setPreview(revoked);
-    })();
+    })().catch(() => { setPreview(''); });
     return () => { if (revoked) URL.revokeObjectURL(revoked); };
   }, [page, base, token]);
 

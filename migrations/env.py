@@ -6,6 +6,7 @@ from app.db.base import Base
 from app.models import chunking  # noqa: F401
 from app.models import embeddings  # noqa: F401
 from app.models import documents, parsing  # noqa: F401
+from app.models import retrieval  # noqa: F401
 
 target_metadata = Base.metadata
 database_url = Settings().database_url.get_secret_value()

@@ -20,18 +20,25 @@ docker compose --profile app up -d --build --wait
 ```
 
 Apply migrations before starting data endpoints/workers. No API startup schema mutation occurs.
-MinIO initialization creates a private bucket and enables versioning. Apply all five revisions;
-current head is `m4_embeddings_and_index`. A pre-M1 schema has no domain tables to preserve;
+MinIO initialization creates a private bucket and enables versioning. Apply all six revisions;
+current head is `m5_hybrid_retrieval`. A pre-M1 schema has no domain tables to preserve;
 existing data is upgraded in place. Do not downgrade application data merely to rerun a test: each
 milestone downgrade deliberately refuses to run while any job still holds one of the states that
-milestone introduced — READY_FOR_CHUNKING for M2, the chunk states for M3, and
-EMBEDDING/INDEXING/VERIFYING_INDEX/READY_FOR_RETRIEVAL for M4. Cancel those jobs first, which is
+milestone introduced — READY_FOR_CHUNKING for M2, the chunk states for M3,
+EMBEDDING/INDEXING/VERIFYING_INDEX/READY_FOR_RETRIEVAL for M4, and
+SPARSE_INDEXING/VERIFYING_SPARSE_INDEX/RETRIEVAL_READY for M5. Cancel those jobs first, which is
 the operator action the refusal message prescribes; nothing is ever silently rewritten.
 
-The app profile includes API, frontend, Celery worker and the outbox/recovery dispatcher. Both
-background processes also belong to the workers profile. API/frontend/dependency healthchecks
-do not prove queue processing. Confirm receipt in Operations or run the live browser test.
-QUEUED with no receipt while the broker is unavailable is durable pending delivery, not data loss.
+M5 is the one revision that widens the status columns, because `VERIFYING_SPARSE_INDEX` is longer
+than any status before it. Widening requires dropping the M3 `m3_job_cancelled` trigger, which is
+declared `AFTER UPDATE OF status`, and recreating it immediately afterwards; the function it calls
+is untouched. Expect that drop/recreate in the migration output and do not interrupt it.
+
+The app profile includes API, frontend, Celery worker, the outbox/recovery dispatcher and the
+retrieval query-encoder service. The worker and dispatcher also belong to the workers profile.
+API/frontend/dependency healthchecks do not prove queue processing. Confirm receipt in Operations
+or run the live browser test. QUEUED with no receipt while the broker is unavailable is durable
+pending delivery, not data loss.
 
 ## Ingestion worker image
 
@@ -88,6 +95,35 @@ the authoritative record of what should exist.
 Changing the embedding model or any vector semantics is a **reindex-required** change: it creates a
 new EmbeddingVersion and a new physical collection alongside the current one, and the alias switches
 only after the replacement verifies. A failed replacement leaves the previous active index in place.
+
+## Retrieval query service
+
+Interactive query encoding runs in its own container, `retrieval`, built from the worker image and
+started with `uvicorn app.retrieval_service:create_app --factory` on port 8010. The reason is
+concrete rather than stylistic: the API and dispatcher are built from the lean backend image and
+carry no torch at all, and the ingestion worker already holds warm *article* encoder weights it
+would never use for a question. Loading a second transformer into every web worker would add
+hundreds of megabytes per process to serve a request that spends most of its time in PostgreSQL.
+
+Its responsibility is exactly one thing — text in, query vector out. It has no database
+connection, no tenant concept, no authorization and no document access, so it cannot become a
+second place where access decisions are made. Authorization, tenant scoping, corpus resolution,
+filtering and hydration all stay in the API next to the authenticated principal. Like Qdrant it is
+**internal infrastructure**: its port is not published, the browser never reaches it, and it never
+logs query text.
+
+Its weights come from the `query-models` volume, provisioned deliberately:
+
+```powershell
+docker compose run --rm --no-deps --entrypoint python retrieval `
+  /repo/scripts/provision_query_model.py --cache /home/medrag/models/embeddings
+```
+
+The service then runs with `MEDRAG_QUERY_ENCODER__OFFLINE=true`, and a model absent from that cache
+fails closed rather than reaching the network. The API reaches it through
+`MEDRAG_QUERY_ENCODER__ENDPOINT`; leaving that empty makes the API load the encoder in-process
+instead, which is what the evaluation harness and the tests use and what a torch-less API image
+cannot do. A `BM25_ONLY` query never calls this service at all.
 
 Open http://localhost:5173/library and read the generated admin/reader access keys from ignored
 .local/dev-access.txt. Keys map to one development tenant and remain server configured in .env.

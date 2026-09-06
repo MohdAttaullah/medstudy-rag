@@ -17,7 +17,11 @@ PERMISSIONS = frozenset(
         "ingestion:reparse",
         "ingestion:rechunk",
         "ingestion:reembed",
+        "ingestion:reindex",
         "ingestion:cancel",
+        # Retrieval is a developer and operator tool at this milestone, not a reading feature:
+        # it exposes lane scores and internal run identifiers, and it is not an answering path.
+        "retrieval:search",
     }
 )
 ROLE_PERMISSIONS = {

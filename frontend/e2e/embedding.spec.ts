@@ -34,7 +34,7 @@ test('a real upload is embedded and indexed, and every point resolves to its sou
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
 
   // Parsing loads model weights on a cold worker, so allow a generous wait for the whole path.
-  await expect(page.locator('.version-card').getByText('ready for retrieval').first()).toBeVisible({
+  await expect(page.locator('.version-card').getByText(/^(ready for retrieval|retrieval ready)$/).first()).toBeVisible({
     timeout: 1080000,
   });
   const embedding = page.locator('.panel', { hasText: 'Embedding and index' }).first();
@@ -50,8 +50,10 @@ test('a real upload is embedded and indexed, and every point resolves to its sou
   await expect(page.getByRole('heading', { name: 'Index inspector' })).toBeVisible();
   await expect(page.getByText('Active vector index')).toBeVisible();
   await expect(page.getByText('medcpt_dense')).toBeVisible();
-  await expect(page.getByText('768')).toBeVisible();
-  await expect(page.getByText('DOT')).toBeVisible();
+  // Scoped to the metadata field rather than any text containing the number: the point list
+  // below also prints "768 dimensions ...", and how many points it shows depends on the parse.
+  await expect(page.getByText('768', { exact: true })).toBeVisible();
+  await expect(page.getByText('DOT', { exact: true })).toBeVisible();
   await expect(page.getByText('d05a736da4bb84ee4057b7f7999485be6ed85465')).toBeVisible();
   await expect(page.getByText(/point\(s\) present for this run/)).toBeVisible({ timeout: 30000 });
   await page.screenshot({ path: testInfo.outputPath('index-inspector.png'), fullPage: true });
