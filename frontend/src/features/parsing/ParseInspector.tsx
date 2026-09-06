@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { AccessGate, useSession } from '../library/Session';
@@ -39,6 +39,8 @@ function useParse<T>(key: string, path: string, base: string, enabled = true) {
 function Inspector({ documentId, versionId, runId }: { documentId: string; versionId: string; runId: string }) {
   const { token } = useSession();
   const base = `/documents/${documentId}/versions/${versionId}/parse-runs/${runId}`;
+  const [search] = useSearchParams();
+  const requestedPage = Number(search.get('page'));
   const [pageId, setPageId] = useState('');
   const [preview, setPreview] = useState('');
   const run = useParse<ParseRun>('run', '', base);
@@ -46,8 +48,8 @@ function Inspector({ documentId, versionId, runId }: { documentId: string; versi
   const findings = useParse<Page<ParseFinding>>('findings', '/findings?limit=200', base);
 
   useEffect(() => {
-    if (!pageId && pages.data?.items.length) setPageId(pages.data.items[0].id);
-  }, [pages.data, pageId]);
+    if (!pageId && pages.data?.items.length) setPageId((pages.data.items.find(p => p.page_number === requestedPage) ?? pages.data.items[0]).id);
+  }, [pages.data, pageId, requestedPage]);
 
   const page = pages.data?.items.find(item => item.id === pageId);
   const number = page?.page_number;

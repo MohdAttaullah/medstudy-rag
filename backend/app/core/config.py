@@ -5,6 +5,7 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.chunking_config import ChunkingConfig
 from app.core.ingestion_config import IngestionConfig
 from app.core.parsing_config import ParsingConfig
 from app.security.auth import DevCredential
@@ -70,6 +71,7 @@ class Settings(BaseSettings):
     policy: VersionedPolicy = VersionedPolicy()
     ingestion: IngestionConfig = IngestionConfig()
     parsing: ParsingConfig = ParsingConfig()
+    chunking: ChunkingConfig = ChunkingConfig()
     dev_principals: tuple[DevCredential, ...] = ()
     generator: ModelSelection | None = None
     verifier: ModelSelection | None = None

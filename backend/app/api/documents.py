@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from starlette.concurrency import run_in_threadpool
 
 from app.core.errors import DomainError
+from app.ingestion.chunking.errors import retryable
 from app.ingestion.validation.files import sanitize_filename, validate_mime, validate_pdf
 from app.models.documents import (
     AuditEvent,
@@ -416,7 +417,23 @@ def job(job_id: UUID, actor: Actor, service: Service) -> JobView:
 
 @router.post("/ingestion/jobs/{job_id}/retry", response_model=JobView)
 def retry(job_id: UUID, request: Request, actor: Actor, service: Service) -> JobView:
-    service.jobs.change(actor, job_id, "retry", correlation(request))
+    actor.require("ingestion:retry")
+    with service.sessions() as session:
+        current = get_job(session, actor.tenant_id, job_id)
+        chunk_failure = bool(
+            current.last_error_code and current.last_error_code.startswith("CHUNK_")
+        )
+        code = current.last_error_code
+    if chunk_failure:
+        if not retryable(code):
+            raise DomainError(
+                "CHUNK_RETRY_NOT_ALLOWED",
+                "Correct the source or policy and request rechunking.",
+                409,
+            )
+        service.chunks.request(actor, job_id, correlation(request), force=True)
+    else:
+        service.jobs.change(actor, job_id, "retry", correlation(request))
     return job(job_id, actor, service)
 
 

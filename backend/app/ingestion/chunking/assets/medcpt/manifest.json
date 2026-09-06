@@ -1,0 +1,11 @@
+{
+  "name": "ncbi/MedCPT-Article-Encoder",
+  "revision": "d05a736da4bb84ee4057b7f7999485be6ed85465",
+  "files": {
+    "tokenizer.json": "6e046044df8a2fcedb10607075dca187cae61d806c0d80a96c5b81017edc90c9",
+    "tokenizer_config.json": "cabeefb4bbba68c42d40a56bfc1e73dd2e5dfb6e0ca90a66349519c375452d1e",
+    "LICENSE": "76b0009b86bfcb6dbbe5d51aa95a8103ddb2e9d582dca41c3d88e371175ce34e"
+  },
+  "usage": "Offline token measurement only. No model weights, embeddings or inference.",
+  "source": "https://huggingface.co/ncbi/MedCPT-Article-Encoder/tree/d05a736da4bb84ee4057b7f7999485be6ed85465"
+}

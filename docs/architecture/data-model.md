@@ -1,8 +1,8 @@
 # Data model
 
-Sixteen normalized PostgreSQL tables with UUID primary keys and timezone-aware timestamps: nine
-from M1 and seven added by M2. Alembic is the sole schema migration mechanism; application startup
-does not call create_all.
+Twenty-four normalized PostgreSQL tables with UUID primary keys and timezone-aware timestamps:
+nine from M1, seven added by M2 and eight added by M3. Alembic is the sole schema migration
+mechanism; application startup does not call create_all.
 
 | Table | Implemented responsibility |
 |---|---|
@@ -31,8 +31,9 @@ Database triggers prohibit history/audit mutation and illegal job transitions or
 
 Migrations: `0dd8e0dcb035` creates M1 tables, indexes, constraints and guards;
 `m1_event_order` adds/backfills deterministic event sequence; `m2_document_parsing` adds the
-parsing tables and the M2 state vocabulary and guard. `m1_event_order` briefly disables the
-append-only trigger for its controlled backfill. All three have downgrade paths, exercised as
+parsing tables and the M2 state vocabulary and guard; `m3_hierarchical_chunks` adds the chunk
+tables, the M3 state vocabulary and guard, and the outbox message kind. `m1_event_order` briefly disables the
+append-only trigger for its controlled backfill. All four have downgrade paths, exercised as
 upgrade/downgrade/upgrade in isolated test schemas; downgrading the initial revision removes all
 data. Back up before any deliberate application schema downgrade.
 
@@ -59,6 +60,35 @@ Migration `m2_document_parsing` adds these tables, widens the job/version status
 READY_FOR_CHUNKING and replaces the M1 transition guard with the M2 graph including the explicit
 reparse edge. Its downgrade drops the parse tables, restores the M1 guard and vocabulary, and
 refuses to run while any row still holds an M2-only status rather than silently rewriting it.
+
+## M3 chunk tables
+
+| Table | Implemented responsibility |
+|---|---|
+| chunk_runs | One durable chunk attempt: source parse run, generation, chunker name/version, policy version and content fingerprint, frozen config snapshot, pinned tokenizer name/revision/runtime, input fingerprint, validation result, metrics, lease and safe error |
+| chunks | Type, sequence, parent, question, faithful source text, retrieval representation, both token counts, page range, content hash and structured metadata |
+| chunk_source_elements | Ordered element spans with start/end offsets and role (SOURCE, CAPTION, RELATED_CONTEXT, LIST_HEADING, HIERARCHY) |
+| chunk_source_pages | Page membership for a chunk, within the same parse run |
+| chunk_artifact_relations | Exactly one of table/figure/formula artifact per row, within the same parse run |
+| chunk_relations | Ordered sibling relations inside one chunk run |
+| question_artifacts | Question text/type/number, explicit source answer, explanation, extraction status, explicit-vs-inferred structure flags, authority metadata and page range |
+| question_options | Label, ordinal and text, unique per question on both label and ordinal |
+
+Declared in `backend/app/models/chunking.py`. Composite foreign keys keep every mapping inside the
+same tenant, document version, parse run and chunk run: a chunk cannot reference an element from a
+different parse run, and a parent cannot live in a different chunk run. A partial unique index plus
+a check constraint allow at most one active dataset per version, and only a `SUCCEEDED` run with a
+passing validation result may be active. A second partial unique index allows at most one pending or
+running chunk run per version. `never_infer_answers` makes an inferred answer unstorable;
+`chunk_page_range`, `chunk_tokens_nonnegative`, `source_offsets_valid`, `no_self_parent`,
+`chunk_relation_not_self` and `exactly_one_source_artifact` hold the remaining shape invariants.
+
+Triggers enforce the rest: a chunk run must begin pending and inactive with a valid, active,
+successful source parse; its identity columns are immutable; a completed run may only have
+`is_active` changed; rows of a run that is not `RUNNING` cannot be inserted, updated or deleted, so
+historical datasets are immutable; source offsets must resolve against the element's normalized
+text; and deactivating a parse run or cancelling a job automatically deactivates the chunk datasets
+built from it.
 
 ## Future schema (not implemented)
 

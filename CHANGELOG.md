@@ -1,5 +1,30 @@
 # Changelog
 
+## M3 - 2026-09-06
+
+- Added structure-aware hierarchical chunking over the active parse run: parent and child chunks,
+  row-grouped table parts with identical repeated headers, atomic formulas, figure context chunks
+  and atomic question objects with their options.
+- Added a durable versioned ChunkRun with chunker/policy identity, a policy fingerprint, a separate
+  normalized-input fingerprint, a fenced lease and a single active dataset enforced by the database.
+- Bundled the MedCPT WordPiece tokenizer with its revision, file checksum and runtime pinned, used
+  only to measure and slice tokens offline; a mismatch fails closed.
+- Added complete span-level provenance: every chunk resolves to source elements, offsets, pages,
+  artifacts and the active parse run, and the UI links back to the exact source page.
+- Preserved explicit source answers and left absent answers absent; an inferred answer is
+  unstorable by database constraint.
+- Added a deterministic chunk-quality layer with persisted findings, PASS/PASS_WITH_WARNINGS/
+  NEEDS_REVIEW/FAIL, and source coverage measured by text rather than by element identity.
+- Executed READY_FOR_CHUNKING -> CHUNKING -> VALIDATING_CHUNKS -> READY_FOR_EMBEDDING in the worker
+  with idempotent delivery, cancellation, lease sweeping and an explicit permissioned rechunk.
+- Made completed chunk datasets immutable and made superseding a parse run or cancelling a job
+  deactivate the datasets built from it.
+- Added tenant-authorized chunk inspection APIs, a chunk summary on document details, a Chunk
+  Inspector with question and table views, and the real chunk stages in Operations.
+- Added the offline chunk construction evaluation harness over 14 synthetic normalized fixtures.
+- Chunking stops at READY_FOR_EMBEDDING. Embeddings, indexing, retrieval and answering stay
+  disabled, and their job states remain unreachable.
+
 ## M2 - 2026-09-06
 
 - Added Docling parsing behind a parser-independent abstraction; only one adapter imports Docling.

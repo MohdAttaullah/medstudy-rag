@@ -4,6 +4,7 @@ from app.core.config import Settings
 from app.observability.ingestion import IngestionMetrics
 from app.observability.parsing import ParseMetrics
 from app.security.auth import AuthProvider, DevAuthProvider
+from app.services.chunking import ChunkService
 from app.services.jobs import JobService
 from app.services.storage import ObjectStorage
 from app.services.uploads import UploadService
@@ -28,4 +29,5 @@ class ControlPlane:
         self.auth = auth or DevAuthProvider(settings.dev_principals)
         self.parse_metrics = parse_metrics
         self.uploads = UploadService(sessions, storage, settings.ingestion, metrics)
+        self.chunks = ChunkService(sessions, settings.chunking)
         self.jobs = JobService(sessions, storage)

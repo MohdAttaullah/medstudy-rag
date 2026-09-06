@@ -49,6 +49,16 @@ durable record or an API response; only fixed operator-safe messages and codes d
 content is treated as data throughout: no parsed text is ever interpreted as an instruction, and
 no model is invoked during parsing.
 
+M3 chunking inherits that posture and narrows it further. The builder reads only frozen in-memory
+contracts, so it can reach neither the database, the parser library nor object storage; the only
+model artifact it loads is the bundled tokenizer, whose revision, file checksum and runtime version
+are verified before use and which is used solely to count and slice tokens. No network call, no
+embedding and no generation happens at this stage, and question text, options and answers are
+carried verbatim as data rather than executed as instructions. Chunk inspection routes enforce the
+same tenant boundary as the original and expose no storage key, lease token or vector field; the
+rechunk action requires its own `ingestion:rechunk` permission and supplying a custom chunk policy
+additionally requires `audit:read`.
+
 These checks are not antivirus or comprehensive PDF sanitization. Subprocess validation has a time
 limit but no dedicated hard memory sandbox, and the parser itself runs in the worker process
 rather than an isolated sandbox with a hard memory cap. Public upload deployment requires malware scanning,

@@ -66,8 +66,8 @@ def test_parse_transitions_allowed(before, after):
         ("PARSING", "ENRICHING"),
         ("PARSING", "READY_FOR_CHUNKING"),
         ("ENRICHING", "CHUNKING"),
-        ("READY_FOR_CHUNKING", "CHUNKING"),
         ("READY_FOR_CHUNKING", "READY"),
+        ("READY_FOR_CHUNKING", "READY_FOR_EMBEDDING"),
         ("READY_FOR_CHUNKING", "PARSING"),
         ("QUEUED", "NEEDS_REVIEW"),
     ],
@@ -77,16 +77,15 @@ def test_parse_transitions_rejected(before, after):
         require_transition(Status(before), Status(after))
 
 
-def test_m3_states_are_not_executable():
-    """M2 stops at READY_FOR_CHUNKING; no chunk, embedding or index state can be entered."""
+def test_m4_states_are_not_executable():
+    """The pipeline now stops at READY_FOR_EMBEDDING: no embedding or index state is reachable.
+
+    M2 stopped one stage earlier, at READY_FOR_CHUNKING. M3 made CHUNKING and
+    VALIDATING_CHUNKS executable in the application graph and the database guard, so this
+    boundary moved deliberately; the embedding and index states did not.
+    """
     reachable = {target for targets in TRANSITIONS.values() for target in targets}
-    for future in (
-        Status.CHUNKING,
-        Status.EMBEDDING,
-        Status.INDEXING,
-        Status.VERIFYING_INDEX,
-        Status.READY,
-    ):
+    for future in (Status.EMBEDDING, Status.INDEXING, Status.VERIFYING_INDEX, Status.READY):
         assert future not in reachable
         assert future not in TRANSITIONS
 

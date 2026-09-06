@@ -48,8 +48,8 @@ when deliberately changing policy. There is no editable configuration registry/U
 | dispatch_batch_size | 20 |
 
 Delivery/recovery settings are operational values used by the current dispatcher; a job snapshot
-records the settings at acceptance, not a permanently running historical dispatcher. Chunker,
-embedding and index versions will be added with the corresponding stages; none of those run yet.
+records the settings at acceptance, not a permanently running historical dispatcher. Embedding and
+index versions will be added with the corresponding stages; neither runs yet.
 
 ## M2 parsing settings
 
@@ -92,6 +92,41 @@ existing runs keep their snapshot.
 These defaults were chosen against synthetic fixtures. They are not calibrated on a clinical
 corpus and none of them expresses a parse accuracy; they are bounds on observable ratios.
 Example: `MEDRAG_PARSING__OCR_MODE=FORCE`, `MEDRAG_PARSING__THRESHOLDS__MIN_CHARS_PER_PAGE=80`.
+
+## M3 chunking settings
+
+`MEDRAG_CHUNKING__...` supplies the typed, frozen `ChunkingConfig`. Each ChunkRun stores the full
+JSON snapshot, the version label and a SHA-256 fingerprint of the whole policy, alongside a separate
+fingerprint of its normalized input. A completed dataset is reused only when the parse run, the
+policy fingerprint and a freshly recomputed input fingerprint all match, so an edited target or
+threshold cannot silently reuse chunks built under different rules.
+
+| Field | Default | Note |
+|---|---|---|
+| version | chunking-m3-v1 | Human label; increment on a deliberate policy change |
+| chunker_name / chunker_version | medical-structure / 1.0.0 | Builder selection and its behavioural version |
+| tokenizer_name / tokenizer_revision | ncbi/MedCPT-Article-Encoder / d05a736d | Bundled locally; measurement only, never embedding |
+| tokenizer_sha256 / tokenizer_runtime | pinned | Both are verified at load; a mismatch fails closed |
+| child_target_tokens | 384 | Precise retrieval units |
+| parent_target_tokens | 1280 | Structural context; must be at least the child target |
+| table_max_tokens | 450 | Row-group budget before a table splits into parts |
+| explanation_max_tokens | 384 | Question explanation budget before it becomes a child |
+| overlap_tokens | 0 | Fixed: overlap would duplicate source text across units |
+| include_hierarchy_context | true | Deterministic `Context:` prefix on retrieval text |
+| include_repeated_margins | false | Repeated running heads/feet are excluded from chunking, never deleted |
+| repeated_margin_min_pages / margin_fraction / margin_max_characters | 2 / 0.08 / 160 | Repetition and geometry bounds for that exclusion |
+| formula_neighbour_elements / figure_neighbour_elements | 1 / 1 | Only parser-linked neighbours may join an artifact chunk |
+| max_source_elements / max_source_characters | 100000 / 20000000 | Refused before building starts |
+| timeout_seconds / lease_seconds | 300 / 360 | The lease must exceed the timeout |
+| receipt_recovery_seconds | 30 | Recovers the receipt-to-claim crash window |
+| thresholds.tiny_tokens | 24 | Below this a separate child is flagged as a tiny orphan |
+| thresholds.max_tiny_ratio / max_oversized_ratio | 0.7 / 0.05 | Dataset-level review bounds |
+| thresholds.max_atomic_tokens | 2048 | An atomic unit above this is routed to review, never cut |
+
+These defaults were chosen against synthetic fixtures. They are not calibrated on a clinical corpus
+and none of them expresses a chunk quality or retrieval accuracy; they are bounds on observable
+counts. Example: `MEDRAG_CHUNKING__CHILD_TARGET_TOKENS=320`,
+`MEDRAG_CHUNKING__THRESHOLDS__TINY_TOKENS=32`.
 
 `MEDRAG_DEV_PRINCIPALS` is a JSON list of secret bearer-token/user/tenant/role mappings, provisioned
 by scripts/init_dev_auth.py. Empty configuration denies all data access. Roles are reader, curator,

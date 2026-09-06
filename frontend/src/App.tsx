@@ -1,3 +1,4 @@
+import { ChunkInspector } from './features/chunking/ChunkInspector';
 import { useQuery } from '@tanstack/react-query';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { getReadiness } from './api/health';
@@ -66,11 +67,12 @@ function Workspace() {
         <NavLink key={path} to={`/${path}`}>{label}</NavLink>)}</nav>
       <div className="sidebar-note">Educational use<br /><span>Not for patient diagnosis or treatment.</span></div>
     </aside>
-    <div className="content"><header><span>Knowledge workspace</span><span className="badge">M2 / Parsing</span></header>
+    <div className="content"><header><span>Knowledge workspace</span><span className="badge">M3 / Chunking</span></header>
       <main id="main" tabIndex={-1}><Routes>
         <Route path="/" element={<Navigate to="/ask" replace />} />
         <Route path="/ask" element={<Ask />} />
         <Route path="/library" element={<Library />} />
+        <Route path="/chunk-runs/:runId" element={<ChunkInspector />} />
         <Route path="/documents/:id" element={<DocumentDetails />} />
         <Route path="/documents/:id/versions/:versionId/parse/:runId" element={<ParseInspector />} />
         <Route path="/settings" element={<PlannedPage title="Settings" description="Versioned configuration for chunking, retrieval, models, and evidence policy." />} />

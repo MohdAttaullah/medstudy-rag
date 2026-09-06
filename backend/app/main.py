@@ -12,11 +12,18 @@ from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, g
 from sqlalchemy import func, select
 from starlette.middleware.base import RequestResponseEndpoint
 
+from app.api.chunking import router as chunking_router
 from app.api.documents import router
 from app.api.parsing import router as parsing_router
 from app.core.config import Settings
 from app.core.errors import DomainError
 from app.db.session import make_engine, make_sessions
+from app.models.chunking import (
+    Chunk,
+    ChunkRun,
+    ChunkValidationFinding,
+    QuestionArtifact,
+)
 from app.models.documents import IngestionJob, IngestionStageEvent
 from app.models.enums import ParseRunStatus
 from app.models.parsing import ParseRun, ParseValidationFinding
@@ -75,6 +82,45 @@ def _parse_metric_lines(service: ControlPlane) -> list[str]:
     return lines
 
 
+def _chunk_metric_lines(service: ControlPlane) -> list[str]:
+    """Chunk counters scraped from durable PostgreSQL state, on the same basis as parsing.
+
+    These describe how much structure was built and how it validated. None of them is a
+    retrieval or medical accuracy measure; nothing is retrievable at this milestone.
+    """
+    with service.sessions() as session:
+        runs = session.execute(
+            select(ChunkRun.status, func.count()).group_by(ChunkRun.status)
+        ).all()
+        results = session.execute(
+            select(ChunkRun.validation_result, func.count())
+            .where(ChunkRun.validation_result.is_not(None))
+            .group_by(ChunkRun.validation_result)
+        ).all()
+        findings = session.execute(
+            select(ChunkValidationFinding.severity, func.count()).group_by(
+                ChunkValidationFinding.severity
+            )
+        ).all()
+        chunks = session.execute(
+            select(Chunk.chunk_type, func.count()).group_by(Chunk.chunk_type)
+        ).all()
+        questions = session.scalar(select(func.count()).select_from(QuestionArtifact)) or 0
+    lines = ["# TYPE chunk_runs_by_status gauge"]
+    lines += [f'chunk_runs_by_status{{status="{status}"}} {count}' for status, count in runs]
+    lines += ["# TYPE chunk_runs_by_result gauge"]
+    lines += [f'chunk_runs_by_result{{result="{result}"}} {count}' for result, count in results]
+    lines += ["# TYPE chunk_validation_findings gauge"]
+    lines += [
+        f'chunk_validation_findings{{severity="{severity}"}} {count}'
+        for severity, count in findings
+    ]
+    lines += ["# TYPE chunks_by_type gauge"]
+    lines += [f'chunks_by_type{{chunk_type="{kind}"}} {count}' for kind, count in chunks]
+    lines += ["# TYPE question_artifacts_total gauge", f"question_artifacts_total {int(questions)}"]
+    return lines
+
+
 def create_app(
     settings: Settings | None = None,
     probe: DependencyProbe | None = None,
@@ -96,7 +142,7 @@ def create_app(
         if engine is not None:
             engine.dispose()
 
-    app = FastAPI(title="Medical RAG - M2", version="0.3.0", lifespan=lifespan)
+    app = FastAPI(title="Medical RAG - M3", version="0.3.0", lifespan=lifespan)
     app.state.settings, app.state.control = config, service
     requests = Counter(
         "medrag_http_requests_total", "Completed HTTP requests", ["status"], registry=registry
@@ -188,7 +234,7 @@ def create_app(
 
     @app.get("/health/live")
     async def live() -> dict[str, str]:
-        return {"status": "alive", "milestone": "M2"}
+        return {"status": "alive", "milestone": "M3"}
 
     @app.get("/health/ready")
     async def ready() -> JSONResponse:
@@ -225,9 +271,11 @@ def create_app(
                 f"ingestion_jobs_failed_total {failures}",
             ]
             lines += _parse_metric_lines(service)
+            lines += _chunk_metric_lines(service)
             result += ("\n".join(lines) + "\n").encode()
         return Response(result, headers={"Content-Type": CONTENT_TYPE_LATEST})
 
     app.include_router(router)
     app.include_router(parsing_router)
+    app.include_router(chunking_router)
     return app

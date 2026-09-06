@@ -124,3 +124,4 @@ dd { font-size: 13px; margin: 6px 0 0; overflow-wrap: anywhere; }
   .drop-zone { padding: 16px; } .filters { width: 100%; }
   .parse-page { grid-template-columns: 1fr; }
 }
+.chunk-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32rem; overflow: auto; } .chunk-preview { white-space: pre-wrap; overflow-wrap: anywhere; }

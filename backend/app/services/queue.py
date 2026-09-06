@@ -37,7 +37,12 @@ def dispatch(
         )
         for message in messages:
             job = session.get(IngestionJob, message.job_id)
-            if job is None or job.status != Status.QUEUED or job.retry_count != message.generation:
+            if (
+                job is None
+                or job.status
+                != (Status.READY_FOR_CHUNKING if message.kind == "CHUNKING" else Status.QUEUED)
+                or job.retry_count != message.generation
+            ):
                 message.received_at = datetime.now(
                     UTC
                 )  # Obsolete, never resume a cancelled generation.
@@ -86,7 +91,8 @@ def receive(
         if (
             document is None
             or document.archived_at
-            or job.status != Status.QUEUED
+            or job.status
+            != (Status.READY_FOR_CHUNKING if message.kind == "CHUNKING" else Status.QUEUED)
             or (job.retry_count != message.generation)
         ):
             return None

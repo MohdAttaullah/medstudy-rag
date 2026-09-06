@@ -1,0 +1,3662 @@
+{
+  "schema": "chunk-gold-m3-v1",
+  "kind": "synthetic-structure-not-medical-gold",
+  "cases": [
+    {
+      "id": "sections",
+      "source": {
+        "document_id": "7bb2b6cd-7acf-5898-ad6c-6141f579427d",
+        "version_id": "39634b1b-e5f1-54e1-ab09-226719483d5c",
+        "parse_run_id": "70643f82-b1a6-5882-9788-383a692341f5",
+        "title": "Synthetic sections",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "5b95a4cd-f4b0-57dc-9cbf-13cc00f5145a",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "da49846a-9cc1-5417-9a4a-4099f9bd6ad4",
+            "page_id": "5b95a4cd-f4b0-57dc-9cbf-13cc00f5145a",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "HEADING",
+            "text": "Section one",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "5bab9508-6417-5def-8402-31b0b0679de3",
+            "page_id": "5b95a4cd-f4b0-57dc-9cbf-13cc00f5145a",
+            "page_number": 1,
+            "reading_order": 1,
+            "parent_id": "da49846a-9cc1-5417-9a4a-4099f9bd6ad4",
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          },
+          {
+            "id": "fa9e47de-62a1-5069-8b34-4957c2a7f2e9",
+            "page_id": "5b95a4cd-f4b0-57dc-9cbf-13cc00f5145a",
+            "page_number": 1,
+            "reading_order": 2,
+            "parent_id": null,
+            "kind": "HEADING",
+            "text": "Section two",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              240.0,
+              560.0,
+              280.0
+            ]
+          },
+          {
+            "id": "0404782b-5ab8-5f5d-9359-966870a063ee",
+            "page_id": "5b95a4cd-f4b0-57dc-9cbf-13cc00f5145a",
+            "page_number": 1,
+            "reading_order": 3,
+            "parent_id": "fa9e47de-62a1-5069-8b34-4957c2a7f2e9",
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact symbols and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact symbols and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact symbols and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact symbols and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact symbols and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact symbols and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact symbols and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact symbols and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact symbols and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact symbols and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact symbols and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact symbols and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              310.0,
+              560.0,
+              350.0
+            ]
+          }
+        ],
+        "artifacts": []
+      },
+      "expected": {
+        "types": {
+          "TEXT_PARENT": 2,
+          "TEXT_CHILD": 2
+        },
+        "separate_elements": [
+          [
+            1,
+            3
+          ]
+        ]
+      }
+    },
+    {
+      "id": "paragraphs",
+      "source": {
+        "document_id": "569ec4d1-a00b-5eb2-a8ac-b9d872b45713",
+        "version_id": "f0f111b8-4a7a-51c1-9c3f-a8b9f56998aa",
+        "parse_run_id": "801ac87a-2f2c-5f35-bdc3-5d68ed7bb4fe",
+        "title": "Synthetic paragraphs",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "aa4bd7ea-dbe6-5c59-9bfb-9a730afd1bc9",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "b3958c71-eb87-58f8-9186-e3b64caa85c5",
+            "page_id": "aa4bd7ea-dbe6-5c59-9bfb-9a730afd1bc9",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "fc66485a-84db-5ad2-87d9-2216c3812484",
+            "page_id": "aa4bd7ea-dbe6-5c59-9bfb-9a730afd1bc9",
+            "page_number": 1,
+            "reading_order": 1,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          },
+          {
+            "id": "e5b09882-8e6d-5544-a285-d6d223ad115d",
+            "page_id": "aa4bd7ea-dbe6-5c59-9bfb-9a730afd1bc9",
+            "page_number": 1,
+            "reading_order": 2,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              240.0,
+              560.0,
+              280.0
+            ]
+          },
+          {
+            "id": "7c9812fe-25e5-5cae-84a3-bee724f42293",
+            "page_id": "aa4bd7ea-dbe6-5c59-9bfb-9a730afd1bc9",
+            "page_number": 1,
+            "reading_order": 3,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              310.0,
+              560.0,
+              350.0
+            ]
+          },
+          {
+            "id": "0aa38f7e-285a-5bf1-8271-6c687c31e62a",
+            "page_id": "aa4bd7ea-dbe6-5c59-9bfb-9a730afd1bc9",
+            "page_number": 1,
+            "reading_order": 4,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              380.0,
+              560.0,
+              420.0
+            ]
+          },
+          {
+            "id": "611cd37d-6467-5d8f-9e0e-733314a4620a",
+            "page_id": "aa4bd7ea-dbe6-5c59-9bfb-9a730afd1bc9",
+            "page_number": 1,
+            "reading_order": 5,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          }
+        ],
+        "artifacts": []
+      },
+      "expected": {
+        "types": {
+          "TEXT_PARENT": 1,
+          "TEXT_CHILD": 2
+        },
+        "all_source_mapped": true
+      }
+    },
+    {
+      "id": "table",
+      "source": {
+        "document_id": "de2a94ff-dd45-5caf-9abc-95d991fa0ba5",
+        "version_id": "e919ae3a-5207-5099-9e89-8437f7e709fa",
+        "parse_run_id": "f4c0e05e-9ea8-5144-bdae-8eab437013eb",
+        "title": "Synthetic table",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "f6f927c1-6654-59df-8bf8-4bd0937ea92b",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "2e4077c3-7b41-514e-b28e-f31cd3ca4302",
+            "page_id": "f6f927c1-6654-59df-8bf8-4bd0937ea92b",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "TABLE",
+            "text": "Synthetic table",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "f64fe344-e165-59f6-accb-b7068ab9b806",
+            "page_id": "f6f927c1-6654-59df-8bf8-4bd0937ea92b",
+            "page_number": 1,
+            "reading_order": 1,
+            "parent_id": null,
+            "kind": "CAPTION",
+            "text": "Measured markers",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          },
+          {
+            "id": "c487f3e6-b015-584f-a81b-3e2ca718f034",
+            "page_id": "f6f927c1-6654-59df-8bf8-4bd0937ea92b",
+            "page_number": 1,
+            "reading_order": 2,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Qualifiers remain in source.",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              240.0,
+              560.0,
+              280.0
+            ]
+          }
+        ],
+        "artifacts": [
+          {
+            "id": "bba08f32-14f4-5569-bdda-f220370f6f51",
+            "element_id": "2e4077c3-7b41-514e-b28e-f31cd3ca4302",
+            "kind": "TABLE",
+            "page_number": 1,
+            "caption_id": "f64fe344-e165-59f6-accb-b7068ab9b806",
+            "caption": "Measured markers",
+            "data": {
+              "row_count": 4,
+              "column_count": 3,
+              "header_row_count": 1,
+              "cells": [
+                {
+                  "row": 0,
+                  "column": 0,
+                  "text": "Marker",
+                  "row_span": 1,
+                  "col_span": 1,
+                  "column_header": true
+                },
+                {
+                  "row": 0,
+                  "column": 1,
+                  "text": "Reading",
+                  "row_span": 1,
+                  "col_span": 1,
+                  "column_header": true
+                },
+                {
+                  "row": 0,
+                  "column": 2,
+                  "text": "Unit",
+                  "row_span": 1,
+                  "col_span": 1,
+                  "column_header": true
+                },
+                {
+                  "row": 1,
+                  "column": 0,
+                  "text": "Synthetic marker 1",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 1,
+                  "column": 1,
+                  "text": "131.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 1,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 2,
+                  "column": 0,
+                  "text": "Synthetic marker 2",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 2,
+                  "column": 1,
+                  "text": "132.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 2,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 3,
+                  "column": 0,
+                  "text": "Synthetic marker 3",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 3,
+                  "column": 1,
+                  "text": "133.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 3,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                }
+              ]
+            },
+            "related_ids": []
+          }
+        ]
+      },
+      "expected": {
+        "types": {
+          "TABLE": 1
+        },
+        "required_text": [
+          "Marker",
+          "Reading",
+          "Unit",
+          "Synthetic marker 3"
+        ]
+      }
+    },
+    {
+      "id": "large-table",
+      "source": {
+        "document_id": "7c291746-0e02-5cd4-849a-e7cafd276526",
+        "version_id": "1306011d-db69-593f-a2a0-efdbeb4dc113",
+        "parse_run_id": "5cff8504-88c9-5af6-b42d-25cf88f44487",
+        "title": "Synthetic large-table",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "14850c86-39b7-5c92-ab88-020079b81a8a",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "ecaef8c0-4563-58be-a7a8-f27e6e0afafb",
+            "page_id": "14850c86-39b7-5c92-ab88-020079b81a8a",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "TABLE",
+            "text": "Large canonical table",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          }
+        ],
+        "artifacts": [
+          {
+            "id": "8c0d8f6f-5279-5935-9a1a-bcd408a330e5",
+            "element_id": "ecaef8c0-4563-58be-a7a8-f27e6e0afafb",
+            "kind": "TABLE",
+            "page_number": 1,
+            "caption_id": null,
+            "caption": null,
+            "data": {
+              "row_count": 90,
+              "column_count": 3,
+              "header_row_count": 1,
+              "cells": [
+                {
+                  "row": 0,
+                  "column": 0,
+                  "text": "Marker",
+                  "row_span": 1,
+                  "col_span": 1,
+                  "column_header": true
+                },
+                {
+                  "row": 0,
+                  "column": 1,
+                  "text": "Reading",
+                  "row_span": 1,
+                  "col_span": 1,
+                  "column_header": true
+                },
+                {
+                  "row": 0,
+                  "column": 2,
+                  "text": "Unit",
+                  "row_span": 1,
+                  "col_span": 1,
+                  "column_header": true
+                },
+                {
+                  "row": 1,
+                  "column": 0,
+                  "text": "Synthetic marker 1",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 1,
+                  "column": 1,
+                  "text": "131.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 1,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 2,
+                  "column": 0,
+                  "text": "Synthetic marker 2",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 2,
+                  "column": 1,
+                  "text": "132.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 2,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 3,
+                  "column": 0,
+                  "text": "Synthetic marker 3",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 3,
+                  "column": 1,
+                  "text": "133.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 3,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 4,
+                  "column": 0,
+                  "text": "Synthetic marker 4",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 4,
+                  "column": 1,
+                  "text": "134.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 4,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 5,
+                  "column": 0,
+                  "text": "Synthetic marker 5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 5,
+                  "column": 1,
+                  "text": "135.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 5,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 6,
+                  "column": 0,
+                  "text": "Synthetic marker 6",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 6,
+                  "column": 1,
+                  "text": "136.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 6,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 7,
+                  "column": 0,
+                  "text": "Synthetic marker 7",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 7,
+                  "column": 1,
+                  "text": "137.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 7,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 8,
+                  "column": 0,
+                  "text": "Synthetic marker 8",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 8,
+                  "column": 1,
+                  "text": "138.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 8,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 9,
+                  "column": 0,
+                  "text": "Synthetic marker 9",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 9,
+                  "column": 1,
+                  "text": "139.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 9,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 10,
+                  "column": 0,
+                  "text": "Synthetic marker 10",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 10,
+                  "column": 1,
+                  "text": "140.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 10,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 11,
+                  "column": 0,
+                  "text": "Synthetic marker 11",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 11,
+                  "column": 1,
+                  "text": "141.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 11,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 12,
+                  "column": 0,
+                  "text": "Synthetic marker 12",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 12,
+                  "column": 1,
+                  "text": "142.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 12,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 13,
+                  "column": 0,
+                  "text": "Synthetic marker 13",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 13,
+                  "column": 1,
+                  "text": "143.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 13,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 14,
+                  "column": 0,
+                  "text": "Synthetic marker 14",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 14,
+                  "column": 1,
+                  "text": "144.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 14,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 15,
+                  "column": 0,
+                  "text": "Synthetic marker 15",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 15,
+                  "column": 1,
+                  "text": "145.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 15,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 16,
+                  "column": 0,
+                  "text": "Synthetic marker 16",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 16,
+                  "column": 1,
+                  "text": "146.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 16,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 17,
+                  "column": 0,
+                  "text": "Synthetic marker 17",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 17,
+                  "column": 1,
+                  "text": "147.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 17,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 18,
+                  "column": 0,
+                  "text": "Synthetic marker 18",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 18,
+                  "column": 1,
+                  "text": "148.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 18,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 19,
+                  "column": 0,
+                  "text": "Synthetic marker 19",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 19,
+                  "column": 1,
+                  "text": "149.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 19,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 20,
+                  "column": 0,
+                  "text": "Synthetic marker 20",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 20,
+                  "column": 1,
+                  "text": "150.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 20,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 21,
+                  "column": 0,
+                  "text": "Synthetic marker 21",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 21,
+                  "column": 1,
+                  "text": "151.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 21,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 22,
+                  "column": 0,
+                  "text": "Synthetic marker 22",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 22,
+                  "column": 1,
+                  "text": "152.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 22,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 23,
+                  "column": 0,
+                  "text": "Synthetic marker 23",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 23,
+                  "column": 1,
+                  "text": "153.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 23,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 24,
+                  "column": 0,
+                  "text": "Synthetic marker 24",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 24,
+                  "column": 1,
+                  "text": "154.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 24,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 25,
+                  "column": 0,
+                  "text": "Synthetic marker 25",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 25,
+                  "column": 1,
+                  "text": "155.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 25,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 26,
+                  "column": 0,
+                  "text": "Synthetic marker 26",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 26,
+                  "column": 1,
+                  "text": "156.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 26,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 27,
+                  "column": 0,
+                  "text": "Synthetic marker 27",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 27,
+                  "column": 1,
+                  "text": "157.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 27,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 28,
+                  "column": 0,
+                  "text": "Synthetic marker 28",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 28,
+                  "column": 1,
+                  "text": "158.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 28,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 29,
+                  "column": 0,
+                  "text": "Synthetic marker 29",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 29,
+                  "column": 1,
+                  "text": "159.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 29,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 30,
+                  "column": 0,
+                  "text": "Synthetic marker 30",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 30,
+                  "column": 1,
+                  "text": "160.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 30,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 31,
+                  "column": 0,
+                  "text": "Synthetic marker 31",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 31,
+                  "column": 1,
+                  "text": "161.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 31,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 32,
+                  "column": 0,
+                  "text": "Synthetic marker 32",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 32,
+                  "column": 1,
+                  "text": "162.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 32,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 33,
+                  "column": 0,
+                  "text": "Synthetic marker 33",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 33,
+                  "column": 1,
+                  "text": "163.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 33,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 34,
+                  "column": 0,
+                  "text": "Synthetic marker 34",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 34,
+                  "column": 1,
+                  "text": "164.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 34,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 35,
+                  "column": 0,
+                  "text": "Synthetic marker 35",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 35,
+                  "column": 1,
+                  "text": "165.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 35,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 36,
+                  "column": 0,
+                  "text": "Synthetic marker 36",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 36,
+                  "column": 1,
+                  "text": "166.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 36,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 37,
+                  "column": 0,
+                  "text": "Synthetic marker 37",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 37,
+                  "column": 1,
+                  "text": "167.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 37,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 38,
+                  "column": 0,
+                  "text": "Synthetic marker 38",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 38,
+                  "column": 1,
+                  "text": "168.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 38,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 39,
+                  "column": 0,
+                  "text": "Synthetic marker 39",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 39,
+                  "column": 1,
+                  "text": "169.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 39,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 40,
+                  "column": 0,
+                  "text": "Synthetic marker 40",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 40,
+                  "column": 1,
+                  "text": "170.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 40,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 41,
+                  "column": 0,
+                  "text": "Synthetic marker 41",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 41,
+                  "column": 1,
+                  "text": "171.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 41,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 42,
+                  "column": 0,
+                  "text": "Synthetic marker 42",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 42,
+                  "column": 1,
+                  "text": "172.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 42,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 43,
+                  "column": 0,
+                  "text": "Synthetic marker 43",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 43,
+                  "column": 1,
+                  "text": "173.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 43,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 44,
+                  "column": 0,
+                  "text": "Synthetic marker 44",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 44,
+                  "column": 1,
+                  "text": "174.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 44,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 45,
+                  "column": 0,
+                  "text": "Synthetic marker 45",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 45,
+                  "column": 1,
+                  "text": "175.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 45,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 46,
+                  "column": 0,
+                  "text": "Synthetic marker 46",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 46,
+                  "column": 1,
+                  "text": "176.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 46,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 47,
+                  "column": 0,
+                  "text": "Synthetic marker 47",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 47,
+                  "column": 1,
+                  "text": "177.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 47,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 48,
+                  "column": 0,
+                  "text": "Synthetic marker 48",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 48,
+                  "column": 1,
+                  "text": "178.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 48,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 49,
+                  "column": 0,
+                  "text": "Synthetic marker 49",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 49,
+                  "column": 1,
+                  "text": "179.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 49,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 50,
+                  "column": 0,
+                  "text": "Synthetic marker 50",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 50,
+                  "column": 1,
+                  "text": "180.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 50,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 51,
+                  "column": 0,
+                  "text": "Synthetic marker 51",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 51,
+                  "column": 1,
+                  "text": "181.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 51,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 52,
+                  "column": 0,
+                  "text": "Synthetic marker 52",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 52,
+                  "column": 1,
+                  "text": "182.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 52,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 53,
+                  "column": 0,
+                  "text": "Synthetic marker 53",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 53,
+                  "column": 1,
+                  "text": "183.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 53,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 54,
+                  "column": 0,
+                  "text": "Synthetic marker 54",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 54,
+                  "column": 1,
+                  "text": "184.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 54,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 55,
+                  "column": 0,
+                  "text": "Synthetic marker 55",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 55,
+                  "column": 1,
+                  "text": "185.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 55,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 56,
+                  "column": 0,
+                  "text": "Synthetic marker 56",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 56,
+                  "column": 1,
+                  "text": "186.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 56,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 57,
+                  "column": 0,
+                  "text": "Synthetic marker 57",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 57,
+                  "column": 1,
+                  "text": "187.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 57,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 58,
+                  "column": 0,
+                  "text": "Synthetic marker 58",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 58,
+                  "column": 1,
+                  "text": "188.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 58,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 59,
+                  "column": 0,
+                  "text": "Synthetic marker 59",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 59,
+                  "column": 1,
+                  "text": "189.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 59,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 60,
+                  "column": 0,
+                  "text": "Synthetic marker 60",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 60,
+                  "column": 1,
+                  "text": "190.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 60,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 61,
+                  "column": 0,
+                  "text": "Synthetic marker 61",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 61,
+                  "column": 1,
+                  "text": "191.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 61,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 62,
+                  "column": 0,
+                  "text": "Synthetic marker 62",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 62,
+                  "column": 1,
+                  "text": "192.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 62,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 63,
+                  "column": 0,
+                  "text": "Synthetic marker 63",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 63,
+                  "column": 1,
+                  "text": "193.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 63,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 64,
+                  "column": 0,
+                  "text": "Synthetic marker 64",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 64,
+                  "column": 1,
+                  "text": "194.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 64,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 65,
+                  "column": 0,
+                  "text": "Synthetic marker 65",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 65,
+                  "column": 1,
+                  "text": "195.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 65,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 66,
+                  "column": 0,
+                  "text": "Synthetic marker 66",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 66,
+                  "column": 1,
+                  "text": "196.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 66,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 67,
+                  "column": 0,
+                  "text": "Synthetic marker 67",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 67,
+                  "column": 1,
+                  "text": "197.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 67,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 68,
+                  "column": 0,
+                  "text": "Synthetic marker 68",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 68,
+                  "column": 1,
+                  "text": "198.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 68,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 69,
+                  "column": 0,
+                  "text": "Synthetic marker 69",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 69,
+                  "column": 1,
+                  "text": "199.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 69,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 70,
+                  "column": 0,
+                  "text": "Synthetic marker 70",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 70,
+                  "column": 1,
+                  "text": "200.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 70,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 71,
+                  "column": 0,
+                  "text": "Synthetic marker 71",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 71,
+                  "column": 1,
+                  "text": "201.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 71,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 72,
+                  "column": 0,
+                  "text": "Synthetic marker 72",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 72,
+                  "column": 1,
+                  "text": "202.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 72,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 73,
+                  "column": 0,
+                  "text": "Synthetic marker 73",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 73,
+                  "column": 1,
+                  "text": "203.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 73,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 74,
+                  "column": 0,
+                  "text": "Synthetic marker 74",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 74,
+                  "column": 1,
+                  "text": "204.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 74,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 75,
+                  "column": 0,
+                  "text": "Synthetic marker 75",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 75,
+                  "column": 1,
+                  "text": "205.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 75,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 76,
+                  "column": 0,
+                  "text": "Synthetic marker 76",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 76,
+                  "column": 1,
+                  "text": "206.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 76,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 77,
+                  "column": 0,
+                  "text": "Synthetic marker 77",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 77,
+                  "column": 1,
+                  "text": "207.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 77,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 78,
+                  "column": 0,
+                  "text": "Synthetic marker 78",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 78,
+                  "column": 1,
+                  "text": "208.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 78,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 79,
+                  "column": 0,
+                  "text": "Synthetic marker 79",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 79,
+                  "column": 1,
+                  "text": "209.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 79,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 80,
+                  "column": 0,
+                  "text": "Synthetic marker 80",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 80,
+                  "column": 1,
+                  "text": "210.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 80,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 81,
+                  "column": 0,
+                  "text": "Synthetic marker 81",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 81,
+                  "column": 1,
+                  "text": "211.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 81,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 82,
+                  "column": 0,
+                  "text": "Synthetic marker 82",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 82,
+                  "column": 1,
+                  "text": "212.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 82,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 83,
+                  "column": 0,
+                  "text": "Synthetic marker 83",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 83,
+                  "column": 1,
+                  "text": "213.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 83,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 84,
+                  "column": 0,
+                  "text": "Synthetic marker 84",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 84,
+                  "column": 1,
+                  "text": "214.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 84,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 85,
+                  "column": 0,
+                  "text": "Synthetic marker 85",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 85,
+                  "column": 1,
+                  "text": "215.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 85,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 86,
+                  "column": 0,
+                  "text": "Synthetic marker 86",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 86,
+                  "column": 1,
+                  "text": "216.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 86,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 87,
+                  "column": 0,
+                  "text": "Synthetic marker 87",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 87,
+                  "column": 1,
+                  "text": "217.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 87,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 88,
+                  "column": 0,
+                  "text": "Synthetic marker 88",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 88,
+                  "column": 1,
+                  "text": "218.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 88,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 89,
+                  "column": 0,
+                  "text": "Synthetic marker 89",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 89,
+                  "column": 1,
+                  "text": "219.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 89,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                }
+              ]
+            },
+            "related_ids": []
+          }
+        ]
+      },
+      "expected": {
+        "types": {
+          "TABLE_PART": 2
+        },
+        "table_headers": true
+      }
+    },
+    {
+      "id": "formula",
+      "source": {
+        "document_id": "8fb37a72-739a-5b29-a42d-252c340e2060",
+        "version_id": "6853ed27-d144-5d19-bbb9-75b7cd48a73b",
+        "parse_run_id": "5cf9c05f-9bfc-52a7-9753-b3690a931c4f",
+        "title": "Synthetic formula",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "aa5b2936-8e42-5c71-8e5d-ab637adac6b0",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "1cf7391a-3916-54f0-9649-fb6a050ad0e3",
+            "page_id": "aa5b2936-8e42-5c71-8e5d-ab637adac6b0",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "FORMULA",
+            "text": "M = (A + 2 \u00d7 B) / 3",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "22796a49-cd43-5921-a6e5-e3b207392f1a",
+            "page_id": "aa5b2936-8e42-5c71-8e5d-ab637adac6b0",
+            "page_number": 1,
+            "reading_order": 1,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "M is the source-defined measure; A and B are source labels.",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          }
+        ],
+        "artifacts": [
+          {
+            "id": "66aafbba-8335-5077-a4b6-4f87fbced54d",
+            "element_id": "1cf7391a-3916-54f0-9649-fb6a050ad0e3",
+            "kind": "FORMULA",
+            "page_number": 1,
+            "caption_id": null,
+            "caption": null,
+            "data": {
+              "source_expression": "M = (A + 2 \u00d7 B) / 3"
+            },
+            "related_ids": [
+              "22796a49-cd43-5921-a6e5-e3b207392f1a"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "types": {
+          "FORMULA": 1
+        },
+        "required_text": [
+          "M = (A + 2 \u00d7 B) / 3",
+          "source-defined measure"
+        ]
+      }
+    },
+    {
+      "id": "figure",
+      "source": {
+        "document_id": "092ee598-287e-58ce-9255-76fbb48b2743",
+        "version_id": "8c6d5986-6803-5b0a-94ed-b36ce99a0150",
+        "parse_run_id": "0b62068c-7a38-54d9-a55a-ff92966006fd",
+        "title": "Synthetic figure",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "a1c1a0d1-246d-5605-99ec-caaee08031e5",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "3368504b-5a46-5a41-997c-82f075689381",
+            "page_id": "a1c1a0d1-246d-5605-99ec-caaee08031e5",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "FIGURE",
+            "text": "",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "711a789f-8694-56bd-8483-b4542cc2a807",
+            "page_id": "a1c1a0d1-246d-5605-99ec-caaee08031e5",
+            "page_number": 1,
+            "reading_order": 1,
+            "parent_id": null,
+            "kind": "CAPTION",
+            "text": "Figure 1. Two original circles connected by a line.",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          },
+          {
+            "id": "b5fcdfed-2124-572a-a9b4-8ce4e9a914b2",
+            "page_id": "a1c1a0d1-246d-5605-99ec-caaee08031e5",
+            "page_number": 1,
+            "reading_order": 2,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "The source explains the diagram without generated interpretation.",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              240.0,
+              560.0,
+              280.0
+            ]
+          }
+        ],
+        "artifacts": [
+          {
+            "id": "6741448a-c807-5345-8f17-7bcb069cbd26",
+            "element_id": "3368504b-5a46-5a41-997c-82f075689381",
+            "kind": "FIGURE",
+            "page_number": 1,
+            "caption_id": "711a789f-8694-56bd-8483-b4542cc2a807",
+            "caption": "Figure 1. Two original circles connected by a line.",
+            "data": {
+              "image_available": true
+            },
+            "related_ids": []
+          }
+        ]
+      },
+      "expected": {
+        "types": {
+          "FIGURE_CONTEXT": 1
+        },
+        "required_text": [
+          "Two original circles"
+        ]
+      }
+    },
+    {
+      "id": "columns",
+      "source": {
+        "document_id": "59c7e710-72dd-5ec8-a863-17e151ec4578",
+        "version_id": "37bc111f-1e05-57c8-b06b-c7f53060acbe",
+        "parse_run_id": "59dff45f-b22f-55fd-8b50-1872dad1dd9e",
+        "title": "Synthetic columns",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "e2c3ba6b-4903-5d09-8d25-f15b5ba6b0fa",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "2bdd187f-c763-533c-87c7-8b64ff83b76e",
+            "page_id": "e2c3ba6b-4903-5d09-8d25-f15b5ba6b0fa",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Left column first. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              280.0,
+              250.0
+            ]
+          },
+          {
+            "id": "905860ce-0f7c-5503-93ff-c510e8b5dcae",
+            "page_id": "e2c3ba6b-4903-5d09-8d25-f15b5ba6b0fa",
+            "page_number": 1,
+            "reading_order": 1,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Left column second. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              300.0,
+              280.0,
+              450.0
+            ]
+          },
+          {
+            "id": "2342c48c-333e-559e-bfc0-1710c8ad796d",
+            "page_id": "e2c3ba6b-4903-5d09-8d25-f15b5ba6b0fa",
+            "page_number": 1,
+            "reading_order": 2,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Right column first. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              320.0,
+              100.0,
+              560.0,
+              250.0
+            ]
+          },
+          {
+            "id": "3760383d-8ae7-5e60-ad63-b6f7fa4ce3f0",
+            "page_id": "e2c3ba6b-4903-5d09-8d25-f15b5ba6b0fa",
+            "page_number": 1,
+            "reading_order": 3,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Right column second. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              320.0,
+              300.0,
+              560.0,
+              450.0
+            ]
+          }
+        ],
+        "artifacts": []
+      },
+      "expected": {
+        "types": {
+          "TEXT_CHILD": 2
+        },
+        "ordered_fragments": [
+          "Left column first.",
+          "Left column second.",
+          "Right column first.",
+          "Right column second."
+        ]
+      }
+    },
+    {
+      "id": "page-transition",
+      "source": {
+        "document_id": "259dd318-5cfe-5e5d-8903-a72dfc55bc12",
+        "version_id": "48081918-5a07-51ae-b649-313cfba9b97b",
+        "parse_run_id": "1a8493d2-f9b1-5ed1-86f3-c30dc870d4f1",
+        "title": "Synthetic page-transition",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "dbc6ccc2-18ea-5a01-aef1-300e81177db8",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          },
+          {
+            "id": "8cdbf472-d6b8-5df7-b48f-796dfbc3b41e",
+            "number": 2,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "858776c6-625c-5394-96a2-242f97421736",
+            "page_id": "dbc6ccc2-18ea-5a01-aef1-300e81177db8",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "bec1db14-8b92-5760-a408-41bc03ed923e",
+            "page_id": "8cdbf472-d6b8-5df7-b48f-796dfbc3b41e",
+            "page_number": 2,
+            "reading_order": 1,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          }
+        ],
+        "artifacts": []
+      },
+      "expected": {
+        "cross_page": true,
+        "all_source_mapped": true
+      }
+    },
+    {
+      "id": "mcq",
+      "source": {
+        "document_id": "631fff94-8995-585f-bd9d-b58a7847ad0f",
+        "version_id": "fd537366-d944-5c2c-bcec-d800af3ff6f9",
+        "parse_run_id": "930324e9-c923-527b-b1dd-570612464ae8",
+        "title": "Synthetic mcq",
+        "source_type": "QUESTION_BANK",
+        "authority_level": "ASSESSMENT",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "a42c603e-8060-5530-b2bc-10ee3b322104",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "2de1ba9a-1b8b-511e-9c3a-2cfa160085a1",
+            "page_id": "a42c603e-8060-5530-b2bc-10ee3b322104",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "1. Which label appears in this synthetic source?",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "e02d8d47-a59a-5b67-99e3-c3df1898b191",
+            "page_id": "a42c603e-8060-5530-b2bc-10ee3b322104",
+            "page_number": 1,
+            "reading_order": 1,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "A. Alpha",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          },
+          {
+            "id": "a6e8a2bd-381f-5b71-a9f2-14087944ea33",
+            "page_id": "a42c603e-8060-5530-b2bc-10ee3b322104",
+            "page_number": 1,
+            "reading_order": 2,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "B. Beta",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              240.0,
+              560.0,
+              280.0
+            ]
+          },
+          {
+            "id": "dffde237-9dbf-5bf6-b21b-6a0298934bea",
+            "page_id": "a42c603e-8060-5530-b2bc-10ee3b322104",
+            "page_number": 1,
+            "reading_order": 3,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "C. Gamma",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              310.0,
+              560.0,
+              350.0
+            ]
+          },
+          {
+            "id": "fe131ce3-e567-5bee-bc74-7a58e06ba29f",
+            "page_id": "a42c603e-8060-5530-b2bc-10ee3b322104",
+            "page_number": 1,
+            "reading_order": 4,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "D. Delta",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              380.0,
+              560.0,
+              420.0
+            ]
+          },
+          {
+            "id": "6aa6488e-2369-5f53-b6fe-b2aede480912",
+            "page_id": "a42c603e-8060-5530-b2bc-10ee3b322104",
+            "page_number": 1,
+            "reading_order": 5,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Answer: B",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "f8c4751d-c9de-5291-a413-71a92009ca01",
+            "page_id": "a42c603e-8060-5530-b2bc-10ee3b322104",
+            "page_number": 1,
+            "reading_order": 6,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "2. Which label is not answered in the source?",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          },
+          {
+            "id": "119c043f-ebac-57ad-a93f-b877d6fbd87d",
+            "page_id": "a42c603e-8060-5530-b2bc-10ee3b322104",
+            "page_number": 1,
+            "reading_order": 7,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "A. North",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              240.0,
+              560.0,
+              280.0
+            ]
+          },
+          {
+            "id": "19f9043e-046d-578a-b279-9cd15e8e9842",
+            "page_id": "a42c603e-8060-5530-b2bc-10ee3b322104",
+            "page_number": 1,
+            "reading_order": 8,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "B. South",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              310.0,
+              560.0,
+              350.0
+            ]
+          }
+        ],
+        "artifacts": []
+      },
+      "expected": {
+        "types": {
+          "QUESTION": 2
+        },
+        "question_count": 2,
+        "answers": [
+          "B",
+          null
+        ],
+        "options_atomic": true
+      }
+    },
+    {
+      "id": "explanation",
+      "source": {
+        "document_id": "e639e7c0-ed60-52bd-94ea-3a42c5f0bf3f",
+        "version_id": "decc2347-dc26-5a1e-9525-aaa4a9192c30",
+        "parse_run_id": "09e739cf-9c0d-54c8-8a70-703ef106727d",
+        "title": "Synthetic explanation",
+        "source_type": "QUESTION_BANK",
+        "authority_level": "ASSESSMENT",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "781884ad-7689-5056-90b6-8179d49d533b",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "65b5b0b5-ac01-575f-b5d1-1e2c4ac6fb34",
+            "page_id": "781884ad-7689-5056-90b6-8179d49d533b",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "1. Which label is explicit?",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "333a3979-5c37-5e63-89f8-895a66471839",
+            "page_id": "781884ad-7689-5056-90b6-8179d49d533b",
+            "page_number": 1,
+            "reading_order": 1,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "A. First",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          },
+          {
+            "id": "01d4ae51-0f8d-5c9d-aa8d-22db08c7c431",
+            "page_id": "781884ad-7689-5056-90b6-8179d49d533b",
+            "page_number": 1,
+            "reading_order": 2,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "B. Second",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              240.0,
+              560.0,
+              280.0
+            ]
+          },
+          {
+            "id": "374036ef-7478-5da9-9318-de33e75c2776",
+            "page_id": "781884ad-7689-5056-90b6-8179d49d533b",
+            "page_number": 1,
+            "reading_order": 3,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Answer: A",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              310.0,
+              560.0,
+              350.0
+            ]
+          },
+          {
+            "id": "5d122cec-a398-5a97-b772-e049566b20df",
+            "page_id": "781884ad-7689-5056-90b6-8179d49d533b",
+            "page_number": 1,
+            "reading_order": 4,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Explanation: Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              380.0,
+              560.0,
+              420.0
+            ]
+          }
+        ],
+        "artifacts": []
+      },
+      "expected": {
+        "types": {
+          "QUESTION": 1,
+          "QUESTION_EXPLANATION": 2
+        },
+        "question_count": 1,
+        "answers": [
+          "A"
+        ],
+        "options_atomic": true
+      }
+    },
+    {
+      "id": "margins",
+      "source": {
+        "document_id": "835161bd-16ea-5713-bf12-d2464d568191",
+        "version_id": "76a9efe0-0100-5bd9-a440-9322fddee8ff",
+        "parse_run_id": "f2c8e27a-5991-5d8d-8955-3427831cc689",
+        "title": "Synthetic margins",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "8b04ba7a-1bd8-5849-b9d0-1e9d257d488e",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          },
+          {
+            "id": "8f4de0ef-2040-5735-9684-8df8ebfe2fbb",
+            "number": 2,
+            "width": 600.0,
+            "height": 800.0
+          },
+          {
+            "id": "83af256a-ba49-5c53-897d-b83b39443754",
+            "number": 3,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "d1d4a3ae-1e8d-53a8-b1f5-92f1e51a8c42",
+            "page_id": "8b04ba7a-1bd8-5849-b9d0-1e9d257d488e",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "PAGE_HEADER",
+            "text": "Synthetic reference 1",
+            "raw_text": null,
+            "bbox": [
+              30.0,
+              10.0,
+              500.0,
+              35.0
+            ]
+          },
+          {
+            "id": "a5f02bf2-abbb-5141-b546-95f7debb1811",
+            "page_id": "8b04ba7a-1bd8-5849-b9d0-1e9d257d488e",
+            "page_number": 1,
+            "reading_order": 1,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          },
+          {
+            "id": "72ee546a-1999-56c4-86bd-06ae0c543b6c",
+            "page_id": "8f4de0ef-2040-5735-9684-8df8ebfe2fbb",
+            "page_number": 2,
+            "reading_order": 2,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Synthetic reference 2",
+            "raw_text": null,
+            "bbox": [
+              30.0,
+              10.0,
+              500.0,
+              35.0
+            ]
+          },
+          {
+            "id": "ae299c2d-da6b-56c7-a3c0-78e09aa47ebc",
+            "page_id": "8f4de0ef-2040-5735-9684-8df8ebfe2fbb",
+            "page_number": 2,
+            "reading_order": 3,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              310.0,
+              560.0,
+              350.0
+            ]
+          },
+          {
+            "id": "0e30e60e-3364-5e32-80bd-bf932b3d6f93",
+            "page_id": "83af256a-ba49-5c53-897d-b83b39443754",
+            "page_number": 3,
+            "reading_order": 4,
+            "parent_id": null,
+            "kind": "CAPTION",
+            "text": "Synthetic reference 3",
+            "raw_text": null,
+            "bbox": [
+              30.0,
+              10.0,
+              500.0,
+              35.0
+            ]
+          },
+          {
+            "id": "e30d22ed-2772-52c6-8e34-c0e5f55fb9f7",
+            "page_id": "83af256a-ba49-5c53-897d-b83b39443754",
+            "page_number": 3,
+            "reading_order": 5,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          }
+        ],
+        "artifacts": []
+      },
+      "expected": {
+        "excluded": 3,
+        "forbidden_text": [
+          "Synthetic reference"
+        ]
+      }
+    },
+    {
+      "id": "list",
+      "source": {
+        "document_id": "5427c7ac-f54f-55c0-92c1-a0c1d543ca3e",
+        "version_id": "b5017b7a-527a-5131-8d24-bcf583f88f04",
+        "parse_run_id": "77783661-547e-51e7-9fd1-0d0fad8f5c29",
+        "title": "Synthetic list",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "83e79eb4-1b74-56d6-916e-b5e47a162946",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "549829a3-2e52-5ad5-9f28-0864a4194299",
+            "page_id": "83e79eb4-1b74-56d6-916e-b5e47a162946",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source qualifications:",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "5e934fce-6c19-535a-90eb-a69c7fb5bb22",
+            "page_id": "83e79eb4-1b74-56d6-916e-b5e47a162946",
+            "page_number": 1,
+            "reading_order": 1,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "- Item 0: Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          },
+          {
+            "id": "cbce7e64-98ee-5a16-b670-406f92547428",
+            "page_id": "83e79eb4-1b74-56d6-916e-b5e47a162946",
+            "page_number": 1,
+            "reading_order": 2,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "- Item 1: Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              240.0,
+              560.0,
+              280.0
+            ]
+          },
+          {
+            "id": "15c17c03-2ad7-5c65-aaa9-c4eb3bfe0e9c",
+            "page_id": "83e79eb4-1b74-56d6-916e-b5e47a162946",
+            "page_number": 1,
+            "reading_order": 3,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "- Item 2: Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              310.0,
+              560.0,
+              350.0
+            ]
+          },
+          {
+            "id": "130b449a-353e-59a0-a87b-9438da219117",
+            "page_id": "83e79eb4-1b74-56d6-916e-b5e47a162946",
+            "page_number": 1,
+            "reading_order": 4,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "- Item 3: Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              380.0,
+              560.0,
+              420.0
+            ]
+          },
+          {
+            "id": "9f286c01-4125-531a-b49a-c6848b9945fb",
+            "page_id": "83e79eb4-1b74-56d6-916e-b5e47a162946",
+            "page_number": 1,
+            "reading_order": 5,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "- Item 4: Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "fc54376f-4c6c-5654-9417-e1d0c42016d1",
+            "page_id": "83e79eb4-1b74-56d6-916e-b5e47a162946",
+            "page_number": 1,
+            "reading_order": 6,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "- Item 5: Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          },
+          {
+            "id": "9dc5f597-b164-53b4-a63b-0f95f614c5d3",
+            "page_id": "83e79eb4-1b74-56d6-916e-b5e47a162946",
+            "page_number": 1,
+            "reading_order": 7,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "- Item 6: Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              240.0,
+              560.0,
+              280.0
+            ]
+          },
+          {
+            "id": "16733f25-501d-5ac6-bf80-11784fead126",
+            "page_id": "83e79eb4-1b74-56d6-916e-b5e47a162946",
+            "page_number": 1,
+            "reading_order": 8,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "- Item 7: Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              310.0,
+              560.0,
+              350.0
+            ]
+          }
+        ],
+        "artifacts": []
+      },
+      "expected": {
+        "types": {
+          "LIST": 2
+        },
+        "required_text": [
+          "Source qualifications:"
+        ],
+        "all_source_mapped": true
+      }
+    },
+    {
+      "id": "footnote",
+      "source": {
+        "document_id": "d17c6ab0-b77c-5308-8dbc-1d6629dcae44",
+        "version_id": "50e0f9ba-098b-506a-9cd2-454d520e70a8",
+        "parse_run_id": "ddadead6-892e-5be7-9b6b-7881a9c257b2",
+        "title": "Synthetic footnote",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "6c470b3f-68ec-5e3a-82ac-702b9be4958b",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "e1721720-ce1b-5b4e-b14d-1b28d1505521",
+            "page_id": "6c470b3f-68ec-5e3a-82ac-702b9be4958b",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "Source statement requiring a qualifier. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. Source fidelity preserves exact terminology and units. This sentence supplies synthetic context for a parsing fixture. ",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "33875950-9647-5cc8-925d-522111d35412",
+            "page_id": "6c470b3f-68ec-5e3a-82ac-702b9be4958b",
+            "page_number": 1,
+            "reading_order": 1,
+            "parent_id": null,
+            "kind": "FOOTNOTE",
+            "text": "* This source qualification must remain accessible.",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          }
+        ],
+        "artifacts": []
+      },
+      "expected": {
+        "required_text": [
+          "source qualification"
+        ],
+        "all_source_mapped": true
+      }
+    },
+    {
+      "id": "continued-table",
+      "source": {
+        "document_id": "c885ec46-59db-5a52-9347-1713f8a18adb",
+        "version_id": "30a87223-a148-50de-880b-1e52e9da5a49",
+        "parse_run_id": "fdde06b4-58f6-5f73-aeed-bb5c367e443e",
+        "title": "Synthetic continued-table",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "b30b2bea-9b64-5ac3-a0b5-d15cd46ba787",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          },
+          {
+            "id": "42ca263d-1ac6-5fa9-90dd-299ff354c0ad",
+            "number": 2,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "bad2924c-fc54-547b-9a7e-85e83880b4f5",
+            "page_id": "b30b2bea-9b64-5ac3-a0b5-d15cd46ba787",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "TABLE",
+            "text": "Table part one",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          },
+          {
+            "id": "d416819b-e336-5b15-9af8-58dc026e6d36",
+            "page_id": "42ca263d-1ac6-5fa9-90dd-299ff354c0ad",
+            "page_number": 2,
+            "reading_order": 1,
+            "parent_id": null,
+            "kind": "TABLE",
+            "text": "Table part two",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              170.0,
+              560.0,
+              210.0
+            ]
+          }
+        ],
+        "artifacts": [
+          {
+            "id": "cb580803-f387-5a98-8afb-2ebdd772a8b8",
+            "element_id": "bad2924c-fc54-547b-9a7e-85e83880b4f5",
+            "kind": "TABLE",
+            "page_number": 1,
+            "caption_id": null,
+            "caption": null,
+            "data": {
+              "row_count": 4,
+              "column_count": 3,
+              "header_row_count": 1,
+              "cells": [
+                {
+                  "row": 0,
+                  "column": 0,
+                  "text": "Marker",
+                  "row_span": 1,
+                  "col_span": 1,
+                  "column_header": true
+                },
+                {
+                  "row": 0,
+                  "column": 1,
+                  "text": "Reading",
+                  "row_span": 1,
+                  "col_span": 1,
+                  "column_header": true
+                },
+                {
+                  "row": 0,
+                  "column": 2,
+                  "text": "Unit",
+                  "row_span": 1,
+                  "col_span": 1,
+                  "column_header": true
+                },
+                {
+                  "row": 1,
+                  "column": 0,
+                  "text": "Synthetic marker 1",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 1,
+                  "column": 1,
+                  "text": "131.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 1,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 2,
+                  "column": 0,
+                  "text": "Synthetic marker 2",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 2,
+                  "column": 1,
+                  "text": "132.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 2,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 3,
+                  "column": 0,
+                  "text": "Synthetic marker 3",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 3,
+                  "column": 1,
+                  "text": "133.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 3,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                }
+              ]
+            },
+            "related_ids": []
+          },
+          {
+            "id": "3f6e0a86-c3e7-5097-bcd2-b035ccc3ba2b",
+            "element_id": "d416819b-e336-5b15-9af8-58dc026e6d36",
+            "kind": "TABLE",
+            "page_number": 2,
+            "caption_id": null,
+            "caption": null,
+            "data": {
+              "row_count": 4,
+              "column_count": 3,
+              "header_row_count": 1,
+              "cells": [
+                {
+                  "row": 0,
+                  "column": 0,
+                  "text": "Marker",
+                  "row_span": 1,
+                  "col_span": 1,
+                  "column_header": true
+                },
+                {
+                  "row": 0,
+                  "column": 1,
+                  "text": "Reading",
+                  "row_span": 1,
+                  "col_span": 1,
+                  "column_header": true
+                },
+                {
+                  "row": 0,
+                  "column": 2,
+                  "text": "Unit",
+                  "row_span": 1,
+                  "col_span": 1,
+                  "column_header": true
+                },
+                {
+                  "row": 1,
+                  "column": 0,
+                  "text": "Synthetic marker 1",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 1,
+                  "column": 1,
+                  "text": "131.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 1,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 2,
+                  "column": 0,
+                  "text": "Synthetic marker 2",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 2,
+                  "column": 1,
+                  "text": "132.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 2,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 3,
+                  "column": 0,
+                  "text": "Synthetic marker 3",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 3,
+                  "column": 1,
+                  "text": "133.5",
+                  "row_span": 1,
+                  "col_span": 1
+                },
+                {
+                  "row": 3,
+                  "column": 2,
+                  "text": "example units",
+                  "row_span": 1,
+                  "col_span": 1
+                }
+              ],
+              "possible_continuation": true,
+              "continuation_of_id": "cb580803-f387-5a98-8afb-2ebdd772a8b8"
+            },
+            "related_ids": []
+          }
+        ]
+      },
+      "expected": {
+        "types": {
+          "TABLE": 2
+        },
+        "separate_artifacts": true
+      }
+    }
+  ]
+}

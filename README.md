@@ -3,12 +3,14 @@
 Accuracy-first educational medical RAG. **Unsupported answers are unacceptable; abstention is a
 successful outcome.** M1 implements authorized PDF upload, publication/version metadata and durable
 ingestion tracking; M2 adds Docling parsing, structured normalization with page and coordinate
-provenance, and parse-quality validation. Successful jobs stop at **READY_FOR_CHUNKING**, which
-means parsed and validated, not retrievable. Medical answering remains disabled.
+provenance, and parse-quality validation; M3 adds structure-aware hierarchical chunking with
+complete span-level provenance, deterministic chunk identity and chunk-quality validation.
+Successful jobs stop at **READY_FOR_EMBEDDING**, which means parsed, chunked and validated, not
+retrievable. Medical answering remains disabled.
 
 The stack is FastAPI/Pydantic/SQLAlchemy, React/TypeScript/Vite/TanStack Query, PostgreSQL,
-Redis/Celery, MinIO/S3 and Docling. Qdrant is available locally but still unused. Chunks,
-embeddings, retrieval and generation are future milestones.
+Redis/Celery, MinIO/S3 and Docling. Qdrant is available locally but still unused. Embeddings,
+retrieval and generation are future milestones.
 
 ## Start locally
 
@@ -75,9 +77,16 @@ Parsed material is inspected through `GET /documents/{id}/versions/{vid}/parse` 
 raw parser artifact). Every route enforces the same tenant boundary as the original, and object
 storage is never exposed.
 
-See [M1 report](docs/verification/m1.md) and [M2 report](docs/verification/m2.md) for all endpoints,
-[ingestion architecture](docs/architecture/ingestion.md) for recovery semantics and
-[document parsing](docs/architecture/document-parsing.md) for the parse contract.
+Chunked material is inspected through `GET /documents/{id}/versions/{vid}/chunk-runs` and
+`/chunk-runs/...` and `/chunks/...` (runs, chunks with type/page/relationship filters, chunk detail,
+ordered source mappings, question objects and validation findings). No route returns a storage key,
+a lease token or any vector field.
+
+See the [M1](docs/verification/m1.md), [M2](docs/verification/m2.md) and
+[M3](docs/verification/m3.md) reports for all endpoints,
+[ingestion architecture](docs/architecture/ingestion.md) for recovery semantics,
+[document parsing](docs/architecture/document-parsing.md) for the parse contract and
+[document chunking](docs/architecture/document-chunking.md) for the chunk contract.
 
 ## Verify
 
@@ -100,7 +109,9 @@ $env:PLAYWRIGHT_CHANNEL = 'chrome'
 uv run --env-file .env npm.cmd --prefix frontend run test:e2e
 uv run --env-file .env python scripts/smoke_m1.py
 uv run --env-file .env python scripts/smoke_m2.py
+uv run --env-file .env python scripts/smoke_m3.py
 uv run --extra parsing python scripts/evaluate_parsing.py
+uv run python scripts/evaluate_chunking.py
 ```
 
 Browser tests use installed Chrome and Vite port 4173, while the container UI remains on 5173.
@@ -127,9 +138,9 @@ live tests skip; a unit-only result does not verify persistence or queues.
 | `.agents/skills`, `.claude/skills` | Nine synchronized project skill pairs |
 
 Read [AGENTS.md](AGENTS.md), [AI_HANDOFF.md](AI_HANDOFF.md) and relevant ADRs before changes.
-The [M1](docs/requirements/m1.md) and [M2](docs/requirements/m2.md) requirements and the original
-bootstrap request are preserved.
+The [M1](docs/requirements/m1.md), [M2](docs/requirements/m2.md) and
+[M3](docs/requirements/m3.md) requirements and the original bootstrap request are preserved.
 
 This is a local development implementation: development bearer identities are not production OIDC,
-basic PDF checks are not antivirus, parse-quality thresholds are uncalibrated defaults chosen
-against synthetic fixtures, and there is no clinical validation or compliance certification.
+basic PDF checks are not antivirus, parse- and chunk-quality thresholds are uncalibrated defaults
+chosen against synthetic fixtures, and there is no clinical validation or compliance certification.

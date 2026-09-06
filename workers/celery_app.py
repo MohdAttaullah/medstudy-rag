@@ -4,7 +4,9 @@ from uuid import UUID
 from app.core.config import Settings
 from app.db.session import make_engine, make_sessions
 from app.ingestion.parser.docling_adapter import DoclingDocumentParser
+from app.models.documents import OutboxMessage
 from app.observability.parsing import ParseMetrics
+from app.services.chunking import ChunkService
 from app.services.parsing import ParseService
 from app.services.queue import receive
 from app.services.storage import S3ObjectStorage
@@ -70,7 +72,16 @@ def create_celery(settings: Settings | None = None) -> Any:
             job_id = receive(sessions, storage, UUID(message_id))
             if job_id is None:
                 return
-            parse_service(sessions, storage).run(job_id)
+            chunks = ChunkService(sessions, config.chunking)
+            with sessions() as session:
+                message = session.get(OutboxMessage, UUID(message_id))
+                kind = message.kind if message else None
+                run_id = message.chunk_run_id if message else None
+            if kind == "CHUNKING" and run_id:
+                chunks.run(run_id)
+            elif kind == "PARSING":
+                parse_service(sessions, storage).run(job_id)
+                chunks.schedule(job_id)
         finally:
             engine.dispose()
 

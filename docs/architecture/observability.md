@@ -1,7 +1,8 @@
 # Observability
 
 M1 added persisted ingestion history and security/operations audit to M0 HTTP health telemetry;
-M2 adds parse-stage tracing, parse audit and durable parse metrics.
+M2 added parse-stage tracing, parse audit and durable parse metrics; M3 adds the same for
+chunking.
 UUID request IDs are returned as X-Request-ID; only syntactically valid caller IDs are accepted.
 The upload ID follows validation/checksum/storage, committed job, outbox and receipt.
 
@@ -10,10 +11,15 @@ UPLOAD_STORAGE_VERIFIED, UPLOAD_COMMITTED, INGESTION_QUEUE_PUBLISHED, INGESTION_
 and, for M2, PARSE_RUN_STARTED, PARSE_RAW_ARTIFACT_STORED, PARSE_NORMALIZED, PARSE_RUN_COMPLETED
 and PARSE_RUN_FAILED. Together they trace the parse path: Celery receipt, source download, parser
 initialization, conversion, raw artifact write, normalization, database persistence, artifact
-extraction, validation and the state transition. Audit emits document/version/job creation, upload
+extraction, validation and the state transition. M3 adds CHUNK_RUN_STARTED, then
+CHUNK_TABLES_STARTED, CHUNK_FORMULAS_STARTED, CHUNK_FIGURES_STARTED, CHUNK_QUESTIONS_STARTED and
+CHUNK_TEXT_STARTED emitted **from the point that work actually begins** - a phase with no source
+material is never announced - followed by CHUNK_VALIDATION_STARTED and CHUNK_DATASET_COMMITTED. Audit emits document/version/job creation, upload
 rejection, duplicate detection, every state transition, retry, reparse request, cancel, archive,
 metadata change, reconciliation, queue receipt, parse start, parse completion (with result and
-counters), parse failure (code only) and parse reuse. Events carry
+counters), parse failure (code only), parse reuse, chunk run creation, chunk reprocess request, chunk
+completion (with result and chunk count), chunk failure (code only), chunk cancellation and chunk
+dataset reuse. Events carry
 actor/tenant/resource/correlation and safe metadata in PostgreSQL. Stage history additionally records
 sequence, stage, prior/new state, retry, service identity and safe errors. Logs emitted inside a
 transaction are diagnostics; committed PostgreSQL records remain the source of operational truth.
@@ -32,27 +38,36 @@ transaction are diagnostics; committed PostgreSQL records remain the source of o
 | parse_runs_by_result | Persisted validation results, labeled PASS/PASS_WITH_WARNINGS/NEEDS_REVIEW/FAIL |
 | parse_validation_findings | Persisted findings, labeled by severity |
 | parse_pages_total, parse_tables_total, parse_figures_total, parse_formulas_total, parse_ocr_pages_total | Totals across successful runs |
+| chunk_runs_by_status | Persisted chunk runs, labeled PENDING/RUNNING/SUCCEEDED/FAILED/NEEDS_REVIEW/CANCELLED |
+| chunk_runs_by_result | Persisted chunk validation results, labeled PASS/PASS_WITH_WARNINGS/NEEDS_REVIEW/FAIL |
+| chunk_validation_findings | Persisted chunk findings, labeled by severity |
+| chunks_by_type | Persisted chunks, labeled by chunk type |
+| question_artifacts_total | Persisted question objects |
 
-Parsing runs in the Celery worker, which is not scraped. The parse series above are therefore
-derived from committed PostgreSQL rows at scrape time, which makes them accurate across worker
+Parsing and chunking run in the Celery worker, which is not scraped. The parse and chunk series
+above are therefore derived from committed PostgreSQL rows at scrape time, which makes them accurate across worker
 restarts rather than per-process. The worker also maintains in-process counters
 (`parse_jobs_total`, `parse_jobs_succeeded_total`, `parse_jobs_failed_total{code}`,
 `parse_jobs_needs_review_total`, `parse_jobs_cancelled_total`, `parse_duration_seconds`); those
 are not exposed on an endpoint yet, so parse duration is not currently scrapeable. Document,
-version, tenant and parse-run identifiers are never metric labels; only fixed enum values and
-error codes are.
+version, tenant, parse-run and chunk-run identifiers are never metric labels; only fixed enum
+values and error codes are. None of the chunk series is a retrieval or medical accuracy measure.
 
 In-process counters reset on process restart; they are not lifetime accounting. Status/failure
 collectors query PostgreSQL. Worker receipt errors remain visible in durable job events; the upload
 storage counter is not a complete cross-process storage metric. Scrape failures do not prove that
 no jobs exist. HTTP counters and dependency checks remain available.
 
-Operations uses real paginated job data, valid retry/reparse/cancel controls, correlation/error/
-history and receipt time, and offers the real executable stages as filters. Document details show
-the actual parser build, policy version, page/element/table/figure/formula counts, OCR usage and
-validation outcome for the current parse run. It also displays real dependency readiness. No
+Operations uses real paginated job data, valid retry/reparse/rechunk/cancel controls,
+correlation/error/history and receipt time, and offers the real executable stages as filters.
+Document details show the actual parser build, policy version, page/element/table/figure/formula
+counts, OCR usage and validation outcome for the current parse run, and the actual chunker build,
+chunk policy, parent/child/table/formula/figure/question counts and validation outcome for the
+current chunk run. The Chunk Inspector shows measured tokens, content hashes and the exact source
+spans behind every chunk. It also displays real dependency readiness. No
 parsing percentage, accuracy figure or queue progress is invented; a version with no parse run
-says so. Transfer percentage is based on browser byte events; subsequent validation/storage
+says so, and a version with no chunk run says so. No chunk quality percentage is invented, and no
+chunk is presented as retrievable evidence. Transfer percentage is based on browser byte events; subsequent validation/storage
 uses stage text. API readiness checks dependencies, not worker progress or corpus activation.
 Worker/dispatcher have no dedicated healthcheck; successful queue receipt is verified separately.
 

@@ -4,11 +4,13 @@
 
 Authorized PDF uploads create an immutable original, DocumentVersion, IngestionJob, ordered stage
 history and a durable outbox message. Successful jobs execute
-`UPLOADED -> VALIDATING -> QUEUED -> PARSING -> NORMALIZING -> ENRICHING -> READY_FOR_CHUNKING`.
-Celery confirms receipt in PostgreSQL and then runs the M2 parse pipeline for the job it claimed.
+`UPLOADED -> VALIDATING -> QUEUED -> PARSING -> NORMALIZING -> ENRICHING -> READY_FOR_CHUNKING ->
+CHUNKING -> VALIDATING_CHUNKS -> READY_FOR_EMBEDDING`. Celery confirms receipt in PostgreSQL and
+then runs the parse pipeline, and afterwards the chunk pipeline, for the job it claimed.
 Every version stays unsearchable; a database constraint prevents accidental activation.
-READY_FOR_CHUNKING means parsed and validated, not retrievable: no chunk, embedding or index
-exists. Parsing itself is documented in [document parsing](document-parsing.md).
+READY_FOR_EMBEDDING means parsed, chunked and validated, not retrievable: no embedding or index
+exists. Parsing is documented in [document parsing](document-parsing.md) and chunking in
+[document chunking](document-chunking.md).
 
 `backend/app/ingestion/state.py` owns transitions and writes job/version status, timestamps, history
 and audit together. PostgreSQL triggers reject invalid job transitions and changes to immutable job
@@ -22,17 +24,21 @@ provenance. The executable graph is:
 | PARSING | NORMALIZING, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
 | NORMALIZING | ENRICHING, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
 | ENRICHING | READY_FOR_CHUNKING, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
-| READY_FOR_CHUNKING | CANCELLED; explicit reparse to VALIDATING |
-| FAILED | CANCELLED; explicit bounded retry or reparse to VALIDATING |
+| READY_FOR_CHUNKING | CHUNKING, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED; explicit reparse to VALIDATING |
+| CHUNKING | VALIDATING_CHUNKS, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
+| VALIDATING_CHUNKS | READY_FOR_EMBEDDING, FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED |
+| READY_FOR_EMBEDDING | CANCELLED; explicit reparse to VALIDATING or rechunk to READY_FOR_CHUNKING |
+| FAILED | CANCELLED; explicit bounded retry, reparse to VALIDATING or rechunk to READY_FOR_CHUNKING |
 | QUARANTINED | CANCELLED |
-| NEEDS_REVIEW | CANCELLED; explicit reparse to VALIDATING |
+| NEEDS_REVIEW | CANCELLED; explicit reparse to VALIDATING or rechunk to READY_FOR_CHUNKING |
 | CANCELLED | None |
 
-M3+ enum values (CHUNKING, EMBEDDING, INDEXING, VERIFYING_INDEX, READY) exist for schema
-compatibility and are absent from both the application table and the database guard. Retry only
-accepts FAILED. Reparse additionally accepts READY_FOR_CHUNKING and NEEDS_REVIEW, requires
-`ingestion:reparse`, and consumes one unit of the same bounded retry budget so reprocessing cannot
-loop unbounded. Both increment the retry generation, preserve history, check the original's stored
+M4+ enum values (EMBEDDING, INDEXING, VERIFYING_INDEX, READY) exist for schema compatibility and
+are absent from both the application table and the database guard. Retry only accepts FAILED, and
+routes a chunk-stage failure to a forced rechunk rather than a full reparse. Reparse additionally
+accepts READY_FOR_CHUNKING, READY_FOR_EMBEDDING and NEEDS_REVIEW and requires `ingestion:reparse`;
+rechunk accepts the same origins plus FAILED and requires `ingestion:rechunk`. Each consumes one
+unit of the same bounded retry budget so reprocessing cannot loop unbounded. Both increment the retry generation, preserve history, check the original's stored
 size/checksum metadata and emit a new outbox message on success. Unavailable storage fails the job;
 mismatch quarantines it. Neither replaces the original. Cancel is idempotent; archive cancels
 eligible jobs and prevents new versions. Document/job locks serialize these actions with receipt
@@ -100,13 +106,31 @@ headers and cells, formula expressions and question-bank cues are retained; noth
 A deterministic quality layer decides between READY_FOR_CHUNKING, NEEDS_REVIEW and FAILED.
 See [document parsing](document-parsing.md) for the full contract.
 
-## Future chunking and activation (not implemented)
+## Implemented chunking (M3)
+
+The active parse run is projected into a durable, versioned chunk dataset:
+`READY_FOR_CHUNKING -> CHUNKING -> VALIDATING_CHUNKS -> READY_FOR_EMBEDDING`. Work is dispatched
+through the same transactional outbox with a distinct `CHUNKING` message kind and taken under a
+fenced chunk-run lease, so duplicate delivery is idempotent and a crashed worker leaves a retryable
+job rather than a stuck one. Parent and child chunks, row-grouped table parts with repeated headers,
+atomic formulas, figure context, and question objects with their options and explicit source answers
+are persisted with complete span-level provenance. Chunks, mappings, questions, relations, findings
+and active-run selection commit in one transaction after a deterministic quality layer decides
+between READY_FOR_EMBEDDING, NEEDS_REVIEW and FAILED. Completed runs are immutable and remain
+inspectable. See [document chunking](document-chunking.md) for the full contract.
+
+READY_FOR_EMBEDDING means chunked and validated, not retrievable: no embedding, vector or index
+exists, and every version stays database-constrained unsearchable.
+
+## Future embedding, indexing and activation (not implemented)
 
 Later indexing uses a fresh staging manifest. Activation requires parse/provenance validation,
 complete embeddings, exact expected index IDs/counts, reconciliation and retrieval smoke success.
 PostgreSQL owns the atomic manifest switch; Qdrant alone cannot create a cross-system transaction.
 Readers pin an authorized READY manifest. Crashed staging writes stay invisible; retention policy
-governs cleanup. M2 never performs this activation.
+governs cleanup. M3 never performs this activation, and the embedding and index job states are
+unreachable in both the application graph and the database guard.
 
-See [ADR-006](../adr/006-m1-durable-upload-control-plane.md) and
-[ADR-007](../adr/007-m2-parse-runs-and-quality-validation.md).
+See [ADR-006](../adr/006-m1-durable-upload-control-plane.md),
+[ADR-007](../adr/007-m2-parse-runs-and-quality-validation.md) and
+[ADR-008](../adr/008-m3-hierarchical-chunking.md).

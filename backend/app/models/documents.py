@@ -165,9 +165,11 @@ class UploadIntent(UUIDTimestampMixin, Base):
 
 class OutboxMessage(UUIDTimestampMixin, Base):
     __tablename__ = "outbox_messages"
-    __table_args__ = (UniqueConstraint("job_id", "generation"),)
+    __table_args__ = (UniqueConstraint("job_id", "generation", "kind"),)
     job_id: Mapped[UUID] = mapped_column(ForeignKey("ingestion_jobs.id"), index=True)
     generation: Mapped[int]
+    kind: Mapped[str] = mapped_column(String(20), default="PARSING", server_default="PARSING")
+    chunk_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("chunk_runs.id"))
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attempts: Mapped[int] = mapped_column(default=0)

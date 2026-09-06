@@ -56,6 +56,9 @@ class ParseRun(UUIDTimestampMixin, Base):
     __tablename__ = "parse_runs"
     __table_args__ = (
         UniqueConstraint("id", "tenant_id"),
+        UniqueConstraint(
+            "id", "document_version_id", "tenant_id", name="uq_parse_runs_id_version_tenant"
+        ),
         # Exactly one active run per version; a superseded run keeps its rows for comparison.
         Index(
             "uq_parse_runs_active_version",
@@ -193,6 +196,7 @@ class TableArtifact(BoundingBoxMixin, UUIDTimestampMixin, Base):
     __tablename__ = "table_artifacts"
     __table_args__ = (
         UniqueConstraint("document_element_id"),
+        UniqueConstraint("id", "parse_run_id"),
         CheckConstraint("row_count >= 0 AND column_count >= 0", name="non_negative_table_size"),
     )
 
@@ -231,7 +235,10 @@ class TableArtifact(BoundingBoxMixin, UUIDTimestampMixin, Base):
 
 class FigureArtifact(BoundingBoxMixin, UUIDTimestampMixin, Base):
     __tablename__ = "figure_artifacts"
-    __table_args__ = (UniqueConstraint("document_element_id"),)
+    __table_args__ = (
+        UniqueConstraint("document_element_id"),
+        UniqueConstraint("id", "parse_run_id"),
+    )
 
     tenant_id: Mapped[UUID] = mapped_column(index=True)
     document_version_id: Mapped[UUID] = mapped_column(index=True)
@@ -267,7 +274,10 @@ class FormulaArtifact(BoundingBoxMixin, UUIDTimestampMixin, Base):
     """
 
     __tablename__ = "formula_artifacts"
-    __table_args__ = (UniqueConstraint("document_element_id"),)
+    __table_args__ = (
+        UniqueConstraint("document_element_id"),
+        UniqueConstraint("id", "parse_run_id"),
+    )
 
     tenant_id: Mapped[UUID] = mapped_column(index=True)
     document_version_id: Mapped[UUID] = mapped_column(index=True)

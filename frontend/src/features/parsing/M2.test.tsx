@@ -117,6 +117,7 @@ beforeEach(() => {
         document_version_id: 'version-1', ingestion_status: 'READY_FOR_CHUNKING',
         parse_run: summaryRun, parse_runs: summaryRun ? 1 : 0,
       } :
+      url.includes('/chunk-runs') ? page([]) :
       url.includes('/versions') ? page([version]) :
       url.includes('/documents/doc-1') ? document_ :
       url.includes('/ingestion/jobs') ? page([]) :
@@ -152,7 +153,8 @@ describe('M2 parse status on the document details page', () => {
     for (const absent of ['chunks retrieved', 'vectors indexed', 'evidence available', 'embedding complete']) {
       expect(body.toLowerCase()).not.toContain(absent.toLowerCase());
     }
-    expect(body).toContain('Chunking, embedding and retrieval are not implemented.');
+    expect(body).toContain('Embedding and retrieval are not implemented.');
+    expect(body).toContain('This version is not searchable.');
   });
 
   it('states plainly when a version has not been parsed', async () => {
@@ -224,8 +226,9 @@ describe('M2 operations', () => {
     for (const stage of ['PARSING', 'NORMALIZING', 'ENRICHING', 'READY_FOR_CHUNKING']) {
       expect(options).toContain(stage);
     }
-    expect(options).not.toContain('CHUNKING');
+    // M3 made the chunk stages real; the embedding and index stages are still unreachable.
     expect(options).not.toContain('EMBEDDING');
+    expect(options).not.toContain('INDEXING');
     expect(options).not.toContain('READY');
   });
 });
