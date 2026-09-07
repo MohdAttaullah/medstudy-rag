@@ -69,7 +69,7 @@ function Workspace() {
         <NavLink key={path} to={`/${path}`}>{label}</NavLink>)}</nav>
       <div className="sidebar-note">Educational use<br /><span>Not for patient diagnosis or treatment.</span></div>
     </aside>
-    <div className="content"><header><span>Knowledge workspace</span><span className="badge">M5 / Retrieval</span></header>
+    <div className="content"><header><span>Knowledge workspace</span><span className="badge">M6 / Evidence</span></header>
       <main id="main" tabIndex={-1}><Routes>
         <Route path="/" element={<Navigate to="/ask" replace />} />
         <Route path="/ask" element={<Ask />} />

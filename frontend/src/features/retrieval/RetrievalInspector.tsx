@@ -1,12 +1,14 @@
 import { useState } from 'react';
+import { EvidenceInspector } from './EvidenceInspector';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api, ApiError } from '../../api/client';
 import { AccessGate, useSession } from '../library/Session';
-import type { Candidate, RetrievalStatus, SearchResponse } from '../../types/retrieval';
+import type { Candidate, RetrievalStatus, SearchResponse, RerankedResponse } from '../../types/retrieval';
 
 const MODES = [
   ['HYBRID_RRF', 'Hybrid (RRF)'],
+  ['RERANKED', 'Hybrid + reranking + evidence'],
   ['DENSE_ONLY', 'Dense only'],
   ['BM25_ONLY', 'BM25 only'],
 ] as const;
@@ -31,7 +33,7 @@ function Inspector() {
   const { token } = useSession();
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<string>('HYBRID_RRF');
-  const [lane, setLane] = useState<'hybrid' | 'dense' | 'sparse'>('hybrid');
+  const [lane, setLane] = useState<'hybrid' | 'dense' | 'sparse' | 'reranked' | 'evidence'>('hybrid');
   const [selected, setSelected] = useState<Candidate | null>(null);
 
   const status = useQuery({
@@ -40,13 +42,14 @@ function Inspector() {
   });
 
   const search = useMutation({
-    mutationFn: (text: string) => api<SearchResponse>(token, '/retrieval/search', {
-      method: 'POST', body: JSON.stringify({ query: text, mode }),
+    mutationFn: (text: string) => api<SearchResponse | RerankedResponse>(token, mode === 'RERANKED' ? '/retrieval/rerank' : '/retrieval/search', {
+      method: 'POST', body: JSON.stringify({ query: text, mode: mode === 'RERANKED' ? 'HYBRID_RRF' : mode }),
     }),
     onSuccess: () => { setSelected(null); setLane('hybrid'); },
   });
 
-  const result = search.data;
+  const reranked = search.data && 'evidence_set' in search.data ? search.data : undefined;
+  const result = reranked?.first_stage ?? (search.data as SearchResponse | undefined);
   const error = search.error as ApiError | null;
 
   return <>
@@ -109,7 +112,10 @@ function Inspector() {
            ['dense', `Dense (${result.dense.length})`],
            ['sparse', `BM25 (${result.sparse.length})`]] as const).map(([value, label]) =>
           <button key={value} aria-pressed={lane === value} onClick={() => setLane(value)}>{label}</button>)}
+        {reranked && <><button aria-pressed={lane === 'reranked'} onClick={() => setLane('reranked')}>Reranked</button>
+          <button aria-pressed={lane === 'evidence'} onClick={() => setLane('evidence')}>Evidence Set</button></>}
       </div>
+      {reranked && (lane === 'reranked' || lane === 'evidence') && <EvidenceInspector result={reranked} stage={lane} />}
 
       {lane === 'hybrid' && <section className="panel"><h2>{result.mode === 'HYBRID_RRF' ? 'Fused candidates' : 'Retrieved candidates'}</h2>
         <p className="muted">Ranked by reciprocal rank fusion. The fused score is a rank-based
@@ -133,7 +139,7 @@ function Inspector() {
         </article>)}
       </section>}
 
-      {lane !== 'hybrid' && <section className="panel">
+      {(lane === 'dense' || lane === 'sparse') && <section className="panel">
         <h2>{lane === 'dense' ? 'Dense lane' : 'BM25 lane'}</h2>
         <p className="muted">{lane === 'dense'
           ? 'MedCPT query vector against the verified dense index. Scores are inner products.'

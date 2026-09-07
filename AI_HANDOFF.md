@@ -1,222 +1,128 @@
 # AI HANDOFF
 
-## Current milestone and status
+## Current milestone
 
-**M5 — biomedical hybrid retrieval: COMPLETE and verified locally.** M0–M4 remain verified.
-**M6 has not been started.**
+**M6 is complete and verified.** M5 is committed at `ecb4941` on branch `main`. All M6 work is
+uncommitted and nothing is staged — the user has not authorized a commit. **M7 has NOT started.**
+Ask is disabled, `READY` is unreachable, and every M5 and M6 response carries
+`answering_enabled=false`. No generation, sufficiency gate, provider adapter, claim extractor or
+verifier exists anywhere in the tree.
 
-Successful jobs execute
-UPLOADED → VALIDATING → QUEUED → PARSING → NORMALIZING → ENRICHING → READY_FOR_CHUNKING →
-CHUNKING → VALIDATING_CHUNKS → READY_FOR_EMBEDDING → EMBEDDING → INDEXING → VERIFYING_INDEX →
-READY_FOR_RETRIEVAL → SPARSE_INDEXING → VERIFYING_SPARSE_INDEX → **RETRIEVAL_READY**.
+## What M6 is
 
-RETRIEVAL_READY means both retrieval lanes verified over the *same* chunk dataset, so this corpus
-version can take part in hybrid retrieval and its candidates resolve to real sources. **It does not
-mean the corpus is medically answerable.** No reranking, context expansion, evidence sufficiency
-gate, grounding or generation exists. READY stays unreachable in both the application transition
-table and the database guard, every version stays database-constrained unsearchable, Ask is
-disabled, and every retrieval response carries `answering_enabled: false`.
+Pinned MedCPT CrossEncoder reranking of the M5 fused pool, deterministic context expansion, and a
+bounded, request-scoped EvidenceSet whose every block resolves back to the original document.
+The EvidenceSet is **source material for inspection**. It is not an answer, and it is not a claim
+that the evidence suffices.
 
-## Completed implementation (M5)
+- `ncbi/MedCPT-Cross-Encoder` @ `71caf65d4927987813984f54c284405a13fcca49`, seven files SHA-256
+  verified before an offline `local_files_only` / `trust_remote_code=False` / `weights_only=True`
+  load. 512-token pairs including special tokens; overflow is **rejected**, never truncated.
+- Raw float32 logits, descending, ties on original fused rank then chunk UUID. The score is a
+  **ranking diagnostic** — no sigmoid, no confidence, no threshold anywhere.
+- Full persisted M3 retrieval text is paired with the M5-normalized query; never the API preview.
+  Neither query nor source text is persisted or logged.
+- Authorized `POST /api/v1/retrieval/rerank` (`retrieval:search`, hybrid only). Corpus identity is
+  rechecked after retrieval, after inference and after expansion hydration; drift raises
+  `CONTEXT_SOURCE_LINEAGE_MISMATCH`. **No fallback to the M5 result on reranker failure.**
+- Defaults: 20 candidates (max 40), 5 anchors, 1 sibling each side, parent 512 tokens, neighbour
+  256, 3 expansions per anchor; budget 4096 tokens / 20 blocks / 1024 tokens per block.
+- M5 is untouched: encoder, analyzer, BM25 `k1`/`b`, RRF equation and constant, lane weights and
+  40/40 budgets are unchanged. The M6 pool is a separately versioned query-side policy
+  (`retrieval-m6-pool-v1`). `git diff` over the M5 retrieval core is empty.
 
-- **MedCPT Query Encoder** pinned by revision `d83a36cc6b8e3a5c5e9d9d6ba156808c1643dcbc`, with both
-  the weight and tokenizer SHA-256 verified before load. CLS pooling, 768 dimensions, unnormalized,
-  DOT, 64-token maximum — the released query-side representation. A *different checkpoint* from
-  M4's article encoder; the model id is `Literal`-pinned so configuration cannot swap them, and
-  `Settings` refuses to build if the two policies disagree on the vector space.
-- Query preparation is deterministic only: NFKC, control characters, typographic punctuation,
-  whitespace. **No rewriting, no HyDE, no paraphrase, no synonym or abbreviation expansion** — the
-  analyzer's `expansion` is `Literal["NONE"]` behind a database CHECK. Over-long queries are
-  rejected with `QUERY_TOO_LONG`, never truncated. The bounded query-vector cache is keyed by
-  encoder semantics plus a hash and stores no query text.
-- **PostgreSQL BM25** with the Lucene IDF, over a versioned biomedical analyzer that keeps
-  `HLA-B27`, `CYP3A4`, `Na+/K+-ATPase`, `HbA1c`, `IL-6`, `mg/kg`, `7.5%` intact, emits case-exact
-  terms in their own key space, and disables stopwords. Postings store raw term frequencies and
-  lengths, so `k1`/`b` are runtime-safe and IDF is scoped to the tenant's active corpus only.
-- Durable sparse lifecycle mirroring M4: outbox message kind `SPARSE_INDEX`, fenced lease,
-  reconciliation against the dense lane's own recorded chunk set, activation only after
-  verification, previous active index preserved when a replacement fails, completed indexes
-  immutable, activation timestamp written once, findings append-only.
-- **RRF** `sum(weight/(k+rank))`, k=60, weights 1.0, deterministic chunk-id ties. Raw lane scores
-  are carried as diagnostics and never added. Modes `DENSE_ONLY`, `BM25_ONLY`, `HYBRID_RRF`;
-  `BM25_ONLY` performs no model call at all.
-- **Fail-closed corpus alignment**: a version is searchable only with an active VERIFIED dense run
-  and an active VERIFIED sparse index on the same chunk run, at RETRIEVAL_READY, unarchived. Lane
-  disagreement, mixed embedding versions and mixed analyzer versions all fail the whole query.
-  Default `degradation_policy = FAIL_CLOSED`.
-- Tenant comes only from the authenticated principal; both lanes filter server-side; hydration
-  re-scopes every candidate against tenant and resolved corpus.
-- Retrieval API + status/inspection/reindex APIs, and a **Retrieval Inspector** UI with mode
-  selection, lane comparison, execution trace and candidate → chunk → source-page navigation. No
-  answer, confidence or dense vector is exposed anywhere.
-- Query encoding runs in its own internal `retrieval` container with an offline provisioned
-  `query-models` volume, so the API and dispatcher images carry no torch.
-- Gold retrieval dataset (83 synthetic chunks, 22 positive / 2 negative / 1 boundary case, 20
-  categories) and an offline evaluation harness reporting Recall@K, MRR, nDCG, precision,
-  per-category results, per-query diagnostics, failure classification, negative-case score
-  separation and query-boundary behaviour.
+Key modules: `backend/app/{reranking,evidence,core/reranking_config,schemas/reranking,
+services/evidence,repositories/evidence,evaluation/{reranking,evidence}}`; frontend
+`features/retrieval/EvidenceInspector.tsx`; `scripts/{evaluate_reranking,
+compare_reranking_environments,benchmark_m6,provision_reranker_model,smoke_m6}`.
+See ADR-011, `docs/architecture/{reranking,context-expansion}.md` and `docs/verification/m6.md`.
 
-Modules: `backend/app/{core/retrieval_config,retrieval/*,retrieval_service,models/retrieval,
-repositories/retrieval,schemas/retrieval,api/retrieval,services/{retrieval,sparse_index},
-observability/retrieval,evaluation/retrieval}`; `frontend/src/features/retrieval`;
-`frontend/e2e/retrieval.spec.ts`; `migrations/versions/m5_hybrid_retrieval`;
-`scripts/{provision_query_model,evaluate_retrieval,compare_query_environments,smoke_m5}`.
-See [M5 report](docs/verification/m5.md), [retrieval](docs/architecture/retrieval.md),
-[sparse retrieval](docs/architecture/sparse-retrieval.md) and
-[ADR-010](docs/adr/010-m5-hybrid-retrieval.md).
+## Provenance fixes (do not regress these)
 
-## Git and files
+1. **Captionless figures.** An original figure whose chunk has zero-length spans and no caption was
+   silently dropped by assembly. A `visual_only` predicate now admits it and deduplication keys on
+   `(document_version_id, artifact_id)`. `FIGURE_CAPTION` is emitted only when a caption span
+   exists. Nothing generates a description of the image.
+2. **Multi-chunk questions.** `EvidenceSource`/`EvidenceBlock` carry `source_chunk_ids`; the
+   repository resolves every chunk sharing the question's `question_id` in the same tenant and
+   chunk run. The Evidence Inspector links **each** contributing chunk, and `smoke_m6` resolves
+   `/chunks/{id}/sources` for every one of them.
 
-Branch: **main**. Committed baseline **d50521b** (M4). Earlier: **6cca864** (M3), **0d2085a** (M2),
-**bb2bfa0** (M1).
+Covered by `test_visual_only_original_remains_inspectable`,
+`test_atomic_question_retains_all_contributing_chunk_ids` and
+`links every contributing chunk of a multi-chunk source record`.
 
-**All M5 work is uncommitted** in the working tree — **34 modified tracked files and 35 untracked
-paths**: M5 modules, tests, fixtures, migration, scripts, frontend feature and docs. Nothing is
-staged. No
-history was rewritten, reset or force-pushed; no named volume was deleted; no other agent's work
-was discarded. `.env`, `.local/` and model caches remain ignored; no secret and no model weight is
-in the tree. **The milestone commit decision is the user's.**
+## Verified results (2026-09-07)
 
-Host-account Git commands may still need the scoped override because sandbox identity initialized
-Git: `git -c safe.directory=D:/Projects/RAG/Proj_1_DoctorDocuments status --short --branch`.
-
-## Verification executed
-
-| Check | Final result |
+| Check | Result |
 |---|---|
-| Complete backend suite, `MEDRAG_RUN_INTEGRATION=1` | **425 passed** (6m44s) |
-| M5 focused suite (units + integration) | **148 passed** |
-| `test_m5_units.py` / `test_m5_integration.py` | 103 / 45 passed |
-| ruff check / ruff format --check | Passed / 167 files formatted |
-| mypy backend/app | Success, 124 source files |
-| scripts/check_skills.py | 9 synchronized pairs |
-| alembic current / check | `m5_hybrid_retrieval (head)` / no drift |
-| M5 → M4 → M5 migration round trip | Passed |
-| npm --prefix frontend test / build | **40 passed** (6 files) / passed |
-| Playwright, `MEDRAG_E2E_LIVE=1` | **10 passed** (1.2m), incl. 2 new retrieval specs |
-| docker compose --profile app up -d --wait | 9 services healthy incl. `retrieval` |
-| Query service readiness | ready, pinned revision, offline cache |
-| smoke_m1 / m2 / m3 / m4 / m5 | **PASS / PASS / PASS / PASS / PASS** |
-| Retrieval evaluation, host and Linux | Metrics identical; see below |
-| Query-vector host vs Linux comparison | 0/11 byte identical, max Δ 1.073e-06, 11/11 ranking |
+| M6 focused backend (`MEDRAG_RUN_INTEGRATION=1`) | **43 passed**, 49.00 s |
+| Backend regression, five disjoint fresh-process groups | **468 passed** (178 + 28 + 71 + 148 + 43) |
+| `ruff check` / `format --check` (`backend workers scripts`) | Passed / 187 files |
+| `mypy backend/app` | Success, 137 source files |
+| `scripts/check_skills.py` | 9 synchronized pairs |
+| `alembic current` / `check` | `m5_hybrid_retrieval (head)` / no drift, **no M6 migration** |
+| Frontend tests / build | **45 passed** (7 files) / passed |
+| Playwright live | **11 passed**, incl. `reranking.spec.ts` |
+| Docker `--profile app up -d --wait` (all images rebuilt) | 9 services healthy |
+| Smokes M1–M5, then M6 × table/formula/figure/question-bank | **PASS** ×9 |
 
-Two boundary assertions moved deliberately, each with its reason in the test: the liveness
-milestone string, and `test_answering_states_remain_unreachable_after_m5`.
+Reranking (frozen pool `eb19a7f80d65…`, 83 chunks, 24 queries): MRR 1.0000 → 1.0000, nDCG@5
+0.9809 → **0.9967**, Recall@3 0.9773 → **1.0000**, Recall@1 **0.7500 unchanged**. Pools 10 and 20
+identical; 30 and 40 marginally worse and slower. **FIRST_STAGE_MISS 0, RERANKER_REGRESSION 0**;
+the only class recorded is `CORPUS_LACKS_EVIDENCE` ×2 for the two deliberate negatives.
 
-Two **test** defects were found and fixed during final verification, neither a product defect.
-An ambiguous Playwright selector in the M4 spec was made exact (`getByText('768')` matched three
-elements once the point list grew). And `test_hybrid_search_returns_hydrated_candidates_with_full_provenance`
-asserted the target chunk would be *fused* rank 1, which RRF does not guarantee and should not —
-a chunk ranked second by both lanes rightly outranks one ranked first by dense alone. It now
-asserts dense rank 1, which is what the test was actually proving. Both are stricter than before.
-No test was disabled or weakened.
+Context expansion: 0/0 → 1/1 siblings raises source-element coverage 0.8833 → **0.9333** and
+character coverage 0.8856 → 0.8970 with noise unchanged at 0.0333. **Open gaps: `table`
+(0.667) and `figure` (0.667) at every budget.** Do not relabel gold to hide them.
 
-## Measured retrieval baseline (synthetic corpus — not clinical validation)
+Host vs Linux: 838/2400 scores bit-identical, max Δ 5.7220e-05, **24/24 complete order agreement at
+every pool size**, all ranking metrics equal, context evaluation byte-identical. Bit equality is
+**not** claimed.
 
-Dataset `retrieval-gold-m5-v1`, SHA-256 `375a438834869826…`, 83 chunks, 22 positive cases.
+Warm (API container, pool 20): M5 first stage 70.2 ms, hydration 233.4, **reranking 1056.6**,
+expansion 8.5, assembly 1.1, total 1370.2 ms. Cold model load ~21 s. Private `retrieval` container
+holds **858.5 MiB** with both models warm; API 195.4 MiB, dispatcher 168.4 MiB (no torch).
 
-| Lane | R@1 | R@3 | R@5 | MRR | nDCG@5 | nDCG@10 |
-|---|---|---|---|---|---|---|
-| Dense | 0.7500 | 0.9773 | 1.0000 | 1.0000 | 0.9788 | 0.9788 |
-| BM25 | 0.6591 | 0.8712 | 0.9545 | 0.9269 | 0.9120 | 0.9272 |
-| Hybrid RRF | 0.7500 | 0.9773 | 1.0000 | 1.0000 | 0.9809 | 0.9809 |
+**Measured and deliberately not acted on:** the raw CrossEncoder logit separates positives
+(min 4.2376) from negatives (max −14.2521) where RRF does not (0.031319 vs 0.031746). That is an
+observation on 24 synthetic queries. **It is not a threshold. Do not make it one.** Evidence
+sufficiency is M7 and needs evidence this benchmark cannot supply.
 
-Identical on host and in the Linux runtime. Recall@10/@20 are 1.000 everywhere and are
-**structurally uninformative** at this corpus size. The only category that separates the lanes is
-`lexically_weak`: dense 1.000, BM25 0.000, hybrid 1.000.
+## Backend regression practice on this host
 
-**The fused RRF score is not a relevance signal.** Measured: a negative query's top fused score
-(0.031746) exceeds the weakest positive one (0.031319). Lane scores do separate on this dataset,
-but on 22 positives and 2 negatives that is an observation, not a threshold, and none is drawn.
+A single monolithic `pytest backend/tests` **crashed** with a Windows native access violation inside
+Docling at 15%, with ~600 MB host memory free. It produced no passing full-suite result and none is
+claimed. Run the suite as the five disjoint groups above in **fresh processes** so each model
+runtime is released first; they exactly partition all 468 tests. The crash did not reproduce as a
+deterministic test failure — the 28 Docling integration tests pass in isolation.
 
-Parameter sweeps over candidate budget (10/20/40/60), RRF k (10/20/60/100) and fusion weights moved
-no metric meaningfully. **Nothing was tuned**; the configured values remain declared seeds.
+## Infrastructure
 
-Reports in ignored `.local/m5-retrieval-{host,linux}.{json,md}`,
-`.local/m5-query-{host,linux}.json`, `.local/m5-query-comparison.json`, `.local/m5-smoke.json`.
+Alembic head `m5_hybrid_retrieval`; M6 adds no schema and no ingestion state. Successful jobs end at
+`RETRIEVAL_READY`, which is **not** answer readiness — verified live:
+`ck_document_versions_m1_never_searchable` is `CHECK ((NOT searchable))` and `m1_job_guard` has no
+transition targeting `READY`.
 
-## Migrations and infrastructure
+The private `retrieval` service keeps Query Encoder and CrossEncoder warm and **publishes no host
+port** (unreachable from the host; reachable only over the compose network). Its healthcheck
+requires both `/health/ready` and `/health/reranker`. It has no database, tenant concept or
+authorization — the API owns all access decisions. Article Encoder stays an ingestion workload.
+Caches: `.local/models/{embeddings,reranking}` on the host; `query-models` and `reranker-models`
+named volumes in compose. Rebuild the app images after changing backend or frontend source — code
+is baked in, not mounted.
 
-Applied: `0dd8e0dcb035`, `m1_event_order`, `m2_document_parsing`, `m3_hierarchical_chunks`,
-`m4_embeddings_and_index`, **`m5_hybrid_retrieval` (head)**. M5 adds seven retrieval tables and the
-outbox `sparse_index_id`, and is the first revision that must **widen** the status columns
-(`VERIFYING_SPARSE_INDEX` is 22 characters); that requires dropping and recreating the M3
-`m3_job_cancelled` trigger, which is declared `AFTER UPDATE OF status`. Its downgrade refuses to
-run while any job holds an M5 state and deletes `SPARSE_INDEX` outbox rows first.
+Credentials stay in ignored `.env` and `.local/dev-access.txt`; **never print them**. Playwright
+needs `MEDRAG_DEV_PRINCIPALS` exported from `.env` (single-quoted there — strip the quotes) plus
+`MEDRAG_E2E_LIVE=1`. Use explicit UTF-8 in Python file reads/writes; PowerShell redirection can
+produce UTF-16 logs.
 
-Running: API 127.0.0.1:8000; frontend 127.0.0.1:5173; PostgreSQL 5432; Redis 6379; MinIO 9000/9001;
-Qdrant 6333/6334; worker; dispatcher; and **retrieval** (query encoder, internal only, port not
-published). Model caches: `parser-models` (downloaded on first use), `embedding-models` (article
-encoder, provisioned), `query-models` (query encoder, provisioned). Provision the query cache with:
+## If you continue
 
-```
-docker compose run --rm --no-deps --entrypoint python retrieval \
-  /repo/scripts/provision_query_model.py --cache /home/medrag/models/embeddings
-```
+M6 is done; nothing is outstanding. Before starting M7, get explicit authorization. The open work
+M6 leaves behind is the `table` and `figure` context-expansion coverage gaps, and the fact that
+nothing in this benchmark calibrates the candidate pool, the budgets or any threshold.
 
-Generated credentials stay in ignored `.env`; UI keys in `.local/dev-access.txt` — do not print
-them. `MEDRAG_DEV_PRINCIPALS` is single-quoted, so strip the quotes when exporting to Playwright.
-Use `uv run --cache-dir .uv-cache --extra parsing --extra embedding --env-file .env` with
-`MEDRAG_RUN_INTEGRATION=1` for integration runs. Sequentialize heavy model checks when memory is
-tight (host has 16 GB).
-
-## Decisions, limitations and blockers
-
-ADR-001 … ADR-009 remain accepted. **ADR-010** records the query encoder, the relational BM25
-choice, RRF, and the corpus-alignment policy.
-
-**Determinism, three separate claims, measured separately** (mirroring M4's article-encoder
-finding): same host repeated encoding is byte-identical; batched versus single is numerically
-equivalent but not byte-identical; host versus Linux is **0/11 byte identical**, worst delta
-1.073e-06, with **11/11 top-10 ranking agreement**. Cross-platform bit equality is not claimed.
-Additionally measured: every retrieval metric is identical between host and Linux, so that
-numerical difference moves no ranking on this dataset.
-
-Other limitations: retrieval quality is measured only on a synthetic 83-chunk corpus and cannot
-calibrate budgets, the RRF constant or weights; question-bank and answer-key material is
-retrievable and stays labelled but conflicts are not resolved (that is M7); the abbreviation case
-passes because the dense lane carries it, not because abbreviations are handled generally; BM25
-loads bounded postings into Python and refuses a query above `max_scanned_postings` rather than
-truncating; mixed embedding or analyzer versions fail closed rather than being merged; Qdrant HNSW
-parameters are defaults and unmeasured; dense latency is CPU-bound with no GPU, quantization or
-ONNX path, and a cold query costs ~2.6 s against ~46 ms warm. M2–M4 limitations are unchanged.
-This is local development, not clinical validation or compliance certification. Production startup
-remains explicitly rejected.
-
-No remaining M5 blocker.
-
-## Next exact task
-
-Stop. Wait for the user's M6 authorization. Then begin:
-**M6 — biomedical cross-encoder reranking, parent/neighbour/context expansion, final evidence-set
-construction, and reranking-quality evaluation.**
-
-M6 consumes the `CandidateSet` M5 produces: fused candidates already carry chunk id, both lane
-ranks and scores, hydrated provenance and a preview, which is exactly a cross-encoder's input.
-Read this handoff, [the M5 report](docs/verification/m5.md), ADR-003 and ADR-010, and the
-retrieval-quality and rag-evaluation skills first. Rerank only the fused candidates, never the raw
-corpus. Expansion must preserve provenance and deduplicate overlap. Do not enable Ask, generation,
-grounding or answering.
-
-## Do not do
-
-- Do not expose partially processed versions or enable medical answering.
-- Do not present a retrievable corpus as answerable, or RETRIEVAL_READY as clinical readiness.
-- Do not use the fused RRF score as an evidence-sufficiency signal; it was measured not to separate
-  answerable from unanswerable queries.
-- Do not tune BM25 `k1`/`b`, the RRF constant, the weights, the analyzer or the candidate budgets to
-  improve a synthetic score. Fix real defects and report before/after.
-- Do not quote synthetic Recall@5 = 1.000 as evidence of medical reliability, and do not quote
-  Recall@10/@20 at all on this corpus.
-- Do not claim cross-machine bit-identical query vectors; the measured deviation is above.
-- Do not add synonym or abbreviation expansion, query rewriting or HyDE without an ADR and its own
-  evaluation.
-- Do not promote question keys, captions or generated metadata to authoritative medical evidence.
-- Do not let a model rewrite, interpret or "correct" parsed source text, values or formulas.
-- Do not relax the parsing, chunking, embedding or retrieval gold datasets to hide a difference;
-  re-baseline and report.
-- Do not delete named volumes, rotate credentials by editing .env, reset or discard uncommitted
-  work, overwrite durable instruction files, or claim checks that were not run.
-- Do not commit secrets, model weights, or expose Qdrant or the retrieval service publicly.
-
-Last updated: 2026-09-06 by Claude Code.
+Synthetic metrics are engineering checks, not clinical validation. Preserve M5 analyzer, BM25, RRF
+and index semantics. Do not introduce score thresholds, query rewriting, generation or medical
+answering.

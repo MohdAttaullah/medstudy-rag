@@ -175,7 +175,7 @@ function Inspector({ documentId, versionId, runId }: { documentId: string; versi
     <section className="panel">
       <h2>Formulas</h2>
       {!formulas.data?.items.length ? <p>No formulas on this page.</p> :
-        <ul className="element-list">{formulas.data.items.map(formula => <li key={formula.id}>
+        <ul className="element-list">{formulas.data.items.map(formula => <li id={`artifact-${formula.id}`} key={formula.id}>
           <pre>{formula.normalized_expression || 'No expression was recovered.'}</pre>
           <p className="muted">
             Notation: {formula.notation ?? 'not reported'} · related text
@@ -215,7 +215,7 @@ function TableInspector({ base, table }: { base: string; table: ParseTable }) {
     if (grid[cell.row] && cell.column < table.column_count) grid[cell.row][cell.column] = cell.text;
     if (cell.column_header) headers.add(`${cell.row}:${cell.column}`);
   }
-  return <article className="job-card">
+  return <article id={`artifact-${table.id}`} className="job-card">
     <div className="section-heading">
       <h3>{table.caption_text ?? 'Table without a parser-declared caption'}</h3>
       <span className="muted">{table.row_count} × {table.column_count}</span>
@@ -254,7 +254,7 @@ function FigureCard({ base, figure }: { base: string; figure: ParseFigure }) {
     })();
     return () => { if (revoked) URL.revokeObjectURL(revoked); };
   }, [figure, base, token]);
-  return <article className="job-card">
+  return <article id={`artifact-${figure.id}`} className="job-card">
     <div className="section-heading">
       <h3>{figure.caption_text ?? 'Figure without a parser-declared caption'}</h3>
       <span className="muted">{figure.figure_kind ?? 'figure'}</span>

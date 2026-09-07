@@ -1,0 +1,30 @@
+import { test, expect } from '@playwright/test';
+
+test('M6 hybrid to reranked evidence to original source page', async ({ page }, testInfo) => {
+  test.setTimeout(180000);
+  test.skip(process.env.MEDRAG_E2E_LIVE !== '1', 'Requires the real stack and the M6 smoke corpus.');
+  const credentials = JSON.parse(process.env.MEDRAG_DEV_PRINCIPALS ?? '[]') as {token: string; role: string}[];
+  const token = credentials.find(c => c.role === 'admin')?.token;
+  if (!token) throw new Error('Development credentials are required.');
+  await page.goto('/retrieval');
+  await page.getByLabel('Access key').fill(token);
+  await page.getByRole('button', {name:'Open workspace'}).click();
+  await page.getByLabel('Retrieval mode').selectOption('RERANKED');
+  await page.getByLabel('Query text').fill('Parameter Group Alpha Units');
+  await page.getByRole('button', {name:'Retrieve candidates'}).click();
+  await expect(page.getByRole('heading',{name:'Fused candidates'})).toBeVisible({timeout:120000});
+  await page.getByRole('button',{name:'Reranked',exact:true}).click();
+  await expect(page.getByText('Reranker score — ranking diagnostic, not medical confidence.')).toBeVisible();
+  await expect(page.getByText(/Fused rank .* reranked rank/).first()).toBeVisible();
+  await page.getByRole('button',{name:'Evidence Set',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Evidence Set'})).toBeVisible();
+  await expect(page.getByText('Source candidates assembled for inspection. Evidence sufficiency has not been assessed.')).toBeVisible();
+  await page.screenshot({path:testInfo.outputPath('m6-evidence-desktop.png'),fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:testInfo.outputPath('m6-evidence-mobile.png'),fullPage:true});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByRole('link',{name:'Inspect original page'}).first().click();
+  await expect(page.getByRole('heading',{name:'Parse inspector'})).toBeVisible();
+  await expect(page.getByRole('img',{name:/Rendered preview of page/}).first()).toBeVisible({timeout:60000});
+  await expect(page.getByRole('heading',{name:'Answer',exact:true})).toHaveCount(0);
+});

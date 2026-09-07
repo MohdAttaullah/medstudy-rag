@@ -179,3 +179,11 @@ Citation resolution must use immutable stored provenance, never reconstructed cu
 Identity membership/role administration, clinical evaluation runs, retention/purge records and
 versioned policy registries remain future work. Archival currently preserves originals and audit;
 it is not a deletion or retention policy.
+
+## M6 request-scoped evidence
+
+M6 adds typed, fingerprinted model/reranking/expansion/budget contracts, not relational entities.
+EvidenceSet and EvidenceBlock resolve existing immutable M2/M3 sources. Interactive queries/evidence
+are not persisted. Canonical question artifacts retain explicit keys and assessment authority.
+Alembic head remains `m5_hybrid_retrieval`; no empty M6 migration exists. No ingestion state changes,
+and `RETRIEVAL_READY` does not mean medical answer readiness.

@@ -105,7 +105,7 @@ carry no torch at all, and the ingestion worker already holds warm *article* enc
 would never use for a question. Loading a second transformer into every web worker would add
 hundreds of megabytes per process to serve a request that spends most of its time in PostgreSQL.
 
-Its responsibility is exactly one thing — text in, query vector out. It has no database
+Its responsibilities are query-vector encoding and query/passage ranking. It has no database
 connection, no tenant concept, no authorization and no document access, so it cannot become a
 second place where access decisions are made. Authorization, tenant scoping, corpus resolution,
 filtering and hydration all stay in the API next to the authenticated principal. Like Qdrant it is
@@ -181,3 +181,18 @@ the successful one-shot MinIO initializer.
 No production OIDC, TLS, managed secrets, retention, backups, quotas or deployable Kubernetes stack
 is included. Worker phase logs use the same safe formatter as API audit logs; dedicated worker
 healthchecks and an installed monitoring/alert pipeline remain future work.
+
+## M6 private reranker runtime
+
+The same private retrieval service now keeps Query Encoder and MedCPT CrossEncoder warm; Article
+Encoder remains in the ingestion worker. A separate `reranker-models` volume mounts at
+`/home/medrag/models/reranking`, owned by UID/GID 10001. All seven pinned files are checksummed
+before restricted `weights_only=True` loading. Interactive resolution is always local-only.
+
+Provision with `uv run --extra embedding python scripts/provision_reranker_model.py`, then copy the
+cache into that named volume. Alternatively run the script in the retrieval image with the
+repository mounted read-only and the cache volume writable. Retain caches across replacements.
+Compose readiness checks both `/health/ready` and `/health/reranker`; `/health/live` only describes
+process liveness. No model port is published. API owns authorization. Runtime settings require
+restart. See M6 verification for measured memory and host/Linux differences. Serialize heavyweight
+model/image checks on the 16 GB development host.

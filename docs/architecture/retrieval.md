@@ -39,3 +39,10 @@ trace inspection and candidate -> chunk -> source-page navigation.
 
 Retrieval is not evidence sufficiency. Negative queries may still return candidates. No reranking,
 parent/neighbour expansion, medical interpretation, generation or Ask answering exists in M5.
+
+## M6 extension
+
+A separately authorized rerank/evidence endpoint preserves the M5 diagnostic API and policies.
+Full persisted chunk text is rehydrated for CrossEncoder inference and the M6 pool cap is versioned
+separately. Corpus identity protection continues through expansion. See [reranking](reranking.md)
+and [evidence construction](context-expansion.md). Ask remains disabled.

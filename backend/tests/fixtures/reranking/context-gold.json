@@ -1,0 +1,125 @@
+{
+  "version": "m6-context-gold-v1",
+  "notice": "Manually specified synthetic source requirements over the frozen M3 parse fixtures; no clinician annotations. First-stage retrieval is deliberately held out: anchors are prescribed to isolate expansion.",
+  "cases": {
+    "sections": {
+      "kind": "TEXT_CHILD",
+      "required_orders": [
+        0,
+        1
+      ]
+    },
+    "paragraphs": {
+      "kind": "TEXT_CHILD",
+      "required_orders": [
+        0,
+        1
+      ]
+    },
+    "table": {
+      "kind": "TABLE",
+      "required_orders": [
+        0,
+        1,
+        2
+      ]
+    },
+    "large-table": {
+      "kind": "TABLE_PART",
+      "required_orders": [
+        0
+      ]
+    },
+    "formula": {
+      "kind": "FORMULA",
+      "required_orders": [
+        0,
+        1
+      ]
+    },
+    "figure": {
+      "kind": "FIGURE_CONTEXT",
+      "required_orders": [
+        0,
+        1,
+        2
+      ]
+    },
+    "mcq": {
+      "kind": "QUESTION",
+      "required_orders": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    "footnote": {
+      "kind": "TEXT_CHILD",
+      "required_orders": [
+        0,
+        1
+      ]
+    },
+    "continued-table": {
+      "kind": "TABLE",
+      "required_orders": [
+        0
+      ]
+    },
+    "parent-fragment": {
+      "kind": "TEXT_CHILD",
+      "required_orders": [
+        0
+      ]
+    }
+  },
+  "extra_fixtures": [
+    {
+      "id": "parent-fragment",
+      "source": {
+        "document_id": "569ec4d1-a00b-5eb2-a8ac-b9d872b45713",
+        "version_id": "f0f111b8-4a7a-51c1-9c3f-a8b9f56998aa",
+        "parse_run_id": "801ac87a-2f2c-5f35-bdc3-5d68ed7bb4fe",
+        "title": "Synthetic paragraphs",
+        "source_type": "TEXTBOOK",
+        "authority_level": "UNREVIEWED",
+        "edition": "Synthetic first",
+        "publication_year": 2026,
+        "pages": [
+          {
+            "id": "aa4bd7ea-dbe6-5c59-9bfb-9a730afd1bc9",
+            "number": 1,
+            "width": 600.0,
+            "height": 800.0
+          }
+        ],
+        "elements": [
+          {
+            "id": "b3958c71-eb87-58f8-9186-e3b64caa85c5",
+            "page_id": "aa4bd7ea-dbe6-5c59-9bfb-9a730afd1bc9",
+            "page_number": 1,
+            "reading_order": 0,
+            "parent_id": null,
+            "kind": "PARAGRAPH",
+            "text": "alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure alpha qualifier source measure",
+            "raw_text": null,
+            "bbox": [
+              40.0,
+              100.0,
+              560.0,
+              140.0
+            ]
+          }
+        ],
+        "artifacts": []
+      },
+      "config": {
+        "child_target_tokens": 32,
+        "parent_target_tokens": 128
+      }
+    }
+  ]
+}

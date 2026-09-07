@@ -30,7 +30,7 @@ COPY infrastructure/monitoring/logging.json ./logging.json
 RUN pip install --no-cache-dir uv==0.10.9 \
     && uv sync --frozen --no-dev --extra parsing --extra embedding \
     && useradd --uid 10001 --create-home medrag \
-    && mkdir -p /home/medrag/.cache/huggingface /home/medrag/models/embeddings \
+    && mkdir -p /home/medrag/.cache/huggingface /home/medrag/models/embeddings /home/medrag/models/reranking \
     && chown -R 10001:10001 /home/medrag
 # Thread count is pinned by the parser configuration, not by the environment, so that the same
 # document produces the same layout prediction here and on a developer machine.

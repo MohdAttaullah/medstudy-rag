@@ -9,6 +9,12 @@ from app.core.chunking_config import ChunkingConfig
 from app.core.embedding_config import EmbeddingConfig, IndexConfig
 from app.core.ingestion_config import IngestionConfig
 from app.core.parsing_config import ParsingConfig
+from app.core.reranking_config import (
+    EvidenceBudgetConfig,
+    ExpansionConfig,
+    RerankerConfig,
+    RerankingConfig,
+)
 from app.core.retrieval_config import (
     QueryEncoderConfig,
     RetrievalConfig,
@@ -85,6 +91,10 @@ class Settings(BaseSettings):
     sparse_analyzer: SparseAnalyzerConfig = SparseAnalyzerConfig()
     sparse_index: SparseIndexConfig = SparseIndexConfig()
     retrieval: RetrievalConfig = RetrievalConfig()
+    reranker: RerankerConfig = RerankerConfig()
+    reranking: RerankingConfig = RerankingConfig()
+    expansion: ExpansionConfig = ExpansionConfig()
+    evidence_budget: EvidenceBudgetConfig = EvidenceBudgetConfig()
     dev_principals: tuple[DevCredential, ...] = ()
     generator: ModelSelection | None = None
     verifier: ModelSelection | None = None

@@ -100,3 +100,27 @@ export interface SearchResponse {
   dense: LaneHit[]; sparse: LaneHit[]; trace: RetrievalTrace;
   warnings: string[]; answering_enabled: false;
 }
+
+
+export interface EvidenceBlock {
+  evidence_id: string; anchor_chunk_id: string; source_chunk_ids: string[];
+  source_element_ids: string[]; document_id: string; document_version_id: string;
+  chunk_run_id: string; parse_run_id: string; document_title: string;
+  source_type: string; authority_level: string; chunk_type: string; pages: number[];
+  hierarchy: {element_id: string; text: string}[]; text: string; token_count: number;
+  expansion_reason: string; requires_visual_evidence: boolean;
+  context_reasons?: string[];
+  source_spans?: {element_id: string; start: number; end: number; page: number | null; bbox: (number | null)[]}[];
+  artifacts: {artifact_id: string; kind: string; href: string; row_indexes: number[]; header_rows: number[]; image_available: boolean}[];
+}
+export interface EvidenceSet {
+  evidence_blocks: EvidenceBlock[]; anchors: string[]; expansions: string[];
+  total_tokens: number; requires_visual_evidence: boolean; warnings: string[];
+  duplicates_removed: number; answering_enabled: false;
+  reranking_trace: {durations_ms: Record<string, number>};
+}
+export interface RerankedResponse {
+  first_stage: SearchResponse; answering_enabled: false;
+  reranked: (Candidate & {reranked_rank: number; reranker_score: number; selected_anchor: boolean})[];
+  evidence_set: EvidenceSet;
+}

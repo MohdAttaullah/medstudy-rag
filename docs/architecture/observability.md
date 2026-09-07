@@ -94,3 +94,10 @@ Use the JSON log configuration in the deployment commands. The formatter omits a
 bodies, exception contents, credentials and uploaded text. IDs are not metric labels.
 There is no OpenTelemetry exporter, installed Prometheus server, alert routing or processing-stage
 trace pipeline. `infrastructure/monitoring/prometheus.yml` is a scrape example.
+
+## M6 telemetry
+
+`evidence_stage_duration_seconds{stage}` uses bounded labels `reranking`, `expansion`,
+`evidence_hydration`, and `assembly`. Failures use `retrieval_failures_total` with mode `RERANKED`
+and declared codes. Traces retain M5 timings, model/library identity, query hash, policy snapshots/
+fingerprints and total M6 duration. Source/query text is neither logged nor used as a metric label.

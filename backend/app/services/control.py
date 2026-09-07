@@ -7,6 +7,7 @@ from app.observability.retrieval import RetrievalMetrics
 from app.security.auth import AuthProvider, DevAuthProvider
 from app.services.chunking import ChunkService
 from app.services.embedding import EmbeddingService
+from app.services.evidence import EvidenceService
 from app.services.jobs import JobService
 from app.services.retrieval import RetrievalService
 from app.services.sparse_index import SparseIndexService
@@ -60,4 +61,5 @@ class ControlPlane:
             index_factory=(lambda: vector_index) if vector_index is not None else None,
             metrics=retrieval_metrics,
         )
+        self.evidence = EvidenceService(self.retrieval, settings)
         self.jobs = JobService(sessions, storage)

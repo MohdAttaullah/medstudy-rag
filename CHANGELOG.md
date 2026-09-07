@@ -1,5 +1,39 @@
 # Changelog
 
+## M6 - 2026-09-07
+
+- Added MedCPT CrossEncoder reranking of the fused M5 candidate pool, with the model and tokenizer
+  pinned by revision and all seven checkpoint files SHA-256 verified before an offline, restricted
+  load. Raw float32 logits rank candidates descending, ties break on the original fused rank then
+  chunk UUID, and an over-long query/passage pair is rejected rather than truncated.
+- Reranked over the full persisted M3 retrieval text, never the API preview, and kept the raw score
+  labelled a ranking diagnostic everywhere it is exposed. No sigmoid, no confidence, no threshold.
+- Added deterministic context expansion — bounded parent text for incomplete fragments, at most one
+  sibling each side within the same parent and run, and canonical table, formula, figure and
+  question artifacts — with no model deciding what context means.
+- Added a request-scoped EvidenceSet: token, block and per-block budgets, atomic units omitted whole
+  with an explicit finding rather than split, exact-identity deduplication that preserves distinct
+  documents, versions and conflicting values, and no semantic-similarity merging.
+- Fixed two provenance defects: an original figure with no caption is no longer dropped for having
+  no text representation, and an atomic question assembled from several chunks now reports every
+  contributing chunk instead of only its anchor. The Evidence Inspector links each of them.
+- Added an authorized `/retrieval/rerank` endpoint that preserves the M5 diagnostics, rechecks
+  corpus identity after retrieval, after inference and after expansion hydration, and fails closed
+  on drift rather than returning a mixed evidence set.
+- Kept M5 unchanged: the Query Encoder, analyzer, BM25 parameters, RRF equation and constant, lane
+  weights and lane budgets are untouched, and the M6 candidate pool is a separately versioned
+  query-side policy.
+- Measured, and reported as measurements: on the synthetic fixture reranking moves nDCG@5 from
+  0.9809 to 0.9967 and Recall@3 from 0.9773 to 1.0000 while Recall@1 stays at 0.7500, with zero
+  first-stage misses and zero reranker regressions; one sibling each side raises context coverage
+  from 0.8833 to 0.9333 with no measured increase in noise; and table and figure context gaps
+  remain open at every budget.
+- Measured that the raw CrossEncoder logit separates answerable from unanswerable synthetic queries
+  where the fused RRF score does not — recorded as an observation, deliberately not turned into a
+  sufficiency threshold.
+- Added no schema change and no migration; the Alembic head remains `m5_hybrid_retrieval`. Jobs
+  still end at RETRIEVAL_READY, `READY` remains unreachable and `answering_enabled` stays false.
+
 ## M5 - 2026-09-06
 
 - Added query-side retrieval with the MedCPT Query Encoder pinned by revision and by both weight

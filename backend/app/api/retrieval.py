@@ -32,6 +32,7 @@ from app.repositories.retrieval import resolve_corpus
 from app.retrieval.errors import RetrievalError
 from app.retrieval.model import RetrievalFilters
 from app.schemas.documents import JobView, Page
+from app.schemas.reranking import RerankRequest, RerankResponse
 from app.schemas.retrieval import (
     CandidateView,
     LaneHitView,
@@ -51,7 +52,7 @@ from app.schemas.retrieval import (
 router = APIRouter(prefix="/api/v1")
 
 
-def _filters(body: SearchRequest) -> RetrievalFilters | None:
+def _filters(body: SearchRequest | RerankRequest) -> RetrievalFilters | None:
     if body.filters is None:
         return None
     return RetrievalFilters(
@@ -350,3 +351,11 @@ def reindex_sparse(
         actor.require("audit:read")
     service.sparse.request(actor, job_id, correlation(request), body.analyzer)
     return job(job_id, actor, service)
+
+
+@router.post("/retrieval/rerank", response_model=RerankResponse)
+def rerank(body: RerankRequest, request: Request, actor: Actor, service: Service) -> dict[str, Any]:
+    actor.require("retrieval:search")
+    if body.mode not in (None, "HYBRID_RRF"):
+        raise DomainError("INVALID_REQUEST", "M6 requires hybrid retrieval.", 422)
+    return service.evidence.search(actor, body.query, correlation(request), _filters(body))

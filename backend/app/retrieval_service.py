@@ -13,6 +13,7 @@ is not published, the browser never reaches it, and it never logs question text.
 """
 
 import logging
+from threading import Lock
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -21,6 +22,8 @@ from pydantic import BaseModel, Field
 
 from app.core.config import Settings
 from app.core.errors import DomainError
+from app.reranking.medcpt import MedCPTReranker
+from app.reranking.model import RerankInput
 from app.retrieval.model import QueryEncoderSpec
 from app.retrieval.query.medcpt import MedCPTQueryEncoder, configure_offline_environment
 
@@ -54,7 +57,9 @@ def _specification(spec: QueryEncoderSpec) -> dict[str, Any]:
     }
 
 
-def create_app(settings: Settings | None = None, encoder: Any = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None, encoder: Any = None, reranker: Any = None
+) -> FastAPI:
     config = settings if settings is not None else Settings()
     policy = config.query_encoder
     state: dict[str, Any] = {"encoder": encoder}
@@ -67,6 +72,13 @@ def create_app(settings: Settings | None = None, encoder: Any = None) -> FastAPI
             built.load()
             state["encoder"] = built
         return state["encoder"]
+
+    cross = reranker or MedCPTReranker(config.reranker)
+    load_lock = Lock()
+
+    class RerankRequest(BaseModel):
+        query: str = Field(max_length=2000)
+        candidates: list[RerankInput] = Field(default_factory=list, max_length=40)
 
     app = FastAPI(title="Medical RAG - retrieval service", version="0.5.0")
 
@@ -128,5 +140,20 @@ def create_app(settings: Settings | None = None, encoder: Any = None) -> FastAPI
                 for vector in vectors
             ],
         }
+
+    @app.post("/rerank")
+    def rerank(body: RerankRequest) -> dict[str, Any]:
+        with load_lock:
+            specification = cross.specification
+        return {
+            "specification": specification.model_dump(mode="json"),
+            "results": [
+                r.model_dump(mode="json") for r in cross.rerank(body.query, body.candidates)
+            ],
+        }
+
+    @app.get("/health/reranker")
+    def reranker_ready() -> dict[str, Any]:
+        return {"status": "ready", "specification": cross.specification.model_dump(mode="json")}
 
     return app
