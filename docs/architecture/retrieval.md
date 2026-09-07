@@ -46,3 +46,10 @@ A separately authorized rerank/evidence endpoint preserves the M5 diagnostic API
 Full persisted chunk text is rehydrated for CrossEncoder inference and the M6 pool cap is versioned
 separately. Corpus identity protection continues through expansion. See [reranking](reranking.md)
 and [evidence construction](context-expansion.md). Ask remains disabled.
+
+## M7 extension
+
+A separately authorized draft endpoint runs the M5 and M6 stages unchanged, then the evidence
+sufficiency gate, then at most one grounded generation. M5 lane semantics, analyzer, BM25
+parameters, RRF constant and weights remain untouched, and no retrieval score participates in the
+sufficiency decision. See [sufficiency](sufficiency.md) and [generation](generation.md).

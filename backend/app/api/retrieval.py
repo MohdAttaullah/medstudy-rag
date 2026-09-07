@@ -32,6 +32,7 @@ from app.repositories.retrieval import resolve_corpus
 from app.retrieval.errors import RetrievalError
 from app.retrieval.model import RetrievalFilters
 from app.schemas.documents import JobView, Page
+from app.schemas.generation import DraftRequest, DraftResponse
 from app.schemas.reranking import RerankRequest, RerankResponse
 from app.schemas.retrieval import (
     CandidateView,
@@ -52,7 +53,7 @@ from app.schemas.retrieval import (
 router = APIRouter(prefix="/api/v1")
 
 
-def _filters(body: SearchRequest | RerankRequest) -> RetrievalFilters | None:
+def _filters(body: SearchRequest | RerankRequest | DraftRequest) -> RetrievalFilters | None:
     if body.filters is None:
         return None
     return RetrievalFilters(
@@ -359,3 +360,17 @@ def rerank(body: RerankRequest, request: Request, actor: Actor, service: Service
     if body.mode not in (None, "HYBRID_RRF"):
         raise DomainError("INVALID_REQUEST", "M6 requires hybrid retrieval.", 422)
     return service.evidence.search(actor, body.query, correlation(request), _filters(body))
+
+
+@router.post("/retrieval/draft", response_model=DraftResponse)
+async def draft(
+    body: DraftRequest, request: Request, actor: Actor, service: Service
+) -> dict[str, Any]:
+    """Retrieve, rerank, gate, and generate a grounded draft only if the gate permits it.
+
+    The response is an authorized inspection artifact: it carries the sufficiency decision whether
+    or not a draft was produced, and it is never a verified answer.
+    """
+    actor.require("retrieval:search")
+    actor.require("generation:draft")
+    return await service.generation.draft(actor, body.query, correlation(request), _filters(body))

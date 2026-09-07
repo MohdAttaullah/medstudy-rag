@@ -101,3 +101,12 @@ trace pipeline. `infrastructure/monitoring/prometheus.yml` is a scrape example.
 `evidence_hydration`, and `assembly`. Failures use `retrieval_failures_total` with mode `RERANKED`
 and declared codes. Traces retain M5 timings, model/library identity, query hash, policy snapshots/
 fingerprints and total M6 duration. Source/query text is neither logged nor used as a metric label.
+
+## M7 telemetry
+
+`evidence_sufficiency_decisions_total{status}` counts gate decisions over the bounded label set
+SUFFICIENT/INSUFFICIENT/CONFLICTING. Declared generation failures use `retrieval_failures_total`
+with mode `GROUNDED_DRAFT`. Structured logs carry the correlation id, the status, the question kind,
+the declared reason codes and the policy fingerprint. The question, the evidence text, the generated
+draft, provider error bodies and every API key stay out of both logs and metric labels; a provider
+error body is not echoed because it can quote the prompt back.

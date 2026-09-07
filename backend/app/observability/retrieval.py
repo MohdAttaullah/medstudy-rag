@@ -15,6 +15,12 @@ CANDIDATES = (0, 1, 5, 10, 20, 40, 80, 160, 320)
 
 class RetrievalMetrics:
     def __init__(self, registry: CollectorRegistry) -> None:
+        self.sufficiency = Counter(
+            "evidence_sufficiency_decisions_total",
+            "M7 sufficiency gate decisions",
+            ["status"],
+            registry=registry,
+        )
         self.evidence_stage = Histogram(
             "evidence_stage_duration_seconds",
             "M6 query stage duration",

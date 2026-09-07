@@ -1,5 +1,45 @@
 # Changelog
 
+## M7 - 2026-09-07
+
+- Added the Evidence Sufficiency Gate between the M6 EvidenceSet and any provider call, emitting
+  SUFFICIENT, INSUFFICIENT or CONFLICTING from structural properties of the evidence — supporting
+  anchors, independent document versions, source authority, required artifact presence and
+  completeness, budget omissions, partial fragments, retrieval warnings and detected conflicts.
+- Kept every retrieval, BM25, dense, RRF and CrossEncoder score out of that decision, pinned false
+  by type and asserted by test. M6's observation that the CrossEncoder logit separated its synthetic
+  positives from its negatives was deliberately not turned into a threshold.
+- Made requirements question-kind aware through deterministic classification with no model and no
+  rewriting, so a table question needs its header rows, a formula question needs its formula, and a
+  figure question abstains because no vision-analysis path is approved. The M6 table and figure
+  context gaps now surface as abstentions rather than being reconstructed by a generator.
+- Made assessment material never sufficient on its own: a question bank or answer key records what
+  an examiner marked, not what the corpus establishes, and a high rerank position does not change
+  that.
+- Added narrow deterministic conflict detection for an assessment key the reference evidence does
+  not support, and for independent sources stating different values for the same labelled quantity.
+  Competing evidence is preserved and returned; nothing chooses between sources.
+- Added provider-independent generation reached only after SUFFICIENT, with isolated OpenAI and
+  Anthropic adapters over the existing httpx dependency, a deterministic double for tests, and a
+  scan asserting no vendor endpoint or import exists outside the adapters.
+- Restricted generator input to the grounding policy, the question and the EvidenceSet, with no
+  corpus handle, no tool, no web search and no rank or score, and stated in the prompt that
+  pretrained model knowledge is not valid evidence.
+- Validated every citation against the evidence actually supplied, rejecting invented or foreign
+  ids. This is a contract check: whether a cited block supports its sentence is M8.
+- Made every declared generation failure abstain, with no fallback to an ungrounded answer and none
+  to a different provider or model, so a draft's recorded provenance stays true.
+- Kept provider keys backend-only, delivered by compose to the API alone, absent from responses,
+  logs, metric labels and the frontend bundle, with VITE_-prefixed copies forbidden by test.
+- Added an authorized inspector showing the sufficiency decision, its evaluated signals, the
+  preserved conflicts and the grounded draft, labelled unverified and never as an answer.
+- Measured, and reported as measurements: 14/14 agreement with zero false allows on a fixture
+  written alongside the gate, an abstention rate of 0.71, and live abstentions on real uploads for
+  incomplete table structure, unavailable visual interpretation and assessment-only evidence.
+- Added no schema change and no migration; the Alembic head remains `m5_hybrid_retrieval`. Jobs
+  still end at RETRIEVAL_READY, `READY` stays unreachable, `answering_enabled` stays false, and no
+  claim verification exists.
+
 ## M6 - 2026-09-07
 
 - Added MedCPT CrossEncoder reranking of the fused M5 candidate pool, with the model and tokenizer

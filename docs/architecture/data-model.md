@@ -187,3 +187,12 @@ EvidenceSet and EvidenceBlock resolve existing immutable M2/M3 sources. Interact
 are not persisted. Canonical question artifacts retain explicit keys and assessment authority.
 Alembic head remains `m5_hybrid_retrieval`; no empty M6 migration exists. No ingestion state changes,
 and `RETRIEVAL_READY` does not mean medical answer readiness.
+
+## M7 request-scoped decisions
+
+M7 adds typed, fingerprinted sufficiency, grounding and provider policies, not relational entities.
+The sufficiency decision, the grounded draft and the abstention are request-scoped and none of them
+is persisted; neither is the question or the provider response. Alembic head remains
+`m5_hybrid_retrieval` and no empty M7 migration exists. Source authority keeps the M1 meaning, where
+assessment source types are already forbidden from claiming REFERENCE or HIGH authority, and M7
+relies on that rather than restating it.

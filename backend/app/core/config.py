@@ -2,11 +2,20 @@
 
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.chunking_config import ChunkingConfig
 from app.core.embedding_config import EmbeddingConfig, IndexConfig
+from app.core.generation_config import GroundingConfig, ProviderConfig, SufficiencyConfig
 from app.core.ingestion_config import IngestionConfig
 from app.core.parsing_config import ParsingConfig
 from app.core.reranking_config import (
@@ -95,9 +104,38 @@ class Settings(BaseSettings):
     reranking: RerankingConfig = RerankingConfig()
     expansion: ExpansionConfig = ExpansionConfig()
     evidence_budget: EvidenceBudgetConfig = EvidenceBudgetConfig()
+    sufficiency: SufficiencyConfig = SufficiencyConfig()
+    grounding: GroundingConfig = GroundingConfig()
+    provider: ProviderConfig = ProviderConfig()
     dev_principals: tuple[DevCredential, ...] = ()
     generator: ModelSelection | None = None
     verifier: ModelSelection | None = None
+
+    @field_validator("generator", "verifier", mode="before")
+    @classmethod
+    def blank_selection_is_unconfigured(cls, value: object) -> object:
+        """An env var that exists but is empty means unconfigured, not misconfigured.
+
+        Container orchestrators pass a declared variable through as an empty string rather than
+        omitting it, so `MEDRAG_GENERATOR__PROVIDER=` arrives as `{"provider": ""}`. Failing
+        validation there would stop the whole API from starting purely because no provider account
+        is set up, when the correct behaviour is that generation is unavailable and every earlier
+        stage still runs.
+        """
+        if isinstance(value, dict) and not any(str(item).strip() for item in value.values()):
+            return None
+        return value
+
+    # Backend-only. Accepted under the conventional unprefixed names as well as the project's
+    # MEDRAG_ prefix, and never echoed into a response, a log, a metric or the frontend bundle.
+    openai_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices("OPENAI_API_KEY", "MEDRAG_OPENAI_API_KEY"),
+    )
+    anthropic_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices("ANTHROPIC_API_KEY", "MEDRAG_ANTHROPIC_API_KEY"),
+    )
 
     @model_validator(mode="after")
     def retrieval_vector_spaces_agree(self) -> Self:

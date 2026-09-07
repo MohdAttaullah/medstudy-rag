@@ -22,6 +22,9 @@ PERMISSIONS = frozenset(
         # Retrieval is a developer and operator tool at this milestone, not a reading feature:
         # it exposes lane scores and internal run identifiers, and it is not an answering path.
         "retrieval:search",
+        # M7 drafts are unverified and expose the sufficiency decision, so they stay an authorized
+        # inspection capability rather than a reading feature. The final Ask experience is M9.
+        "generation:draft",
     }
 )
 ROLE_PERMISSIONS = {

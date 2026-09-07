@@ -124,3 +124,38 @@ export interface RerankedResponse {
   reranked: (Candidate & {reranked_rank: number; reranker_score: number; selected_anchor: boolean})[];
   evidence_set: EvidenceSet;
 }
+
+export interface EvaluatedSignal {
+  name: string; value: unknown; required: unknown; satisfied: boolean;
+}
+export interface EvidenceConflict {
+  kind: string; description: string; evidence_ids: string[]; document_version_ids: string[];
+  detail: Record<string, unknown>;
+}
+/** No percentage, probability or score: M7 establishes no calibrated medical confidence. */
+export interface SufficiencyDecision {
+  status: 'SUFFICIENT' | 'INSUFFICIENT' | 'CONFLICTING';
+  question_kind: string; reason_codes: string[]; evaluated_signals: EvaluatedSignal[];
+  supporting_evidence_ids: string[]; conflicting_evidence_ids: string[];
+  conflicts: EvidenceConflict[]; missing_requirements: string[];
+  policy_version: string; policy_fingerprint: string;
+}
+export interface GroundedDraft {
+  draft_id: string; status: 'GROUNDED_DRAFT';
+  verification_status: 'UNVERIFIED_AWAITING_CLAIM_VERIFICATION';
+  answer: string; claims: {text: string; evidence_ids: string[]}[];
+  cited_evidence_ids: string[]; uncited_evidence_ids: string[];
+  evidence_gap: string | null; query_hash: string;
+  provider: {provider: string; model_id: string; temperature: number; prompt_version: string; schema_version: string};
+  grounding_policy_version: string; grounding_policy_fingerprint: string;
+  sufficiency_policy_fingerprint: string; durations_ms: Record<string, number>;
+}
+export interface Abstention {
+  abstained: true; reason: string; reason_codes: string[]; message: string;
+  conflicting_evidence_ids: string[];
+}
+export interface DraftResponse extends RerankedResponse {
+  verified: false; sufficiency: SufficiencyDecision;
+  draft: GroundedDraft | null; abstention: Abstention | null;
+  durations_ms: Record<string, number>;
+}

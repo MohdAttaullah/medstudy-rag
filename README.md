@@ -8,15 +8,17 @@ complete span-level provenance, deterministic chunk identity and chunk-quality v
 pinned MedCPT dense embeddings, a versioned Qdrant index and verified index activation; M5 adds the
 pinned MedCPT Query Encoder, a versioned PostgreSQL BM25 lane, reciprocal rank fusion and a measured
 retrieval baseline; M6 adds pinned MedCPT CrossEncoder reranking, deterministic context expansion
-and a bounded, provenance-preserving EvidenceSet. Successful jobs stop at **RETRIEVAL_READY**, which
+and a bounded, provenance-preserving EvidenceSet; M7 adds the Evidence Sufficiency Gate and
+provider-independent grounded drafting, where generation is attempted only when the gate returns
+SUFFICIENT and a draft is explicitly unverified. Successful jobs stop at **RETRIEVAL_READY**, which
 means both retrieval lanes verified over the same chunk dataset — **not** that the document is
 answerable. Retrieval returns ranked evidence candidates with their provenance, and the EvidenceSet
 is source material for inspection, not a judgment that the evidence suffices. Medical answering
 remains disabled.
 
 The stack is FastAPI/Pydantic/SQLAlchemy, React/TypeScript/Vite/TanStack Query, PostgreSQL,
-Redis/Celery, MinIO/S3, Docling and Qdrant. Evidence sufficiency, grounded generation, claim
-verification and citation validation are future milestones.
+Redis/Celery, MinIO/S3, Docling and Qdrant, with OpenAI and Anthropic reached only through isolated
+adapters. Claim-level answer verification and the user-facing Ask experience are future milestones.
 
 ## Start locally
 
@@ -100,7 +102,7 @@ carries ranked candidates, lane diagnostics and a reproducible trace, and states
 
 See the [M1](docs/verification/m1.md), [M2](docs/verification/m2.md),
 [M3](docs/verification/m3.md), [M4](docs/verification/m4.md) and
-[M5](docs/verification/m5.md) and [M6](docs/verification/m6.md) reports for all endpoints,
+[M5](docs/verification/m5.md) and [M6](docs/verification/m6.md) and [M7](docs/verification/m7.md) reports for all endpoints,
 [ingestion architecture](docs/architecture/ingestion.md) for recovery semantics,
 [document parsing](docs/architecture/document-parsing.md) for the parse contract,
 [document chunking](docs/architecture/document-chunking.md) for the chunk contract, and
@@ -171,8 +173,8 @@ live tests skip; a unit-only result does not verify persistence or queues.
 Read [AGENTS.md](AGENTS.md), [AI_HANDOFF.md](AI_HANDOFF.md) and relevant ADRs before changes.
 The [M1](docs/requirements/m1.md), [M2](docs/requirements/m2.md),
 [M3](docs/requirements/m3.md), [M4](docs/requirements/m4.md) and
-[M5](docs/requirements/m5.md) and [M6](docs/requirements/m6.md) requirements and the original
-bootstrap request are preserved.
+[M5](docs/requirements/m5.md) and [M6](docs/requirements/m6.md) and [M7](docs/requirements/m7.md) requirements and the
+original bootstrap request are preserved.
 
 This is a local development implementation: development bearer identities are not production OIDC,
 basic PDF checks are not antivirus, parse-, chunk- and index-quality thresholds are uncalibrated

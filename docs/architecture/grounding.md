@@ -27,3 +27,19 @@ Persist image identity and transformation provenance. Text-only questions do not
 Patient-specific diagnosis/treatment requests fall outside the product scope and require an explicit
 safety response. No claim of clinical validation or HIPAA compliance is made. Conflict presentation
 must identify the competing evidence and policy outcome without arbitrarily choosing a medical answer.
+
+## M7 implemented state
+
+The sufficiency gate is implemented and emits `SUFFICIENT`, `INSUFFICIENT` and `CONFLICTING`. It
+reads structural properties of the EvidenceSet — supporting anchors, independent document versions,
+source authority, required artifact presence and completeness, budget omissions, partial fragments,
+retrieval warnings and detected conflicts — and deliberately **not** calibrated reranker scores;
+see [sufficiency](sufficiency.md) and ADR-012. No confidence number exists, calibrated or raw.
+
+Generation is implemented as far as a **grounded draft** and no further. Generator input is the
+grounding policy, the question and the EvidenceSet; pretrained knowledge is prohibited in the
+prompt and pinned false in policy. Provider adapters return an answer and claims bound to evidence
+ids, and M7 validates schema and citation-id membership deterministically. Claim-level entailment
+verification, the repair attempt and streaming remain unimplemented and belong to M8; drafts are
+typed `UNVERIFIED_AWAITING_CLAIM_VERIFICATION`. Visually dependent questions abstain, because no
+vision path is approved and both adapters refuse `analyze_image`.

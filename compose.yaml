@@ -79,7 +79,16 @@ services:
     build:
       context: .
       dockerfile: infrastructure/docker/backend.Dockerfile
-    environment: *api-environment
+    environment:
+      <<: *api-environment
+      # Generation lives only in the API, so the provider keys reach only the API. They are not in
+      # the shared anchor: the dispatcher, worker, retrieval runtime and frontend have no use for
+      # them, and a key that is never delivered cannot leak from those containers. Empty by
+      # default, which leaves the generator unconfigured rather than falling back to a model.
+      MEDRAG_GENERATOR__PROVIDER: ${MEDRAG_GENERATOR__PROVIDER:-}
+      MEDRAG_GENERATOR__MODEL_ID: ${MEDRAG_GENERATOR__MODEL_ID:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports: ["127.0.0.1:8000:8000"]
     depends_on:
       postgres: {condition: service_healthy}

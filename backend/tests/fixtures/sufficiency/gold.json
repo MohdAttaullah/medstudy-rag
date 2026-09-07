@@ -1,0 +1,127 @@
+{
+  "dataset_version": "m7-sufficiency-gold-v1",
+  "notice": "Synthetic engineering benchmark. Evidence blocks are built from the frozen M5 retrieval gold corpus (backend/tests/fixtures/retrieval/gold.json) rather than from new content, so the source text, document identity and authority levels are the same ones M5 and M6 were measured against. Anchors are prescribed so the gate is measured independently of retrieval. No clinician reviewed these labels and none of this is evidence about clinical performance.",
+  "source_corpus": "backend/tests/fixtures/retrieval/gold.json",
+  "cases": [
+    {
+      "id": "s-sufficient-factual",
+      "category": "sufficient direct factual evidence",
+      "question": "What is the association between HLA-B27 and ankylosing spondylitis?",
+      "expected": "SUFFICIENT",
+      "blocks": [{"chunk": "c-hla-1"}]
+    },
+    {
+      "id": "s-sufficient-multi-source",
+      "category": "multiple supporting sources",
+      "question": "How is atrial fibrillation anticoagulation described?",
+      "expected": "SUFFICIENT",
+      "blocks": [{"chunk": "c-warfarin"}, {"chunk": "c-guide-af"}]
+    },
+    {
+      "id": "s-insufficient-no-evidence",
+      "category": "insufficient / no evidence",
+      "question": "What is the recommended dose of a drug absent from this corpus?",
+      "expected": "INSUFFICIENT",
+      "blocks": []
+    },
+    {
+      "id": "s-negative-query",
+      "category": "deliberate negative query",
+      "question": "Which agent is first line for a condition this corpus never covers?",
+      "expected": "INSUFFICIENT",
+      "blocks": []
+    },
+    {
+      "id": "s-assessment-only",
+      "category": "low-authority question-bank-only evidence",
+      "question": "Which antigen is most strongly associated with the suspected diagnosis?",
+      "expected": "INSUFFICIENT",
+      "blocks": [
+        {"chunk": "c-q-hla", "question": {"explicit_answer": "HLA-B27"}},
+        {"chunk": "c-key-1"}
+      ]
+    },
+    {
+      "id": "s-assessment-vs-reference",
+      "category": "question bank conflicting with stronger reference source",
+      "question": "Which antigen is most strongly associated with ankylosing spondylitis?",
+      "expected": "CONFLICTING",
+      "blocks": [
+        {"chunk": "c-q-hla", "question": {"explicit_answer": "HLA-DQ2 mimicry"}},
+        {"chunk": "c-hla-1"}
+      ]
+    },
+    {
+      "id": "s-authoritative-conflict",
+      "category": "conflicting authoritative sources",
+      "question": "What is the office blood pressure target for treated adults?",
+      "expected": "CONFLICTING",
+      "blocks": [{"chunk": "c-bp-guideline"}, {"chunk": "c-bp-course"}]
+    },
+    {
+      "id": "s-table-missing-headers",
+      "category": "table requiring missing context",
+      "question": "Which row of the table gives the oral dosing interval?",
+      "expected": "INSUFFICIENT",
+      "blocks": [
+        {"chunk": "c-table-dose", "artifacts": [{"kind": "TABLE", "row_indexes": [2]}]}
+      ]
+    },
+    {
+      "id": "s-table-complete",
+      "category": "table with complete structure",
+      "question": "Which row of the table gives the oral dosing interval?",
+      "expected": "SUFFICIENT",
+      "blocks": [
+        {
+          "chunk": "c-table-dose",
+          "artifacts": [{"kind": "TABLE", "row_indexes": [2], "header_rows": [0]}]
+        }
+      ]
+    },
+    {
+      "id": "s-figure-visual-required",
+      "category": "figure requiring unavailable visual interpretation",
+      "question": "What is shown in the figure of the cardiac cycle?",
+      "expected": "INSUFFICIENT",
+      "blocks": [
+        {
+          "chunk": "c-figure-cardiac",
+          "visual": true,
+          "artifacts": [{"kind": "FIGURE"}]
+        }
+      ]
+    },
+    {
+      "id": "s-formula-present",
+      "category": "formula evidence",
+      "question": "Calculate the estimated creatinine clearance",
+      "expected": "SUFFICIENT",
+      "blocks": [
+        {"chunk": "c-formula-crcl", "artifacts": [{"kind": "FORMULA"}]}
+      ]
+    },
+    {
+      "id": "s-formula-missing-artifact",
+      "category": "formula question without the formula source",
+      "question": "Calculate the estimated creatinine clearance",
+      "expected": "INSUFFICIENT",
+      "blocks": [{"chunk": "c-hla-1"}]
+    },
+    {
+      "id": "s-budget-omission",
+      "category": "evidence-budget omission",
+      "question": "What is the association between HLA-B27 and ankylosing spondylitis?",
+      "expected": "INSUFFICIENT",
+      "blocks": [{"chunk": "c-hla-1"}],
+      "warnings": ["CONTEXT_BUDGET_EXCEEDED:00000000-0000-0000-0000-000000000001"]
+    },
+    {
+      "id": "s-incomplete-fragment",
+      "category": "single incomplete fragment",
+      "question": "What is the association between HLA-B27 and ankylosing spondylitis?",
+      "expected": "INSUFFICIENT",
+      "blocks": [{"chunk": "c-hla-1", "representation": "source-spans-v1"}]
+    }
+  ]
+}

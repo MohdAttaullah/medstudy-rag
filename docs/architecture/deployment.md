@@ -196,3 +196,14 @@ Compose readiness checks both `/health/ready` and `/health/reranker`; `/health/l
 process liveness. No model port is published. API owns authorization. Runtime settings require
 restart. See M6 verification for measured memory and host/Linux differences. Serialize heavyweight
 model/image checks on the 16 GB development host.
+
+## M7 provider access
+
+Generation lives only in the API, so `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` and the generator
+selection reach only the `api` service. They are deliberately not in the shared environment anchor:
+the dispatcher, worker, private retrieval runtime and frontend have no use for them, and a key that
+is never delivered cannot leak from those containers. All four default to empty, which leaves the
+generator unconfigured — a declared unavailable state, not a fallback to some default model — so
+the stack starts and the sufficiency gate still runs without any provider account. No provider call
+is made unless the gate returns SUFFICIENT. Keys are never baked into an image; a `VITE_`-prefixed
+copy would be compiled into the browser bundle and is forbidden.
