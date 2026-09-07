@@ -1,0 +1,645 @@
+{
+  "dataset_id": "m11-heldout",
+  "dataset_version": "m11-heldout-v1",
+  "clinically_validated": false,
+  "policy_frozen_at": "e0ee0ad",
+  "notice": "SYNTHETIC HELD-OUT ENGINEERING SET. Every document, passage, number and question below was written for this repository in M11, after the entire M0-M10 pipeline was committed at e0ee0ad. Nothing here influenced any threshold, policy or prompt, because all of them were frozen before these cases existed. That is the only sense in which this set is held out: it is not a held-out sample of any real population, it was authored by the same engineer who ran it, and no clinician reviewed it. The content is deliberately fictional and must never be read as medical guidance.",
+  "documents": [
+    {
+      "label": "h-ref",
+      "title": "Held-out Synthetic Reference, Third Edition (2024)",
+      "source_type": "REFERENCE_BOOK",
+      "authority_level": "REFERENCE",
+      "subject": "Synthetic Medicine",
+      "specialty": "Evaluation"
+    },
+    {
+      "label": "h-ref-old",
+      "title": "Held-out Synthetic Reference, First Edition (2011)",
+      "source_type": "REFERENCE_BOOK",
+      "authority_level": "REFERENCE",
+      "subject": "Synthetic Medicine",
+      "specialty": "Evaluation"
+    },
+    {
+      "label": "h-guide",
+      "title": "Held-out Synthetic Guideline (2024)",
+      "source_type": "GUIDELINE",
+      "authority_level": "HIGH",
+      "subject": "Synthetic Medicine",
+      "specialty": "Evaluation"
+    },
+    {
+      "label": "h-guide-b",
+      "title": "Held-out Synthetic Guideline, Second Body (2024)",
+      "source_type": "GUIDELINE",
+      "authority_level": "HIGH",
+      "subject": "Synthetic Medicine",
+      "specialty": "Evaluation"
+    },
+    {
+      "label": "h-course",
+      "title": "Held-out Synthetic Course Handout",
+      "source_type": "COURSE_MATERIAL",
+      "authority_level": "UNREVIEWED",
+      "subject": "Synthetic Medicine",
+      "specialty": "Evaluation"
+    },
+    {
+      "label": "h-qbank",
+      "title": "Held-out Synthetic Question Bank",
+      "source_type": "QUESTION_BANK",
+      "authority_level": "ASSESSMENT",
+      "subject": "Synthetic Medicine",
+      "specialty": "Evaluation"
+    },
+    {
+      "label": "h-key",
+      "title": "Held-out Synthetic Answer Key",
+      "source_type": "ANSWER_KEY",
+      "authority_level": "ASSESSMENT",
+      "subject": "Synthetic Medicine",
+      "specialty": "Evaluation"
+    }
+  ],
+  "chunks": [
+    {
+      "label": "h-zolamine-basic",
+      "document": "h-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 12,
+      "page_end": 12,
+      "hierarchy": [],
+      "text": "Zolamine is a fictional agent used only in this evaluation corpus. It is eliminated by the invented hepatic enzyme synthase Q, and its illustrative maintenance dose in this fictional text is 40 mg once daily."
+    },
+    {
+      "label": "h-zolamine-enzyme",
+      "document": "h-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 13,
+      "page_end": 13,
+      "hierarchy": [],
+      "text": "Synthase Q, the invented enzyme of this corpus, is strongly inhibited by the fictional compound mirabex. Agents cleared by synthase Q therefore accumulate when mirabex is co-administered."
+    },
+    {
+      "label": "h-negation",
+      "document": "h-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 21,
+      "page_end": 21,
+      "hierarchy": [],
+      "text": "In this fictional corpus, zolamine is not recommended for use with mirabex. The combination is described as contraindicated because of the accumulation caused by synthase Q inhibition."
+    },
+    {
+      "label": "h-fragment",
+      "document": "h-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 44,
+      "page_end": 44,
+      "hierarchy": [],
+      "text": "the remainder of the fictional discussion continues on the following page and is not reproduced here"
+    },
+    {
+      "label": "h-table-dose",
+      "document": "h-ref",
+      "chunk_type": "TABLE",
+      "page_start": 30,
+      "page_end": 30,
+      "hierarchy": [],
+      "text": "Table H.1 Illustrative dosing of fictional agents. Agent | Illustrative adult dose | Interval. Zolamine | 40 mg | once daily. Perivane | 250 mg | twice daily. Corbastat | 10 mg | once daily."
+    },
+    {
+      "label": "h-table-orphan",
+      "document": "h-ref",
+      "chunk_type": "TABLE",
+      "page_start": 31,
+      "page_end": 31,
+      "hierarchy": [],
+      "text": "Perivane | 250 mg | twice daily. Corbastat | 10 mg | once daily."
+    },
+    {
+      "label": "h-formula-clearance",
+      "document": "h-ref",
+      "chunk_type": "FORMULA",
+      "page_start": 33,
+      "page_end": 33,
+      "hierarchy": [],
+      "text": "Fictional clearance index = (dose in mg x 3) / (weight in kg), where dose is the illustrative daily dose and weight is the recorded body weight in kilograms."
+    },
+    {
+      "label": "h-figure-curve",
+      "document": "h-ref",
+      "chunk_type": "FIGURE_CONTEXT",
+      "page_start": 38,
+      "page_end": 38,
+      "hierarchy": [],
+      "text": "Figure H.2 Fictional concentration-time curve for zolamine. The surrounding text refers the reader to the shape of the plotted curve itself and does not restate the plotted values."
+    },
+    {
+      "label": "h-guide-target",
+      "document": "h-guide",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 4,
+      "page_end": 4,
+      "hierarchy": [],
+      "text": "This fictional guideline sets the illustrative synthetic index target below 55 units for adults in the invented population described here."
+    },
+    {
+      "label": "h-guide-b-target",
+      "document": "h-guide-b",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 6,
+      "page_end": 6,
+      "hierarchy": [],
+      "text": "This second fictional guideline body sets the illustrative synthetic index target below 70 units for the same invented adult population."
+    },
+    {
+      "label": "h-guide-agree",
+      "document": "h-guide",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 9,
+      "page_end": 9,
+      "hierarchy": [],
+      "text": "This fictional guideline states that the invented screening interval for the synthetic index is every 24 months in average-risk adults."
+    },
+    {
+      "label": "h-guide-b-agree",
+      "document": "h-guide-b",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 11,
+      "page_end": 11,
+      "hierarchy": [],
+      "text": "This second fictional guideline body also gives the invented screening interval for the synthetic index as every 24 months in average-risk adults."
+    },
+    {
+      "label": "h-edition-new",
+      "document": "h-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 51,
+      "page_end": 51,
+      "hierarchy": [],
+      "text": "Third edition, 2024. In this fictional reference the illustrative loading dose of corbastat is stated as 20 mg."
+    },
+    {
+      "label": "h-edition-old",
+      "document": "h-ref-old",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 47,
+      "page_end": 47,
+      "hierarchy": [],
+      "text": "First edition, 2011. In this fictional reference the illustrative loading dose of corbastat is stated as 50 mg."
+    },
+    {
+      "label": "h-course-note",
+      "document": "h-course",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 2,
+      "page_end": 2,
+      "hierarchy": [],
+      "text": "These fictional revision notes set the illustrative synthetic index target below 90 units for the same invented adult population."
+    },
+    {
+      "label": "h-rate-a",
+      "document": "h-ref",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 60,
+      "page_end": 60,
+      "hierarchy": [],
+      "text": "The fictional starting infusion rate for zolamine is 12 mL per hour in this invented protocol."
+    },
+    {
+      "label": "h-rate-b",
+      "document": "h-guide",
+      "chunk_type": "TEXT_CHILD",
+      "page_start": 18,
+      "page_end": 18,
+      "hierarchy": [],
+      "text": "For zolamine this fictional guideline instead advises beginning the infusion at 30 mL per hour."
+    },
+    {
+      "label": "h-q-zolamine",
+      "document": "h-qbank",
+      "chunk_type": "QUESTION",
+      "page_start": 3,
+      "page_end": 3,
+      "hierarchy": [],
+      "text": "Question 7. Which invented enzyme eliminates zolamine? A synthase P. B synthase Q. C synthase R. D synthase S."
+    },
+    {
+      "label": "h-key-wrong",
+      "document": "h-key",
+      "chunk_type": "OTHER_STRUCTURED",
+      "page_start": 1,
+      "page_end": 1,
+      "hierarchy": [],
+      "text": "Held-out answer key, questions 1 to 10. 7 A synthase P. This official key disagrees with the reference text of this corpus."
+    }
+  ],
+  "cases": [
+    {
+      "id": "h-ordinary-factual",
+      "category": "ordinary factual question",
+      "question": "Which invented enzyme eliminates zolamine in this corpus?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "VERIFIED",
+      "blocks": [{"chunk": "h-zolamine-basic"}],
+      "draft": {
+        "answer": "Zolamine is eliminated by the invented hepatic enzyme synthase Q.",
+        "claims": [
+          {
+            "text": "Zolamine is eliminated by the invented hepatic enzyme synthase Q.",
+            "cites": ["h-zolamine-basic"]
+          }
+        ]
+      },
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "h-multi-hop",
+      "category": "multi-hop question needing two passages",
+      "question": "Why would zolamine accumulate when mirabex is co-administered?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "VERIFIED",
+      "blocks": [{"chunk": "h-zolamine-basic"}, {"chunk": "h-zolamine-enzyme"}],
+      "draft": {
+        "answer": "Zolamine is cleared by synthase Q, and mirabex strongly inhibits synthase Q, so zolamine accumulates.",
+        "claims": [
+          {"text": "Zolamine is cleared by synthase Q.", "cites": ["h-zolamine-basic"]},
+          {"text": "Mirabex strongly inhibits synthase Q.", "cites": ["h-zolamine-enzyme"]}
+        ]
+      },
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "h-table-derived",
+      "category": "table-derived question",
+      "question": "What illustrative dose does the fictional dosing table give for perivane?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "VERIFIED",
+      "blocks": [
+        {
+          "chunk": "h-table-dose",
+          "artifacts": [{"kind": "TABLE", "row_indexes": [2], "header_rows": [0]}]
+        }
+      ],
+      "draft": {
+        "answer": "The fictional table gives perivane as 250 mg twice daily.",
+        "claims": [
+          {
+            "text": "The fictional table gives perivane as 250 mg twice daily.",
+            "cites": ["h-table-dose"]
+          }
+        ]
+      },
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "h-table-headers-missing",
+      "category": "table fragment without its header row",
+      "question": "What interval does the fictional table give for corbastat?",
+      "answerable": false,
+      "expected_gate": "INSUFFICIENT",
+      "expected_outcome": "INSUFFICIENT_EVIDENCE",
+      "expected_layer": "SUFFICIENCY",
+      "expected_reason_codes": ["TABLE_STRUCTURE_INCOMPLETE"],
+      "blocks": [
+        {"chunk": "h-table-orphan", "artifacts": [{"kind": "TABLE", "row_indexes": [1]}]}
+      ]
+    },
+    {
+      "id": "h-formula-derived",
+      "category": "formula-derived question",
+      "question": "What does weight represent in the fictional clearance index?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "VERIFIED",
+      "blocks": [
+        {
+          "chunk": "h-formula-clearance",
+          "artifacts": [{"kind": "FORMULA"}]
+        }
+      ],
+      "draft": {
+        "answer": "In the fictional clearance index, weight is the recorded body weight in kilograms.",
+        "claims": [
+          {
+            "text": "In the fictional clearance index, weight is the recorded body weight in kilograms.",
+            "cites": ["h-formula-clearance"]
+          }
+        ]
+      },
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "h-figure-visual",
+      "category": "figure requiring genuine visual interpretation",
+      "question": "Read the peak concentration off the plotted fictional curve in Figure H.2.",
+      "answerable": false,
+      "expected_gate": "INSUFFICIENT",
+      "expected_outcome": "INSUFFICIENT_EVIDENCE",
+      "expected_layer": "SUFFICIENCY",
+      "expected_reason_codes": ["VISUAL_INTERPRETATION_UNAVAILABLE"],
+      "blocks": [{"chunk": "h-figure-curve", "visual": true}]
+    },
+    {
+      "id": "h-question-bank-only",
+      "category": "question-bank evidence with no reference support",
+      "question": "According to the held-out question bank, which enzyme eliminates zolamine?",
+      "answerable": false,
+      "expected_gate": "INSUFFICIENT",
+      "expected_outcome": "INSUFFICIENT_EVIDENCE",
+      "expected_layer": "SUFFICIENCY",
+      "expected_reason_codes": ["ASSESSMENT_ONLY_EVIDENCE"],
+      "blocks": [
+        {
+          "chunk": "h-q-zolamine",
+          "question": {"explicit_answer": null, "assessment_material": true}
+        }
+      ]
+    },
+    {
+      "id": "h-answer-key-conflict",
+      "category": "answer key contradicting the reference text",
+      "question": "Does the held-out answer key agree with the reference on the zolamine enzyme?",
+      "answerable": false,
+      "expected_gate": "CONFLICTING",
+      "expected_outcome": "CONFLICTING_EVIDENCE",
+      "expected_layer": "SUFFICIENCY",
+      "blocks": [
+        {"chunk": "h-zolamine-basic"},
+        {
+          "chunk": "h-key-wrong",
+          "question": {"explicit_answer": "synthase P", "assessment_material": true}
+        }
+      ]
+    },
+    {
+      "id": "h-multiple-authoritative-agree",
+      "category": "two authoritative sources agreeing",
+      "question": "What invented screening interval do the fictional guidelines give?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "VERIFIED",
+      "blocks": [{"chunk": "h-guide-agree"}, {"chunk": "h-guide-b-agree"}],
+      "draft": {
+        "answer": "Both fictional guideline bodies give the invented screening interval as every 24 months in average-risk adults.",
+        "claims": [
+          {
+            "text": "The invented screening interval is every 24 months in average-risk adults.",
+            "cites": ["h-guide-agree", "h-guide-b-agree"]
+          }
+        ]
+      },
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "h-authoritative-conflict",
+      "category": "two authoritative sources disagreeing",
+      "question": "What is the illustrative synthetic index target for adults?",
+      "answerable": false,
+      "expected_gate": "CONFLICTING",
+      "expected_outcome": "CONFLICTING_EVIDENCE",
+      "expected_layer": "SUFFICIENCY",
+      "blocks": [{"chunk": "h-guide-target"}, {"chunk": "h-guide-b-target"}]
+    },
+    {
+      "id": "h-outdated-source",
+      "category": "outdated edition contradicting the current edition",
+      "question": "What illustrative loading dose of corbastat does this corpus give?",
+      "answerable": false,
+      "expected_gate": "CONFLICTING",
+      "expected_outcome": "CONFLICTING_EVIDENCE",
+      "expected_layer": "SUFFICIENCY",
+      "note": "The 2011 and 2024 editions disagree. The gold expectation is that the disagreement is reported, NOT that the newer edition is chosen: this repository has no reviewed basis for adjudicating which fictional edition is correct, and silently preferring one would be exactly the behaviour section 22 forbids.",
+      "blocks": [{"chunk": "h-edition-new"}, {"chunk": "h-edition-old"}]
+    },
+    {
+      "id": "h-unreviewed-contradicts-guideline",
+      "category": "unreviewed course notes contradicting a guideline",
+      "question": "What synthetic index target should be used for adults in this corpus?",
+      "answerable": false,
+      "expected_gate": "CONFLICTING",
+      "expected_outcome": "CONFLICTING_EVIDENCE",
+      "expected_layer": "SUFFICIENCY",
+      "blocks": [{"chunk": "h-guide-target"}, {"chunk": "h-course-note"}]
+    },
+    {
+      "id": "h-no-answer-in-corpus",
+      "category": "answer genuinely absent from the corpus",
+      "question": "What is the illustrative paediatric dose of the fictional agent velantra?",
+      "answerable": false,
+      "expected_gate": "INSUFFICIENT",
+      "expected_outcome": "INSUFFICIENT_EVIDENCE",
+      "expected_layer": "SUFFICIENCY",
+      "expected_reason_codes": ["NO_EVIDENCE"],
+      "blocks": []
+    },
+    {
+      "id": "h-ambiguous",
+      "category": "ambiguous question with no resolvable referent",
+      "question": "What is its recommended value?",
+      "answerable": false,
+      "expected_gate": "INSUFFICIENT",
+      "expected_outcome": "INSUFFICIENT_EVIDENCE",
+      "expected_layer": "SUFFICIENCY",
+      "expected_reason_codes": ["NO_EVIDENCE"],
+      "blocks": []
+    },
+    {
+      "id": "h-incomplete-context",
+      "category": "single truncated fragment",
+      "question": "What does the fictional discussion on page 44 conclude?",
+      "answerable": false,
+      "expected_gate": "INSUFFICIENT",
+      "expected_outcome": "INSUFFICIENT_EVIDENCE",
+      "expected_layer": "EVIDENCE",
+      "note": "Attributed to EVIDENCE, not SUFFICIENCY. The gate declares RETRIEVAL_WARNING_PRESENT, but the condition it reports was raised by the assembler; crediting the refusal to the gate would hide where the incompleteness actually came from.",
+      "blocks": [{"chunk": "h-fragment"}],
+      "warnings": ["CONTEXT_INCOMPLETE"]
+    },
+    {
+      "id": "h-evidence-budget",
+      "category": "evidence omitted by the context budget",
+      "question": "What illustrative dose does the fictional table give for zolamine?",
+      "answerable": false,
+      "expected_gate": "INSUFFICIENT",
+      "expected_outcome": "INSUFFICIENT_EVIDENCE",
+      "expected_layer": "EVIDENCE",
+      "expected_reason_codes": ["EVIDENCE_BUDGET_OMISSION"],
+      "blocks": [{"chunk": "h-zolamine-basic"}],
+      "warnings": ["CONTEXT_BUDGET_EXCEEDED:h-table-dose"]
+    },
+    {
+      "id": "h-numeric-mismatch",
+      "category": "numeric claim disagreeing with its cited evidence",
+      "question": "What is the illustrative maintenance dose of zolamine?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "UNVERIFIED",
+      "expected_layer": "VERIFICATION",
+      "expected_reason_codes": ["NUMERIC_MISMATCH"],
+      "note": "The evidence says 40 mg; the draft says 80 mg. Verification must refuse this even though the gate correctly allowed generation.",
+      "blocks": [{"chunk": "h-zolamine-basic"}],
+      "draft": {
+        "answer": "The illustrative maintenance dose of zolamine is 80 mg once daily.",
+        "claims": [
+          {
+            "text": "The illustrative maintenance dose of zolamine is 80 mg once daily.",
+            "cites": ["h-zolamine-basic"]
+          }
+        ]
+      },
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "h-negation-reversed",
+      "category": "claim reversing the polarity of its cited evidence",
+      "question": "Can zolamine be used together with mirabex?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "UNVERIFIED",
+      "expected_layer": "VERIFICATION",
+      "expected_reason_codes": ["NEGATION_REVERSED"],
+      "note": "The evidence says the combination is not recommended; the draft says it is recommended.",
+      "blocks": [{"chunk": "h-negation"}],
+      "draft": {
+        "answer": "Zolamine is recommended for use with mirabex.",
+        "claims": [
+          {"text": "Zolamine is recommended for use with mirabex.", "cites": ["h-negation"]}
+        ]
+      },
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "h-uncited-claim",
+      "category": "material claim carrying no citation",
+      "question": "What should be monitored when zolamine and mirabex are combined?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "UNVERIFIED",
+      "expected_layer": "VERIFICATION",
+      "expected_reason_codes": ["CLAIM_NOT_CITED"],
+      "note": "The M7 schema forbids a declared claim with no citation, so this exercises the way an uncited claim actually reaches verification: the answer carries a material sentence the generator never declared as a claim, and extraction surfaces it with no citation behind it.",
+      "blocks": [{"chunk": "h-zolamine-enzyme"}],
+      "draft": {
+        "answer": "Mirabex strongly inhibits synthase Q. Serum concentrations should therefore be monitored weekly in every patient.",
+        "claims": [
+          {
+            "text": "Mirabex strongly inhibits synthase Q.",
+            "cites": ["h-zolamine-enzyme"]
+          }
+        ]
+      },
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "h-invented-citation",
+      "category": "draft citing evidence that was never supplied",
+      "question": "Which invented enzyme eliminates zolamine?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "UNVERIFIED",
+      "expected_layer": "VERIFICATION",
+      "expected_reason_codes": ["UNKNOWN_CITATION"],
+      "blocks": [{"chunk": "h-zolamine-basic"}],
+      "draft": {
+        "answer": "Zolamine is eliminated by synthase Q.",
+        "claims": [
+          {"text": "Zolamine is eliminated by synthase Q.", "cites": ["__INVENTED__"]}
+        ]
+      },
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "h-verifier-rejects",
+      "category": "verifier judging a claim unsupported",
+      "question": "What does the fictional reference say about zolamine clearance?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "UNVERIFIED",
+      "expected_layer": "VERIFICATION",
+      "expected_reason_codes": ["SEMANTICALLY_UNSUPPORTED"],
+      "blocks": [{"chunk": "h-zolamine-basic"}],
+      "draft": {
+        "answer": "Zolamine clearance is unaffected by hepatic impairment.",
+        "claims": [
+          {
+            "text": "Zolamine clearance is unaffected by hepatic impairment.",
+            "cites": ["h-zolamine-basic"]
+          }
+        ]
+      },
+      "verifier": "UNSUPPORTED"
+    },
+    {
+      "id": "h-verifier-unavailable",
+      "category": "verifier itself failing",
+      "question": "Which invented enzyme eliminates zolamine?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "UNVERIFIED",
+      "expected_layer": "VERIFICATION",
+      "expected_reason_codes": ["VERIFIER_FAILED"],
+      "note": "A verifier outage must abstain, never pass by default.",
+      "blocks": [{"chunk": "h-zolamine-basic"}],
+      "draft": {
+        "answer": "Zolamine is eliminated by synthase Q.",
+        "claims": [
+          {"text": "Zolamine is eliminated by synthase Q.", "cites": ["h-zolamine-basic"]}
+        ]
+      },
+      "verifier": "FAILED"
+    },
+    {
+      "id": "h-successful-repair",
+      "category": "one repair attempt then a supported answer",
+      "question": "Which invented enzyme eliminates zolamine?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "VERIFIED",
+      "expected_repair": true,
+      "blocks": [{"chunk": "h-zolamine-basic"}],
+      "draft": {
+        "answer": "Zolamine is eliminated by synthase Q.",
+        "claims": [
+          {"text": "Zolamine is eliminated by synthase Q.", "cites": ["h-zolamine-basic"]}
+        ]
+      },
+      "verifier": "FAIL_THEN_SUPPORT"
+    },
+    {
+      "id": "h-conflict-label-mismatch",
+      "category": "known limitation: disagreeing values phrased differently",
+      "question": "What illustrative infusion rate does this corpus give?",
+      "answerable": false,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "UNVERIFIED",
+      "expected_layer": "SUFFICIENCY",
+      "note": "MEASURED LIMITATION, NOT A TARGET. The M7 conflict detector compares values only when the four-word label window preceding the number matches between sources. These two sources state different values for the same fictional quantity but phrase it differently, so the gate does not see a conflict and returns SUFFICIENT. The abstention here comes from M8 refusing the draft, not from M7 detecting the disagreement, and M8 reports the disagreement with the same AUTHORITATIVE_SOURCES_DISAGREE code the gate would have used. Attribution therefore points at SUFFICIENCY, which is the useful reading: the gate is where this should have been caught. The expectation records what the system actually does, so the gap is visible in every report rather than discovered later.",
+      "blocks": [{"chunk": "h-rate-a"}, {"chunk": "h-rate-b"}],
+      "draft": {
+        "answer": "The illustrative infusion rate is 12 mL per hour.",
+        "claims": [
+          {"text": "The illustrative infusion rate is 12 mL per hour.", "cites": ["h-rate-a"]}
+        ]
+      },
+      "verifier": "UNSUPPORTED"
+    },
+    {
+      "id": "h-provider-failure",
+      "category": "generation provider outage",
+      "question": "Which invented enzyme eliminates zolamine?",
+      "answerable": true,
+      "expected_gate": "SUFFICIENT",
+      "expected_outcome": "FAILED",
+      "expected_layer": "GENERATION",
+      "expected_reason_codes": ["GENERATION_PROVIDER_TIMEOUT"],
+      "note": "A technical failure must be reported as such, never as a statement that the corpus lacked evidence.",
+      "blocks": [{"chunk": "h-zolamine-basic"}],
+      "provider_failure": "GENERATION_PROVIDER_TIMEOUT"
+    }
+  ]
+}

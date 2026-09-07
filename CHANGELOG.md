@@ -1,5 +1,36 @@
 # Changelog
 
+## M11 - 2026-09-07
+
+- Added a layered evaluation framework measuring eleven stages separately, from parsing through
+  final abstention, and deliberately produced no single accuracy score: the layers are not
+  commensurable, and one aggregate number would move for reasons nobody could explain while
+  hiding the one quantity that actually matters.
+- Made failure attribution run upstream. A question that fails because retrieval never found the
+  evidence is reported as a retrieval miss, not as an over-eager gate, so the next investigation
+  starts in the right place.
+- Reused the pipeline's own reason codes rather than inventing a parallel vocabulary, and pinned
+  that with tests asserting every member of the real sufficiency and verification literals is
+  classified, so a new code cannot become an anonymous failure.
+- Classified every evaluation dataset by what it is allowed to prove. Most gold files here were
+  written during the milestone they measure, which shows the implementation matches its author's
+  intent and says nothing about generalisation; that label now travels with the numbers into
+  every report instead of living in a caveats section.
+- Added 25 held-out end-to-end cases written after the pipeline was committed, covering conflict,
+  outdated editions, ambiguity, numeric and negation failures, provider outage and verifier
+  failure - and stated plainly the narrow sense in which they are held out.
+- Fingerprinted the dataset manifest by content, so an edited gold label changes the fingerprint
+  of every report that quotes it.
+- Labelled each quality gate with how much authority it has, and kept answer correctness
+  uncalibrated rather than inventing a medical-quality threshold from a small synthetic corpus.
+- Refused to let an unmeasured safety invariant read as an upheld one: a run where a safety gate
+  did not execute does not pass.
+- Kept the default evaluation free of paid calls and infrastructure, with a test that makes any
+  HTTP request fail and asserts the offline run still measures every hard safety invariant.
+- Recorded the limitations rather than working around them: the verifier is the same model as the
+  generator, the provider adapter captures no token usage so cost cannot be reported, and
+  EvidenceSet coverage under the configured policy is 0.933 rather than 1.0.
+
 ## M10 - 2026-09-07
 
 - Added authorized, versioned tenant configuration: an explicit typed registry of 125 settings

@@ -14,7 +14,9 @@ SUFFICIENT and a draft is explicitly unverified; M8 adds claim-level verificatio
 becomes an answer only if every material claim survives citation, provenance, numeric, negation and
 support checks, with at most one repair; M9 adds the Ask experience, where a verified answer is
 delivered with its citations and every other outcome is an explained refusal; M10 adds authorized,
-versioned tenant configuration with explicit runtime/rebuild lifecycles and immutable safety rules.
+versioned tenant configuration with explicit runtime/rebuild lifecycles and immutable safety rules;
+M11 adds a layered evaluation framework that measures each stage separately and attributes every
+failure to the stage that caused it.
 Successful jobs stop at **RETRIEVAL_READY**, which means both retrieval lanes verified over the same
 chunk dataset — **not** that the document is answerable. Retrieval returns ranked evidence candidates
 with their provenance, and the EvidenceSet is source material for inspection, not a judgment that the
@@ -201,3 +203,28 @@ Migration `m10_configuration` is required before starting the updated API.
 
 See [configuration management](docs/architecture/configuration-management.md),
 [ADR-015](docs/adr/015-m10-controlled-configuration.md) and [verification](docs/verification/m10.md).
+
+
+## Evaluation (M11)
+
+```bash
+uv run python scripts/evaluate_m11.py                                     # offline, no API key
+uv run --extra embedding python scripts/evaluate_m11.py --include-models  # + model-backed layers
+uv run --extra embedding python scripts/evaluate_m11.py --live            # + opt-in provider calls
+```
+
+Eleven layers are measured and reported separately. There is deliberately no single accuracy
+score, because parsing fidelity, Recall@5 and a false-PASS count are not commensurable and
+averaging them would hide the one quantity that matters. A failure is attributed to the earliest
+stage that declared it, so a retrieval miss is never reported as an over-eager gate.
+
+Offline is the default and is what CI runs: no API key, no provider call, no PostgreSQL, no
+Qdrant — and every hard safety invariant is measured in that mode. `--live` is never implied by
+another flag and costs money. Artifacts land in `docs/evals/m11/`.
+
+Every dataset carries an explicit independence class next to its numbers, because a fixture
+written alongside the code it scores proves something quite different from a case the policy never
+saw. **Nothing here is expert-reviewed, and M11 engineering evaluation is not clinical validation.**
+
+See [evaluation architecture](docs/architecture/evaluation.md),
+[ADR-016](docs/adr/016-m11-layered-evaluation.md) and [the report](docs/verification/m11.md).
