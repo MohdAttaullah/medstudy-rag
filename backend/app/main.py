@@ -17,6 +17,7 @@ from app.api.chunking import router as chunking_router
 from app.api.configuration import router as configuration_router
 from app.api.documents import router
 from app.api.embeddings import router as embedding_router
+from app.api.operations import router as operations_router
 from app.api.parsing import router as parsing_router
 from app.api.retrieval import router as retrieval_router
 from app.core.config import Settings
@@ -46,6 +47,9 @@ from app.models.retrieval import (
 )
 from app.observability.ingestion import IngestionMetrics, audit
 from app.observability.retrieval import RetrievalMetrics
+from app.observability.usage import ProviderUsageMetrics
+from app.security.headers import security_headers
+from app.security.ratelimit import RateLimiter
 from app.services.control import ControlPlane
 from app.services.health import DependencyProbe, InfrastructureProbe
 from app.services.storage import S3ObjectStorage
@@ -309,6 +313,7 @@ def create_app(
     registry = CollectorRegistry()
     metrics = IngestionMetrics(registry)
     retrieval_metrics = RetrievalMetrics(registry)
+    usage_metrics = ProviderUsageMetrics(registry)
     engine = None
     service = control_plane
     if service is None and config.database_url.get_secret_value():
@@ -325,6 +330,7 @@ def create_app(
                 config.qdrant_url, timeout=config.index.request_timeout_seconds
             ),
             retrieval_metrics=retrieval_metrics,
+            usage_metrics=usage_metrics,
             query_encoder_factory=_query_encoder_factory(config),
         )
 
@@ -336,6 +342,9 @@ def create_app(
 
     app = FastAPI(title="Medical RAG - M5", version="0.5.0", lifespan=lifespan)
     app.state.settings, app.state.control = config, service
+    app.state.limiter = (
+        RateLimiter(config.limits.budgets()) if config.limits.rate_limiting_enabled else None
+    )
     requests = Counter(
         "medrag_http_requests_total", "Completed HTTP requests", ["status"], registry=registry
     )
@@ -403,6 +412,33 @@ def create_app(
             status_code=422,
         )
 
+    app.middleware("http")(security_headers(hsts=config.limits.hsts_enabled))
+
+    @app.middleware("http")
+    async def bounded_body(request: Request, call_next: RequestResponseEndpoint) -> Response:
+        """Refuse an oversized JSON body before it is parsed.
+
+        Upload routes stream and are bounded separately by `IngestionConfig.max_upload_bytes`, so
+        they are exempt here; everything else has no legitimate reason to send a large body, and
+        parsing one only to reject it is the amplification this prevents.
+        """
+        declared = request.headers.get("content-length")
+        limit = config.limits.max_json_body_bytes
+        if declared and declared.isdigit() and int(declared) > limit:
+            if not request.url.path.endswith("/documents"):
+                return JSONResponse(
+                    {
+                        "error": {
+                            "code": "REQUEST_TOO_LARGE",
+                            "message": "The request body exceeds the permitted size.",
+                            "details": {"limit_bytes": limit},
+                        },
+                        "correlation_id": request.headers.get("X-Request-ID", ""),
+                    },
+                    status_code=413,
+                )
+        return await call_next(request)
+
     @app.middleware("http")
     async def correlate(request: Request, call_next: RequestResponseEndpoint) -> Response:
         try:
@@ -450,14 +486,36 @@ def create_app(
 
     @app.get("/health/live")
     async def live() -> dict[str, str]:
-        return {"status": "alive", "milestone": "M5"}
+        """Liveness: is this process running its event loop?
+
+        Deliberately touches no dependency. A liveness probe that fails when PostgreSQL is briefly
+        unavailable causes the orchestrator to kill and restart every replica of a healthy service
+        during a database blip, turning a recoverable dependency outage into an application outage.
+        Dependency state belongs to readiness.
+        """
+        return {
+            "status": "alive",
+            "service": config.service_name,
+            "environment": config.environment,
+        }
 
     @app.get("/health/ready")
     async def ready() -> JSONResponse:
+        """Readiness: can this replica safely serve its role right now?
+
+        Fails closed and names the unmet dependencies, so an operator reading a 503 knows which
+        one to look at. Never returns a connection string or an exception message.
+        """
         checks = await dependencies.check()
         healthy = bool(checks) and all(checks.values())
         return JSONResponse(
-            {"status": "ready" if healthy else "not_ready", "dependencies": checks},
+            {
+                "status": "ready" if healthy else "not_ready",
+                "dependencies": checks,
+                "unready": sorted(name for name, ok in checks.items() if not ok),
+                "auth_mode": config.auth.mode,
+                "environment": config.environment,
+            },
             status_code=200 if healthy else 503,
         )
 
@@ -500,4 +558,5 @@ def create_app(
     app.include_router(retrieval_router)
     app.include_router(ask_router)
     app.include_router(configuration_router)
+    app.include_router(operations_router)
     return app

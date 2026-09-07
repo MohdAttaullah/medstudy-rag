@@ -15,6 +15,7 @@ from app.generation.errors import GenerationError
 from app.generation.grounding.model import ProviderSpec
 from app.generation.prompts.grounded import user_message
 from app.generation.providers.openai import _request, _summary
+from app.observability.usage import UsageSink
 
 API_BASE = "https://api.anthropic.com/v1"
 API_VERSION = "2023-06-01"
@@ -29,8 +30,12 @@ class AnthropicProvider:
         grounding: GroundingConfig,
         api_key: SecretStr,
         client: httpx.AsyncClient | None = None,
+        usage: "UsageSink | None" = None,
     ) -> None:
         self.selection, self.config, self.grounding = selection, config, grounding
+        # Non-safety-critical accounting. Injected rather than global, and optional so every
+        # existing construction site keeps working unchanged.
+        self._usage = usage
         self._key, self._client = api_key, client
         self.base_url = (config.anthropic_base_url or API_BASE).rstrip("/")
 
@@ -98,7 +103,7 @@ class AnthropicProvider:
                 }
             ]
             payload["tool_choice"] = {"type": "tool", "name": TOOL}
-        return await _request(
+        body = await _request(
             self._client,
             self.config,
             self.base_url + "/messages",
@@ -108,3 +113,6 @@ class AnthropicProvider:
             },
             payload,
         )
+        if self._usage is not None:
+            self._usage.record("anthropic", self.selection.model_id, body)
+        return body

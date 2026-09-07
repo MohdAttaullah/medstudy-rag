@@ -1,5 +1,48 @@
 # Changelog
 
+## M12 - 2026-09-08
+
+- Replaced the validator that refused production outright with one that enumerates what production
+  requires. The process will not start unless OIDC identity is configured, development principals
+  are absent, rate limiting is on, CORS origins are explicit HTTPS entries, credentials are present
+  and not development defaults, backing services are not on localhost, and the encoder models are
+  offline-pinned - and the error names every unmet rule without printing a value.
+- Added vendor-neutral OIDC identity. Signature verification has no disable flag, algorithms come
+  from configuration rather than the token header so a token cannot choose how it is verified, only
+  asymmetric algorithms are supported so this service never holds a key that could mint tokens, a
+  missing tenant claim is refused rather than defaulted, and several mapped roles resolve to the
+  narrowest.
+- Gave development authentication two independent barriers, because the first one can be bypassed:
+  the settings validator refuses, and the adapter factory refuses again if handed a production
+  configuration selecting it.
+- Made the permission inventory usable for review. It previously omitted capabilities that routes
+  actually enforced, and curator was defined as "everything" so adding any capability silently
+  granted it; roles are now explicit subsets and a test fails if a route enforces a capability the
+  inventory lacks.
+- Swept every parameterised route derived from the OpenAPI schema with foreign identifiers, so a
+  route added later is covered automatically rather than depending on someone remembering to add it
+  to a list.
+- Added security headers to every response including errors, keeping the CSP wide enough that the
+  source viewer still renders page previews and figure crops - a header that broke citation
+  inspection would trade the wrong thing.
+- Added per-principal rate limits and a request-size ceiling, off by default and mandatory in
+  production: a control that obstructs local work is one that gets disabled, and health probes are
+  never throttled because that turns load into an outage.
+- Declared retrieved document text untrusted in both the generator and verifier policies, and
+  fenced it with markers a document cannot forge or close - while leaving evidence text byte-exact,
+  because a sanitiser that rewrote numbers would defeat grounding to prevent injection.
+- Closed the cost gap M11 recorded, through an injected sink rather than the frozen draft object,
+  recording absent usage as absent rather than as zero and refusing to hardcode a price.
+- Separated liveness from readiness properly: liveness touches no dependency, so a database blip no
+  longer restarts every healthy replica, and readiness names what is unready.
+- Supported mounted secret files, which every managed secret store provides and which keeps values
+  out of the process environment entirely.
+- Verified a real backup and restore, including that the verified-answer rule and the
+  configuration-history immutability trigger both survived.
+- Documented what is not built rather than implying it is: malware scanning, global rate limiting,
+  container resource limits, digest-pinned images, backup scheduling, off-host audit shipping, and
+  a complete deletion workflow whose central policy conflict is written out rather than guessed at.
+
 ## M11 - 2026-09-07
 
 - Added a layered evaluation framework measuring eleven stages separately, from parsing through

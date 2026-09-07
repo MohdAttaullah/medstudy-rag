@@ -73,6 +73,17 @@ def correlation(request: Request) -> UUID:
     return UUID(request.state.request_id)
 
 
+def enforce_rate_limit(request: Request, actor: Principal, budget: str) -> None:
+    """Apply a named per-principal budget, if the deployment enabled rate limiting.
+
+    Scoped to tenant and user rather than IP: every browser behind one corporate NAT shares an
+    address and would otherwise share a budget. Health and readiness never reach this.
+    """
+    limiter = getattr(request.app.state, "limiter", None)
+    if limiter is not None:
+        limiter.enforce(budget, actor.tenant_id, actor.user_id)
+
+
 @router.get("/auth/me")
 def me(actor: Actor) -> dict[str, Any]:
     return {
@@ -109,6 +120,7 @@ async def upload(
     request_id = correlation(request)
     try:
         actor.require("document:upload")
+        enforce_rate_limit(request, actor, "upload")
         try:
             key = UUID(request.headers.get("Idempotency-Key", ""))
         except ValueError:

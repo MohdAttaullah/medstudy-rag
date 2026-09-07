@@ -228,3 +228,40 @@ saw. **Nothing here is expert-reviewed, and M11 engineering evaluation is not cl
 
 See [evaluation architecture](docs/architecture/evaluation.md),
 [ADR-016](docs/adr/016-m11-layered-evaluation.md) and [the report](docs/verification/m11.md).
+
+
+## Production hardening (M12)
+
+Production is a configuration this system **refuses to run badly**. With
+`MEDRAG_ENVIRONMENT=production` the process will not start unless OIDC identity is configured,
+development principals are absent, rate limiting is on, CORS origins are explicit HTTPS entries,
+credentials are present and not development defaults, backing services are not on localhost, and
+the encoder models are offline-pinned. The error names every unmet rule and prints no secret.
+
+```bash
+uv run python scripts/production_preflight.py     # read-only; no provider call unless asked
+uv run python scripts/smoke_m12.py                # headers, RBAC, isolation, secrets, bounds
+uv run python scripts/load_test.py --reads 200    # deterministic providers by default
+uv run python scripts/verify_restore.py --database "$RESTORE_URL"
+```
+
+Identity is vendor-neutral OIDC: issuer, audience and claim names are configuration, and nothing in
+the code knows which provider is in use. Signature verification cannot be disabled, algorithms come
+from configuration rather than the token header, and only asymmetric algorithms are supported so
+this service never holds a key that could mint tokens.
+
+The safety pipeline is unchanged. M12 added barriers around it and removed none: there is no fast
+path, no verification-disabled mode and no provider-direct answering, and a test asserts the
+codebase contains no such switch.
+
+**No claim of HIPAA compliance, certification, clinical validation or absence of hallucination is
+made.** The controls are designed to support future compliance work; they do not constitute it, and
+every quality limitation recorded in M11 still stands.
+
+See [production deployment](docs/architecture/production-deployment.md),
+[threat model](docs/architecture/threat-model.md), [runbooks](docs/runbooks.md),
+[backup and recovery](docs/architecture/backup-and-recovery.md),
+[retention](docs/architecture/retention.md), [CI/CD](docs/architecture/ci-cd.md),
+[Kubernetes readiness](docs/architecture/kubernetes.md),
+[ADR-017](docs/adr/017-m12-production-hardening.md) and
+[the M12 report](docs/verification/m12.md).

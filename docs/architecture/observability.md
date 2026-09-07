@@ -133,3 +133,42 @@ lane scores.
 audit events, and `configuration_pending_rebuild` counts pending keys in the latest tenant
 revisions. Logs omit old and new values; successful audit rows retain the allowlisted policy
 changes. Rejected arbitrary values, secrets and invalid bodies are never recorded.
+
+
+## M12 operations
+
+**Provider accounting.** M11 recorded that cost was unreportable because the adapters discarded the
+provider `usage` block. `provider_calls_total`, `provider_input_tokens_total`,
+`provider_output_tokens_total` and `provider_usage_absent_total` now record it, labelled by provider
+and model only — a tenant or correlation label would explode cardinality. Recording never raises, so
+a telemetry failure cannot fail a verified answer, and a response without a usage block increments
+`usage_absent` rather than being counted as zero. No price is hardcoded: `estimated_cost` returns
+None when the deployment has supplied no rate, because reporting 0.0 would read as "this was free".
+
+**Health versus readiness.** `/health/live` touches no dependency and reports process identity only;
+`/health/ready` checks PostgreSQL, Redis, Qdrant and the object store, returns 503 when any is
+unavailable, and names the unmet dependencies in `unready`. Pointing liveness at readiness would
+make a database blip restart every healthy replica.
+
+**Operational summary.** `GET /api/v1/operations/status` (`operations:read`, admin only) returns
+tenant-scoped job counts and retry totals plus service-wide model identity, policy fingerprints,
+the effective configuration revision and credential *presence*. Model identity is there so an
+incident review can attribute an answer to the exact model and policy that produced it; no
+credential value appears.
+
+**Alertable conditions.** Suggested, not deployed — no alerting is configured in this repository:
+
+| Condition | Signal |
+|---|---|
+| API not ready | `/health/ready` returning 503 |
+| Retrieval model unavailable | readiness `unready` contains the retrieval dependency |
+| Queue growth | rising `QUEUED` count in the operations endpoint |
+| Ingestion failure rate | `ingestion_jobs_failed_total` rate |
+| Provider error rate | `medrag_http_requests_total{status="5xx"}` and generation failure codes |
+| Database connection exhaustion | connection errors in readiness |
+| Object store or Qdrant unavailable | readiness `unready` |
+| Verification false-pass regression | `scripts/evaluate_m11.py` exiting non-zero in CI |
+
+**Tracing.** Correlation ids propagate across the API, worker and provider calls and survive
+asynchronous ingestion, which is the property OpenTelemetry instrumentation would build on. No OTel
+exporter is wired; adding one is a deployment concern and no commercial vendor is required.

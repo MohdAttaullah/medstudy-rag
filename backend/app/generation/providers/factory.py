@@ -11,23 +11,27 @@ from app.generation.errors import GenerationError
 from app.generation.providers.anthropic import AnthropicProvider
 from app.generation.providers.base import LLMProvider
 from app.generation.providers.openai import OpenAIProvider
+from app.observability.usage import UsageSink
 
 if TYPE_CHECKING:
     from app.core.config import ModelSelection, Settings
     from app.core.generation_config import GroundingConfig
 
 
-def build_provider(settings: "Settings") -> LLMProvider:
+def build_provider(settings: "Settings", usage: "UsageSink | None" = None) -> LLMProvider:
     selection = settings.generator
     if selection is None:
         raise GenerationError(
             "GENERATION_PROVIDER_UNCONFIGURED", "No generator model is configured."
         )
-    return build_named_provider(settings, selection, settings.grounding)
+    return build_named_provider(settings, selection, settings.grounding, usage)
 
 
 def build_named_provider(
-    settings: "Settings", selection: "ModelSelection", grounding: "GroundingConfig"
+    settings: "Settings",
+    selection: "ModelSelection",
+    grounding: "GroundingConfig",
+    usage: "UsageSink | None" = None,
 ) -> LLMProvider:
     """Build an adapter for one explicitly named selection.
 
@@ -44,5 +48,5 @@ def build_named_provider(
             f"No API key is configured for the {selection.provider} provider.",
         )
     if selection.provider == "openai":
-        return OpenAIProvider(selection, settings.provider, grounding, key)
-    return AnthropicProvider(selection, settings.provider, grounding, key)
+        return OpenAIProvider(selection, settings.provider, grounding, key, usage=usage)
+    return AnthropicProvider(selection, settings.provider, grounding, key, usage=usage)

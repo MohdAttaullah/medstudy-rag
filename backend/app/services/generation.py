@@ -22,6 +22,7 @@ from app.generation.grounding.model import Abstention, GroundedDraft, ProviderDr
 from app.generation.prompts.grounded import SYSTEM_POLICY, render_evidence
 from app.generation.providers.base import LLMProvider
 from app.generation.providers.factory import build_provider
+from app.observability.usage import UsageSink
 from app.retrieval.model import RetrievalFilters
 from app.security.auth import Principal
 from app.services.evidence import EvidenceService
@@ -50,10 +51,13 @@ class GenerationService:
         evidence: EvidenceService,
         settings: Settings,
         provider: LLMProvider | None = None,
+        usage: "UsageSink | None" = None,
     ) -> None:
         self.evidence, self.settings = evidence, settings
         self.gate = SufficiencyGate(settings.sufficiency)
         self._provider = provider
+        # Token accounting only. Never consulted when deciding whether an answer is released.
+        self._usage = usage
 
     async def draft(
         self,
@@ -137,7 +141,7 @@ class GenerationService:
         blocks = evidence.evidence_blocks[: grounding.max_evidence_blocks]
         approved = [b.evidence_id for b in blocks]
         rendered = render_evidence(evidence.evidence_blocks, grounding)
-        provider = self._provider or build_provider(self.settings)
+        provider = self._provider or build_provider(self.settings, self._usage)
 
         started = perf_counter()
         produced = await provider.generate_structured(

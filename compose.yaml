@@ -1,7 +1,13 @@
 name: medical-rag
 
 x-api-environment: &api-environment
-  MEDRAG_ENVIRONMENT: development
+  # Development by design. Setting `production` here would make Settings refuse to start until
+  # every M12 control is satisfied — OIDC identity, no development principals, rate limiting on,
+  # HTTPS origins, offline-pinned models, and non-localhost backing services. See
+  # docs/architecture/production-deployment.md; a real deployment sets this from its pipeline
+  # rather than inheriting an image default.
+  MEDRAG_ENVIRONMENT: ${MEDRAG_ENVIRONMENT:-development}
+  MEDRAG_AUTH__MODE: ${MEDRAG_AUTH__MODE:-development}
   MEDRAG_DEV_PRINCIPALS: ${MEDRAG_DEV_PRINCIPALS:-[]}
   MEDRAG_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-medrag}:${POSTGRES_PASSWORD:?Run scripts/init_local_env.py}@postgres:5432/${POSTGRES_DB:-medrag}
   MEDRAG_REDIS_URL: redis://redis:6379/0

@@ -96,3 +96,48 @@ and tenant isolation. No compliance certification follows from these controls.
 neither. Shared SYSTEM-scope fields are read-only. Backend registry validation, revision checks and
 mandatory auditing govern every change. Secrets are managed externally and never returned; see
 [configuration management](configuration-management.md).
+
+
+## M12 production hardening
+
+**Identity.** Production requires OIDC. `Settings.production_is_hardened` refuses to construct a
+production configuration whose auth mode is not `oidc` or which carries any development principal,
+and `build_auth_provider` refuses again if handed one — two independent barriers, because the
+static development tokens have no expiry, no revocation and no issuer. Signature verification
+against the issuer's JWKS is unconditional and there is no flag to disable it. Algorithms come from
+configuration, never from the token header, so `alg: none` and RS256→HS256 downgrade are both
+impossible; only asymmetric algorithms are supported, so this service never holds a key that could
+mint tokens. Tenant identity comes from a verified claim, an unmapped role grants nothing, and a
+token carrying several mapped roles resolves to the narrowest. Vendor-neutral: issuer, audience and
+claim names are configuration.
+
+**RBAC.** The `PERMISSIONS` inventory now covers every capability any route enforces — it
+previously omitted `audit:read` and `settings:*` while routes enforced them, so it was not usable
+for review, and a test now fails if a route enforces a capability the inventory lacks. Roles are
+explicit subsets rather than "curator gets everything", so adding a capability no longer widens
+curator silently. `operations:read` is new and guards read-only operational state; the brief's
+`operations:admin` maps to the existing `ingestion:*` scopes rather than being duplicated.
+
+**Transport.** Security headers on every response including errors: CSP with `frame-ancestors
+'none'`, `object-src 'none'` and `connect-src 'self'`, plus `X-Content-Type-Options`,
+`X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, COOP/CORP and a restrictive
+`Permissions-Policy`. HSTS is opt-in because sending it from a service reached over plain HTTP pins
+browsers to HTTPS a host does not serve. Production CORS must be explicit HTTPS origins; a wildcard
+is refused on a credentialed API.
+
+**Abuse ceilings.** Per-principal rate limits on Ask, upload and settings writes, mandatory in
+production and off by default elsewhere so local work is unobstructed. JSON bodies capped at 256 KB
+and refused with 413 before parsing. Health and readiness are never limited.
+
+**Secrets.** `<NAME>_FILE` indirection supports every managed secret store without binding to one,
+and keeps values out of the process environment where `/proc/<pid>/environ` would expose them. Only
+known names are resolved; a direct value wins; an empty or unreadable file fails startup naming the
+path, never the value.
+
+**Prompt injection.** Both the generator and verifier policies declare their inputs untrusted
+quoted data. Evidence is fenced with markers that document text cannot forge or close, and the
+operator's instruction is repeated after the untrusted region. Neutralisation touches only the fence
+markers, so numbers, units and identifiers reproduce exactly. The structural defence matters more:
+M8's deterministic checks are code, so an obeyed injection can at most cause an abstention.
+
+See the [threat model](threat-model.md) and [production deployment](production-deployment.md).

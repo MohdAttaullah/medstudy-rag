@@ -16,6 +16,10 @@ dependencies = [
   "pypdf>=6,<7",
   "boto3>=1.35,<2",
   "prometheus-client>=0.21,<1",
+  # M12 production identity. Required, not optional: an extra that a deployment forgets to install
+  # is how authentication silently falls back to the development adapter, which is exactly the
+  # failure this milestone exists to prevent. RS256/ES256 verification needs the crypto backend.
+  "pyjwt[crypto]>=2.10,<3",
   "tokenizers==0.23.2",
   # Kept on the deployed server's minor: qdrant-client refuses a >1 minor gap and the wire
   # format is only guaranteed within it. Bump this and the compose image together.

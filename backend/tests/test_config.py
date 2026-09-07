@@ -51,5 +51,15 @@ def test_invalid_policy_rejected(values: dict[str, object]) -> None:
 
 
 def test_unhardened_production_cannot_start() -> None:
-    with pytest.raises(ValidationError, match="development-only"):
-        Settings(environment="production")
+    """Production still refuses to start unhardened — but for real reasons now.
+
+    Before M12 this asserted a blanket refusal ("development-only"), because none of the
+    production controls existed. M12 built them, so the refusal is now itemised: the assertion
+    is narrowed to the specific rules rather than removed, and `test_m12_units.py` proves each
+    one independently and proves that a fully hardened configuration does start.
+    """
+    with pytest.raises(ValidationError, match="not hardened") as caught:
+        Settings(environment="production", dev_principals=[])
+    message = str(caught.value)
+    assert "MEDRAG_AUTH__MODE must be 'oidc'" in message
+    assert "RATE_LIMITING_ENABLED" in message

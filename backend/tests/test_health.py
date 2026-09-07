@@ -23,7 +23,13 @@ def test_liveness_does_not_require_infrastructure(config: Settings) -> None:
     with TestClient(create_app(config, StubProbe({"postgres": False}))) as client:
         response = client.get("/health/live")
     assert response.status_code == 200
-    assert response.json() == {"status": "alive", "milestone": "M5"}
+    body = response.json()
+    # The invariant is unchanged and is now asserted more precisely than the old exact-body match:
+    # liveness reports alive while a dependency is down, and says nothing about dependency state.
+    assert body["status"] == "alive"
+    assert "dependencies" not in body and "postgres" not in response.text
+    # M12 replaced the static milestone label with the identity an operator needs on a probe.
+    assert body["service"] and body["environment"]
     UUID(response.headers["X-Request-ID"])
 
 

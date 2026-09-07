@@ -16,7 +16,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from app.api.documents import Actor, ConfiguredService, Service, correlation
+from app.api.documents import (
+    Actor,
+    ConfiguredService,
+    Service,
+    correlation,
+    enforce_rate_limit,
+)
 from app.repositories.conversations import ConversationRepository
 from app.retrieval.model import RetrievalFilters
 from app.schemas.ask import (
@@ -54,6 +60,7 @@ async def ask(
     M8 PASS; every other outcome returns a typed refusal that says which kind it was.
     """
     actor.require("ask:submit")
+    enforce_rate_limit(request, actor, "ask")
     return await service.ask.ask(
         actor,
         body.question,

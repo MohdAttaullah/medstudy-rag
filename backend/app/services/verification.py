@@ -264,7 +264,7 @@ class VerificationService:
         if provider is None:
             from app.generation.providers.factory import build_provider
 
-            provider = build_provider(self.settings)
+            provider = build_provider(self.settings, getattr(self, "_usage", None))
         failures = [v for v in verifications if v.failed]
         produced = await provider.generate_structured(
             system_policy=REPAIR_POLICY,

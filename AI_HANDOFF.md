@@ -1,94 +1,131 @@
 # AI HANDOFF
 
-## Current milestone
+## Current state
 
-M11 COMPLETE and verified. Baseline main `e0ee0ad` (committed M10), clean at start. All M11 work is
-uncommitted; nothing staged; no history rewritten. M0–M10 were not restarted. **M12 has NOT
-started.**
+**M12 COMPLETE and verified. This is the final planned milestone; M13 was not created.**
 
-**No production behaviour changed in M11.** It adds measurement only: no retrieval, reranking,
-generation or verification code path was modified, and no prompt, threshold or policy value was
-touched. See `docs/verification/m11.md` and `docs/adr/016-m11-layered-evaluation.md`.
+Baseline main `10930c4` (committed M11), clean at start. All M12 work is uncommitted; nothing
+staged; no history rewritten. M0–M11 were not restarted or redesigned.
 
-## Architecture
+**The safety pipeline is unchanged.** M12 added barriers around it and removed none: no fast path,
+no verification-disabled mode, no provider-direct answering, no fallback to pretrained knowledge. A
+test asserts the codebase contains no such switch. M9 (64), M10 (48) and M11 (92) all pass unchanged.
 
-`backend/app/evaluation/` gains `taxonomy.py` (failure attribution), `datasets.py` (governance +
-fingerprinted manifest), `manifest.py` (run identity), `gates.py` (quality gates), `end_to_end.py`
-(held-out layer), `harness.py` (orchestration), `report.py` (rendering) and `live.py` (opt-in
-provider probe). The eight pre-existing per-layer evaluators are orchestrated, not replaced;
-`evaluate_parsing.py` and `evaluate_embeddings.py` gained `--json` so they could be.
+See `docs/verification/m12.md` and `docs/adr/017-m12-production-hardening.md`.
 
-Eleven layers are measured and reported separately. **There is deliberately no overall accuracy
-score.** Failure attribution returns the *earliest* layer that declared a code, so a retrieval miss
-is never reported as an over-eager gate, and `FIRST_STAGE_MISS` stays distinct from
-`RERANKER_REGRESSION`.
+## Deployment requirements
 
-## Entry points
+Production is a configuration the system **refuses to run badly**. With
+`MEDRAG_ENVIRONMENT=production`, `Settings` will not construct unless all of the following hold,
+and the error names each unmet rule without printing a value:
+
+OIDC auth mode · no development principals · rate limiting enabled · explicit HTTPS CORS origins ·
+database/Redis/object-store credentials present and not development defaults · backing services not
+on localhost · `MEDRAG_EMBEDDING__OFFLINE` and `MEDRAG_QUERY_ENCODER__OFFLINE` true · a configured
+provider has its key.
 
 ```bash
-uv run python scripts/evaluate_m11.py                                     # offline (CI default)
-uv run --extra embedding python scripts/evaluate_m11.py --include-models  # + model-backed layers
-uv run --extra embedding python scripts/evaluate_m11.py --live            # + opt-in provider calls
+uv run python scripts/production_preflight.py            # read-only, no provider call
+uv run python scripts/production_preflight.py --check-provider   # opt-in live call
 ```
 
-Offline needs no API key, no provider call, no PostgreSQL and no Qdrant, and measures **all seven
-hard safety invariants**. An integration test makes any `httpx` request raise and asserts the
-offline run still passes. `--live` is never implied by another flag and costs money. Exits non-zero
-if a gate fails or a hard safety invariant went unmeasured. Artifacts: `docs/evals/m11/`.
+Full detail: `docs/architecture/production-deployment.md`.
 
-## Datasets
+## Production authentication
 
-Nine registered, content-fingerprinted; manifest `47af1814b27f8198`. **7 implementation-adjacent,
-1 frozen regression, 1 held out, 0 expert-reviewed.** The independence class is printed next to the
-numbers in every report section. A test fails if a gold file exists that nobody registered.
+Vendor-neutral OIDC — issuer, audience, JWKS URI and claim names are configuration; no code knows
+the provider. Signature verification has no disable flag; algorithms come from configuration not the
+token header; asymmetric only; a missing tenant claim is refused rather than defaulted; unmapped
+roles grant nothing; several mapped roles resolve to the narrowest.
 
-`m11-heldout-v1` is 25 end-to-end cases written after `e0ee0ad`, held out only in the sense that
-every policy they exercise was frozen before they existed. Not a sample of a real population, not
-clinician-reviewed. Two cases and two attribution annotations were corrected after their first run;
-**no policy or threshold was changed at any point.**
+Development auth has **two** independent barriers: the settings validator and `build_auth_provider`.
 
-## Results
+```bash
+MEDRAG_AUTH__MODE=oidc
+MEDRAG_AUTH__ISSUER=https://login.example.com/v2.0
+MEDRAG_AUTH__AUDIENCE=api://medical-rag
+MEDRAG_AUTH__JWKS_URI=https://login.example.com/discovery/v2.0/keys
+MEDRAG_AUTH__ROLE_MAPPING='{"MedRag.Reader":"reader","MedRag.Admin":"admin"}'
+```
 
-All eleven layers run. Parsing 9/142 checks, chunking 14/94, embedding 9/180 — zero failures each.
-Retrieval hybrid Recall@5 1.000, candidate-pool recall 1.000, `FIRST_STAGE_MISS` 0.000. Reranking
-nDCG@5 0.981 → 0.997 with 0 regressions. EvidenceSet coverage 0.933 under the configured policy.
-Sufficiency agreement 1.000 with **0 false allows**. Verification agreement 1.000 with **0 false
-PASS**. Held-out end-to-end: gate, outcome and attribution agreement all 1.000, abstention 0.760,
-**0 answers on unanswerable questions**. Security 13 checks, 0 violations. Live probe: 3 real calls,
-2 suppressed before the provider, 0 invented citations, median 4163 ms.
+## Secrets
 
-**Quality gates: 7/7 hard safety invariants upheld, no failed gates.** A safety invariant that was
-not measured does not pass.
+Development: ignored `.env`. Production: mount files and use `<NAME>_FILE`, which every managed
+store provides and which keeps values out of the process environment. A direct value wins; only
+known names resolve; an empty or unreadable file fails startup naming the path, never the value.
 
-Backend regression, fresh process per group: 179+28+71+148+44+73+52+64+48+**92** = **799 passed**,
-matching `--collect-only` exactly. ruff clean, format 259, mypy 187 files, skills 9 pairs. Frontend
-75 passed + build. Playwright 17 on a drained queue. Docker 9 services healthy. **No M11 migration**
-— Alembic head stays `m10_configuration`, which is correct for a file-based evaluation milestone.
+## Services and migration
 
-## Known failure categories and limitations
+Nine long-running services: postgres, redis, qdrant, minio, api, frontend, worker, retrieval,
+dispatcher. Only frontend and API are externally reachable. **Health, readiness and metrics are not
+proxied through the public origin** — they are internal surfaces.
 
-* The verifier is the same model as the generator; the independence experiment was **not run**
-  because no second approved model is configured. Recorded on every run.
-* **Cost is unreportable**: the M7 provider adapter does not read the response `usage` block, so no
-  token counts exist. Clearest follow-up work M11 identified — it is an M7 adapter change and was
-  deliberately not made under an evaluation milestone.
-* The M7 conflict detector compares values only when the four-word label window preceding the
-  number matches between sources; disagreements phrased differently are missed. Measured, frozen
-  into the held-out set as `h-conflict-label-mismatch`, not fixed here.
-* EvidenceSet coverage is 0.933, not 1.0.
-* One post-repair unsupported claim (correctly abstained, not released).
-* Hybrid retrieval shows no Recall@5 advantage over dense on a 5-document corpus — a property of
-  the corpus, not a finding about hybrid retrieval.
-* Latency figures are Windows development-host measurements, not SLOs. Timer semantics: layer
-  timings are additive; M5–M9 stage timings are nested and must not be summed.
-* **Synthetic engineering evaluation is not clinical validation.** No clinical claim is made.
+Run Alembic as a **pre-deploy job**, never from application startup; replicas would race. Never
+downgrade a production schema automatically. Alembic head is `m10_configuration`; **M12 added no
+migration**, which is correct for a hardening milestone.
 
-## Next work
+## Model provisioning
 
-M12 is production hardening and has not been started. Do not begin it without an explicit request.
+Three MedCPT models pinned by revision and SHA-256, loaded offline. Provision before serving with
+`scripts/provision_{embedding,query,reranker}_model.py`. Production refuses to start unless the
+encoders are offline-pinned, so a forgotten variable cannot cause a silent revision change.
 
-Operational notes: run browser and live verification on a drained worker queue. Playwright's pinned
-browser was installed manually from Google's official chrome-for-testing artifact because
-Playwright's own download host returns `400` from this network. Credentials remain in ignored
-`.env`; never print them. Use `uv run --cache-dir .uv-cache --extra parsing --extra embedding
---env-file .env` with `MEDRAG_RUN_INTEGRATION=1`. No automatic commit.
+## Backups
+
+`pg_dump` for PostgreSQL, `aws s3 sync` for originals. Qdrant is **rebuilt, not restored**.
+Verify every restore into a disposable target:
+
+```bash
+uv run python scripts/verify_restore.py --database "$RESTORE_URL"
+```
+
+It refuses to target the configured live database. A real restore was exercised: 7/7 checks passed.
+No scheduler ships. No RPO/RTO is claimed. See `docs/architecture/backup-and-recovery.md`.
+
+## Commands
+
+```bash
+# tests — fresh process per group (Docling crashes natively under memory pressure)
+python .local/m12-regression-run.py                    # 878 across 11 groups
+uv run pytest backend/tests/test_m12_units.py -q
+
+# static
+uv run ruff check backend workers scripts && uv run mypy backend/app
+
+# evaluation (offline, no API key, blocking in CI)
+uv run python scripts/evaluate_m11.py
+
+# operations
+uv run python scripts/smoke_m12.py                     # 33 checks against the live stack
+uv run python scripts/load_test.py --reads 200         # deterministic by default
+uv run python scripts/load_test.py --ask 12 --live-provider    # opt-in, costs money
+```
+
+## Known risks
+
+Security: no malware scanning; rate limiting is **per replica, not global**; base images pinned by
+tag not digest; no token-revocation check; audit tamper-evidence stops at the database boundary;
+`MEDRAG_ENVIRONMENT` can be wrongly set to `development`; prompt-layer injection defence is
+probabilistic (the structural guarantee is M8's deterministic checks).
+
+Operational: no backup scheduling, PITR or cross-region replication; no RPO/RTO; no complete
+deletion workflow (its central policy conflict is undecided); no container resource limits in
+compose; no CI config or Kubernetes manifests ship; no OTel exporter or alerting deployed; worker
+is one parse per pod — scale by adding workers, never by raising concurrency. Four
+`GENERATION_SCHEMA_VIOLATION` outcomes were observed under concurrent vague questions with no
+pre-M12 baseline for comparison.
+
+Quality — **unchanged from M11 and not hidden by hardening**: EvidenceSet coverage 0.933 not 1.0;
+verifier is the same model as the generator so verification is not independent; the conflict
+detector misses disagreements phrased with different label windows; visual interpretation
+unavailable; evaluation is synthetic-only and nothing is expert-reviewed.
+
+## Boundary
+
+**No claim of HIPAA compliance, HIPAA certification, clinical validation, production certification
+or absence of hallucination is made anywhere.** The controls support future compliance work; they do
+not constitute it.
+
+**M12 is the final planned milestone. Do not create M13.** Remaining gaps are classified in
+`docs/verification/m12.md` §32 as production blockers, known operational limitations, future
+enhancements, or clinical-validation requirements. No automatic commit.

@@ -7,7 +7,8 @@ from app.core.config import Settings
 from app.observability.ingestion import IngestionMetrics
 from app.observability.parsing import ParseMetrics
 from app.observability.retrieval import RetrievalMetrics
-from app.security.auth import AuthProvider, DevAuthProvider, Principal
+from app.observability.usage import UsageSink
+from app.security.auth import AuthProvider, Principal, build_auth_provider
 from app.services.ask import AskService
 from app.services.chunking import ChunkService
 from app.services.configuration import ConfigurationService
@@ -34,6 +35,7 @@ class ControlPlane:
         parse_metrics: ParseMetrics | None = None,
         vector_index: VectorIndex | None = None,
         retrieval_metrics: RetrievalMetrics | None = None,
+        usage_metrics: "UsageSink | None" = None,
         query_encoder_factory: object | None = None,
     ) -> None:
         self.settings, self.sessions, self.storage, self.metrics = (
@@ -42,7 +44,7 @@ class ControlPlane:
             storage,
             metrics,
         )
-        self.auth = auth or DevAuthProvider(settings.dev_principals)
+        self.auth = auth or build_auth_provider(settings)
         self.parse_metrics = parse_metrics
         self.uploads = UploadService(sessions, storage, settings.ingestion, metrics)
         self.chunks = ChunkService(sessions, settings.chunking)
@@ -69,7 +71,7 @@ class ControlPlane:
             metrics=retrieval_metrics,
         )
         self.evidence = EvidenceService(self.retrieval, settings)
-        self.generation = GenerationService(self.evidence, settings)
+        self.generation = GenerationService(self.evidence, settings, usage=usage_metrics)
         self.verification = VerificationService(self.generation, settings)
         self.ask = AskService(self.verification, settings)
         self.jobs = JobService(sessions, storage)

@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Query, Request
 
-from app.api.documents import Actor, Service, correlation
+from app.api.documents import Actor, Service, correlation, enforce_rate_limit
 from app.schemas.configuration import (
     ApplyRequest,
     PreviewRequest,
@@ -29,6 +29,8 @@ def preview(body: PreviewRequest, actor: Actor, service: Service) -> dict[str, A
 
 @router.post("/changes", response_model=RevisionView)
 def apply(body: ApplyRequest, request: Request, actor: Actor, service: Service) -> dict[str, Any]:
+    # Administrative mutation, not a workload: a low ceiling bounds both accident and abuse.
+    enforce_rate_limit(request, actor, "settings_write")
     return service.configuration.apply(actor, body, correlation(request))
 
 
