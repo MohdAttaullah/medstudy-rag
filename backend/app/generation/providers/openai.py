@@ -75,13 +75,14 @@ class OpenAIProvider:
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "model": self.selection.model_id,
-            "temperature": self.config.temperature,
             "max_completion_tokens": self.config.max_output_tokens,
             "messages": [
                 {"role": "system", "content": system_policy},
                 {"role": "user", "content": user_message(question, evidence)},
             ],
         }
+        if self.config.temperature is not None:
+            payload["temperature"] = self.config.temperature
         if schema is not None:
             payload["response_format"] = {
                 "type": "json_schema",
@@ -108,6 +109,19 @@ def _content(body: dict[str, Any]) -> str:
     if not isinstance(text, str) or not text.strip():
         raise GenerationError("GENERATION_EMPTY")
     return text
+
+
+def _rejection(response: httpx.Response) -> str:
+    """Field names only, never the provider's prose, which can echo the prompt."""
+    try:
+        body = response.json()
+    except ValueError:
+        return "no machine-readable detail"
+    error = body.get("error") if isinstance(body, dict) else None
+    if not isinstance(error, dict):
+        return "no machine-readable detail"
+    parts = [str(error[key]) for key in ("code", "param") if error.get(key)]
+    return " ".join(parts) or str(error.get("type") or "no machine-readable detail")
 
 
 def _summary(exc: ValidationError) -> str:
@@ -139,8 +153,16 @@ async def _request(
         raise GenerationError("GENERATION_PROVIDER_AUTH_FAILED")
     if response.status_code == 429:
         raise GenerationError("GENERATION_RATE_LIMITED")
-    if response.status_code >= 400:
-        # The provider's own message can quote the prompt back, which carries evidence text.
+    if 400 <= response.status_code < 500:
+        # A 4xx is a rejected request, not an outage, and calling it unavailability sends whoever
+        # reads the log looking for a down provider instead of the malformed field. The provider's
+        # own message can quote the prompt back, so only the machine-readable field names are
+        # carried through: a code and a parameter path name nothing the user asked.
+        raise GenerationError(
+            "GENERATION_PROVIDER_REJECTED_REQUEST",
+            f"Provider rejected the request ({response.status_code}): {_rejection(response)}.",
+        )
+    if response.status_code >= 500:
         raise GenerationError(
             "GENERATION_PROVIDER_UNAVAILABLE", f"Provider returned {response.status_code}."
         )

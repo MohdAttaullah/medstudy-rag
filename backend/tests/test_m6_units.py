@@ -355,3 +355,17 @@ def test_partial_pool_miss_is_identified():
 
     found, missing = uuid4(), uuid4()
     assert "FIRST_STAGE_MISS" in failures({found, missing}, [found], [found], [found])
+
+
+def test_the_documented_offline_environment_value_actually_loads():
+    """Regression: `MEDRAG_RERANKER__OFFLINE=true` from .env.example broke the whole Settings build.
+
+    An environment variable arrives as a string and `Literal[True]` does not coerce one, so copying
+    the documented line into .env made every Settings construction fail. The pin still holds: the
+    reranker cannot be taken out of local-only mode.
+    """
+    assert RerankerConfig(offline="true").offline is True
+    assert RerankerConfig(offline=True).offline is True
+    for refused in ("false", "0", "no", ""):
+        with pytest.raises(ValidationError):
+            RerankerConfig(offline=refused)

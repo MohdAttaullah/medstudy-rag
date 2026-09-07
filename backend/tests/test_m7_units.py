@@ -535,6 +535,74 @@ def test_provider_selection_is_configuration_driven():
     assert anthropic.specification.model_id == "claude-x"
 
 
+def test_temperature_is_omitted_unless_configured_and_recorded_as_sent():
+    """Regression: sending an unrequested temperature broke the live call outright.
+
+    Several current models accept only their own default and reject any explicit value, failing the
+    whole request. Just as important, the spec records what reached the provider, so a temperature
+    that was never sent must be recorded as None rather than as a number nobody chose.
+    """
+    import json as _json
+
+    seen: list[dict] = []
+
+    def handler(request):
+        seen.append(_json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": _json.dumps(_draft_payload(uuid4()))}}]},
+        )
+
+    default = _openai(handler)
+    assert default.specification.temperature is None
+    asyncio.run(
+        default.generate_structured(
+            system_policy="p", question="q", evidence="e", schema=ProviderDraft
+        )
+    )
+    assert "temperature" not in seen[0]
+
+    explicit = OpenAIProvider(
+        ModelSelection(provider="openai", model_id="gpt-x"),
+        ProviderConfig(temperature=0.0),
+        GroundingConfig(),
+        SecretStr("secret-key"),
+        _transport(handler),
+    )
+    assert explicit.specification.temperature == 0.0
+    asyncio.run(
+        explicit.generate_structured(
+            system_policy="p", question="q", evidence="e", schema=ProviderDraft
+        )
+    )
+    assert seen[1]["temperature"] == 0.0
+
+
+def test_a_rejected_request_is_not_reported_as_an_outage():
+    """A 4xx names a bad field; calling it unavailability sends a reader hunting a down provider."""
+    handler = lambda request: httpx.Response(  # noqa: E731
+        400,
+        json={
+            "error": {
+                "type": "invalid_request_error",
+                "code": "unsupported_value",
+                "param": "temperature",
+                "message": "Prompt echo that must never be surfaced.",
+            }
+        },
+    )
+    with pytest.raises(GenerationError) as raised:
+        asyncio.run(
+            _openai(handler).generate_structured(
+                system_policy="p", question="q", evidence="e", schema=ProviderDraft
+            )
+        )
+    assert raised.value.code == "GENERATION_PROVIDER_REJECTED_REQUEST"
+    # Machine-readable field names help; the provider's prose can quote the prompt back.
+    assert "unsupported_value" in raised.value.message and "temperature" in raised.value.message
+    assert "Prompt echo" not in raised.value.message
+
+
 def test_no_provider_falls_back_to_another_provider_or_model():
     config = ProviderConfig()
     assert config.fallback_policy == "NONE" and config.max_attempts == 1
@@ -581,7 +649,8 @@ def test_openai_adapter_returns_the_structured_draft():
         assert request.headers["Authorization"] == "Bearer secret-key"
         body = _json.loads(request.content)
         assert body["response_format"]["type"] == "json_schema"
-        assert body["temperature"] == 0.0
+        # Not sent unless configured; see the dedicated temperature test.
+        assert "temperature" not in body
         return httpx.Response(
             200,
             json={"choices": [{"message": {"content": _json.dumps(_draft_payload(identifier))}}]},
@@ -630,7 +699,10 @@ def test_anthropic_adapter_forces_one_tool_for_structured_output():
         (401, "GENERATION_PROVIDER_AUTH_FAILED"),
         (403, "GENERATION_PROVIDER_AUTH_FAILED"),
         (429, "GENERATION_RATE_LIMITED"),
+        (400, "GENERATION_PROVIDER_REJECTED_REQUEST"),
+        (404, "GENERATION_PROVIDER_REJECTED_REQUEST"),
         (500, "GENERATION_PROVIDER_UNAVAILABLE"),
+        (503, "GENERATION_PROVIDER_UNAVAILABLE"),
     ],
 )
 @pytest.mark.parametrize("build", [_openai, _anthropic])

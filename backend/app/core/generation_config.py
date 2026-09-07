@@ -90,7 +90,12 @@ class ProviderConfig(Policy):
     version: Literal["provider-m7-v1"] = "provider-m7-v1"
     request_timeout_seconds: float = Field(default=60, gt=0, le=300)
     max_output_tokens: int = Field(default=2048, ge=64, le=16384)
-    temperature: float = Field(default=0.0, ge=0.0, le=1.0)
+    # Omitted from the request unless explicitly set. Several current models accept only their
+    # default and reject any explicit value, and sending one anyway fails the whole request. Just
+    # as important: the value reaching the provider is recorded in the draft's provenance, so a
+    # temperature we did not actually send must never be written there. None means "provider
+    # default"; determinism was never guaranteed by a temperature setting in any case.
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     # One attempt. A retry that silently reached a different provider or model would make the
     # recorded provenance of a medical draft untrue, which is worse than a failed request.
     max_attempts: Literal[1] = 1
@@ -104,6 +109,6 @@ class ProviderConfig(Policy):
 
     @model_validator(mode="after")
     def deterministic_by_default(self) -> Self:
-        if self.temperature != 0.0 and self.max_attempts != 1:
+        if self.temperature not in (None, 0.0) and self.max_attempts != 1:
             raise ValueError("Sampled generation must not be retried without traceability")
         return self

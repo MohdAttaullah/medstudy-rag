@@ -36,7 +36,7 @@ class ProviderSpec(BaseModel):
     provider: Literal["openai", "anthropic", "fake"]
     model_id: str
     endpoint: str
-    temperature: float
+    temperature: float | None
     max_output_tokens: int
     schema_version: str
     prompt_version: str

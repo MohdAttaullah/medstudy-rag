@@ -146,7 +146,7 @@ export interface GroundedDraft {
   answer: string; claims: {text: string; evidence_ids: string[]}[];
   cited_evidence_ids: string[]; uncited_evidence_ids: string[];
   evidence_gap: string | null; query_hash: string;
-  provider: {provider: string; model_id: string; temperature: number; prompt_version: string; schema_version: string};
+  provider: {provider: string; model_id: string; temperature: number | null; prompt_version: string; schema_version: string};
   grounding_policy_version: string; grounding_policy_fingerprint: string;
   sufficiency_policy_fingerprint: string; durations_ms: Record<string, number>;
 }

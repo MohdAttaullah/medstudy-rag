@@ -2,8 +2,9 @@
 
 ## Current milestone
 
-**M7 is complete and verified.** M6 is committed at `2061000` on branch `main`. All M7 work is
-uncommitted and nothing is staged — the user has not authorized a commit. **M8 has NOT started:**
+**M7 is complete and verified, including one live OpenAI call.** M7 is committed at `5d83197` on
+branch `main` (M6 `2061000`, M5 `ecb4941`). Post-commit provider-integration repairs are uncommitted;
+nothing is staged. **M8 has NOT started:**
 no claim extraction, no entailment verification, no repair attempt, no streaming, no Ask experience.
 `answering_enabled` and `verified` are both `Literal[False]` and `READY` remains unreachable.
 
@@ -88,14 +89,33 @@ abstained before any provider was reached. Gate cost 0.18–2.83 ms of a 394–4
 
 ## Defects found and fixed in M7
 
-1. **API container would not boot** when a generator env var was declared but empty — compose
+Found by the live provider smoke, after M7 was committed:
+
+1. **The adapter sent `temperature: 0.0`, which some models reject outright** (`unsupported_value`
+   — only the default is supported), failing every live call. It is now omitted unless explicitly
+   configured, and `ProviderSpec.temperature` records `None` when the provider default was used,
+   because the trace must state what actually reached the provider.
+2. **A 4xx was reported as `GENERATION_PROVIDER_UNAVAILABLE`,** sending a reader hunting a down
+   provider instead of a bad field. Now `GENERATION_PROVIDER_REJECTED_REQUEST`, carrying only the
+   provider's machine-readable `code` and `param` — never its prose, which can echo the prompt.
+3. **`.env.example:38` documented `MEDRAG_RERANKER__OFFLINE=true`, which could not be loaded**
+   (`Literal[True]` does not coerce a string), so copying that block into `.env` broke *every*
+   `Settings()` construction on the host. Pre-existing M6 defect, committed at HEAD, unrelated to
+   M7. The string form is now accepted and the pin still holds — offline cannot be turned off.
+4. **`test_config.py` asserted `settings.generator is None`,** an M0-era assumption that no provider
+   would ever be configured. It now controls its own environment, with a companion test that a
+   configured generator parses and its key stays redacted.
+
+Found during M7 development:
+
+5. **API container would not boot** when a generator env var was declared but empty — compose
    passes `""`, which failed `ModelSelection` validation and took the whole API down merely because
    no provider account was configured. Fixed with a `field_validator` treating an all-empty
    selection as unconfigured. A prior host check wrongly suggested this was safe; PowerShell's
    `$env:X=""` *removes* a variable rather than emptying it, so it never reproduced the condition.
-2. **Vendor base URLs were in `core/generation_config.py`,** outside the adapters. Caught by the
+6. **Vendor base URLs were in `core/generation_config.py`,** outside the adapters. Caught by the
    isolation test written for exactly that; moved into the adapters.
-3. **The signals table overflowed a 390 px viewport.** The app already had a `.table-scroll`
+7. **The signals table overflowed a 390 px viewport.** The app already had a `.table-scroll`
    convention I had not used. Caught by the browser test.
 
 ## Provider setup
@@ -108,9 +128,13 @@ some default model. Compose delivers them to the **API container only**. **Never
 copy** — anything `VITE_` is compiled into the browser bundle and would publish the key; a test
 asserts none exists. Keys stay out of responses, logs and metric labels.
 
-**No live provider call has ever been made from this repository.** Adapters are verified against
-mocked httpx transports at the wire level and the draft path with a deterministic double. Do not
-claim live-provider verification without running one.
+**One live OpenAI call has been made and it passed** (2026-09-07, `gpt-5.6-sol`): gate SUFFICIENT
+→ real adapter → schema-valid structured draft, 2 claims, every citation inside the supplied set,
+`verified=false`, `UNVERIFIED_AWAITING_CLAIM_VERIFICATION`; provider latency 2537 ms of a 2641 ms
+pipeline. Reproduce with `docker compose exec -T api python /tmp/smoke_m7_live.py` after copying
+`scripts/smoke_m7_live.py` in. It uses synthetic non-sensitive evidence and prints no key, prompt or
+provider error body. Adapters remain verified against mocked transports for both vendors; Anthropic
+has **not** been exercised live.
 
 ## Infrastructure
 

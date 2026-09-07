@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.retrieval_config import _fingerprint
 
@@ -47,7 +47,21 @@ class RerankerConfig(Policy):
     batch_size: int = Field(default=8, ge=1, le=40)
     torch_threads: int = Field(default=4, ge=1, le=16)
     model_cache_dir: Path = Path(".local/models/reranking")
+    # Pinned True: interactive resolution is always local-only. An environment variable arrives as
+    # a string, and `Literal[True]` does not coerce one, so the value documented in .env.example
+    # could not actually be loaded — it failed the whole Settings build. Accept the string form and
+    # keep the pin, rather than dropping the pin to make the documented value work.
     offline: Literal[True] = True
+
+    @field_validator("offline", mode="before")
+    @classmethod
+    def offline_only(cls, value: object) -> object:
+        if isinstance(value, str):
+            if value.strip().lower() in {"true", "1", "yes", "on"}:
+                return True
+            raise ValueError("The reranker cannot be taken out of local-only mode")
+        return value
+
     endpoint: str = ""
     request_timeout_seconds: float = Field(default=90, gt=0, le=300)
 

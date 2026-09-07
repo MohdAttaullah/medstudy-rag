@@ -39,6 +39,17 @@
 - Added no schema change and no migration; the Alembic head remains `m5_hybrid_retrieval`. Jobs
   still end at RETRIEVAL_READY, `READY` stays unreachable, `answering_enabled` stays false, and no
   claim verification exists.
+- Verified the OpenAI adapter against the live API once, on synthetic non-sensitive evidence: the
+  gate permitted generation, the model returned a schema-valid draft whose every citation named
+  supplied evidence, and the result stayed `verified=false` and awaiting claim verification.
+- Stopped sending `temperature` unless it is explicitly configured, after the live call showed that
+  a model may reject any explicit value outright, and recorded the temperature actually used —
+  `None` for the provider default — so a draft's provenance states what really reached the provider.
+- Separated a rejected provider request from an outage as `GENERATION_PROVIDER_REJECTED_REQUEST`,
+  carrying only the provider's machine-readable code and parameter, never its prose.
+- Fixed a pre-existing defect where the `MEDRAG_RERANKER__OFFLINE=true` value documented in
+  `.env.example` could not be loaded at all, breaking every `Settings()` construction once it was
+  copied into `.env`. The string form is accepted and the local-only pin still holds.
 
 ## M6 - 2026-09-07
 

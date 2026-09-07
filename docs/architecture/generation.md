@@ -55,12 +55,23 @@ Provider and model are configuration (`MEDRAG_GENERATOR__PROVIDER`, `MEDRAG_GENE
 No configured generator means unavailable, not a default model. `max_attempts` is 1 and
 `fallback_policy` is `NONE`.
 
+`temperature` is **omitted from the request unless explicitly configured**. Several current models
+accept only their own default and reject any explicit value outright, and the value that reached the
+provider is recorded in the draft's provenance — so a temperature that was never sent must not be
+written there. `ProviderSpec.temperature` is `None` when the provider's default was used. A
+temperature setting never guaranteed determinism in any case.
+
 ## Failure
 
 `GENERATION_NOT_PERMITTED`, `GENERATION_PROVIDER_UNCONFIGURED`, `GENERATION_PROVIDER_UNAVAILABLE`,
 `GENERATION_PROVIDER_TIMEOUT`, `GENERATION_PROVIDER_AUTH_FAILED`, `GENERATION_RATE_LIMITED`,
-`GENERATION_MALFORMED_RESPONSE`, `GENERATION_SCHEMA_VIOLATION`, `GENERATION_UNKNOWN_CITATION`,
-`GENERATION_MISSING_CITATION`, `GENERATION_EMPTY`. Every one abstains. **There is no path from a
+`GENERATION_PROVIDER_REJECTED_REQUEST`, `GENERATION_MALFORMED_RESPONSE`,
+`GENERATION_SCHEMA_VIOLATION`, `GENERATION_UNKNOWN_CITATION`, `GENERATION_MISSING_CITATION`,
+`GENERATION_EMPTY`. Every one abstains.
+
+A 4xx is a *rejected request*, not an outage, and is reported separately from unavailability so a
+reader is not sent hunting a down provider when a field is wrong. Only the machine-readable `code`
+and `param` are carried through — never the provider's prose, which can echo the prompt. **There is no path from a
 failed grounded generation to an ungrounded answer, and none to a different provider or model.**
 Provider error bodies are not echoed, because they can quote the prompt back and the prompt carries
 evidence text.

@@ -84,10 +84,11 @@ class AnthropicProvider:
         payload: dict[str, Any] = {
             "model": self.selection.model_id,
             "max_tokens": self.config.max_output_tokens,
-            "temperature": self.config.temperature,
             "system": system_policy,
             "messages": [{"role": "user", "content": user_message(question, evidence)}],
         }
+        if self.config.temperature is not None:
+            payload["temperature"] = self.config.temperature
         if schema is not None:
             payload["tools"] = [
                 {

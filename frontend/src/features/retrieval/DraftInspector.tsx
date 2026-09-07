@@ -65,7 +65,7 @@ export function DraftInspector({ result, stage }: {result: DraftResponse; stage:
     <dl className="detail-grid">
       <div><dt>Provider</dt><dd>{draft.provider.provider}</dd></div>
       <div><dt>Model</dt><dd className="mono">{draft.provider.model_id}</dd></div>
-      <div><dt>Temperature</dt><dd>{draft.provider.temperature}</dd></div>
+      <div><dt>Temperature</dt><dd>{draft.provider.temperature ?? 'provider default'}</dd></div>
       <div><dt>Prompt</dt><dd className="mono">{draft.provider.prompt_version}</dd></div>
       <div><dt>Grounding policy</dt><dd className="mono">{draft.grounding_policy_version}</dd></div>
       <div><dt>Verification</dt><dd>{draft.verification_status.replaceAll('_', ' ').toLowerCase()}</dd></div>
