@@ -2,157 +2,134 @@
 
 ## Current milestone
 
-**M7 is complete and verified, including one live OpenAI call.** M7 is committed at `5d83197` on
-branch `main` (M6 `2061000`, M5 `ecb4941`). Post-commit provider-integration repairs are uncommitted;
-nothing is staged. **M8 has NOT started:**
-no claim extraction, no entailment verification, no repair attempt, no streaming, no Ask experience.
-`answering_enabled` and `verified` are both `Literal[False]` and `READY` remains unreachable.
+**M8 is complete and verified, including one live OpenAI run.** Baseline `9965c4d` on branch `main`
+(M7 `5d83197`, M6 `2061000`, M5 `ecb4941`). All M8 work is uncommitted; nothing is staged — the user
+has not authorized a commit. **M9 has NOT started:** no conversations, no citations UI, no
+source-page highlighting, no streaming, and the production Ask experience is disabled.
 
-## What M7 is
+## What M8 is
 
-An Evidence Sufficiency Gate between the M6 EvidenceSet and any provider call, and grounded
-generation that can only be reached through it.
+Claim-level verification between the M7 grounded draft and any released answer.
 
 ```
-question → M5 retrieval → M6 rerank + evidence → GATE → SUFFICIENT? → one provider call → draft
-                                                      ↘ INSUFFICIENT / CONFLICTING → abstention
+question → M5 retrieval → M6 rerank + evidence → M7 gate → M7 draft
+        → M8 claim extraction → deterministic checks → semantic verification → contradiction
+        → PASS (verified answer) / REGENERATE_ONCE (one repair, fully re-verified) / ABSTAIN
 ```
 
-The provider is **constructed after** the decision, so no path exists on which a model runs and the
-gate is consulted afterwards. `POST /api/v1/retrieval/draft` requires `retrieval:search` **and**
-`generation:draft`, and always returns the decision whether or not a draft was produced.
+`POST /api/v1/retrieval/answer` requires `retrieval:search` + `generation:draft` +
+`generation:verify`. An `INSUFFICIENT` or `CONFLICTING` gate still abstains; M8 never generates to
+overcome missing evidence.
 
-- **No score is sufficiency.** `retrieval_scores_permitted` is `Literal[False]`, no policy field is
-  a float, and `gate.py` never references a lane or reranker score — all three asserted by test.
-  M6's logit-separation observation was deliberately **not** made a threshold.
-- **Signals**, not opinions: supporting anchors (expansion context is not independent support),
-  independent document versions, non-assessment sources, authority levels, table header rows,
-  formula artifact, visual interpretation, budget omissions, partial fragments, retrieval warnings,
-  conflicts. Each returned with its requirement and whether it was satisfied. **No percentage.**
-- **Question kinds** classified deterministically (`question-kind-v1`) from a fixed cue table over
-  the user's own analyzer terms, falling back to anchor chunk types. No model, no rewriting.
-  Tokenization uses a locally declared analyzer config, *not* the tenant's active index policy, so
-  rebuilding a lexical index cannot change what the gate decides.
-- **Figure questions always abstain** — no vision path is approved and both adapters refuse
-  `analyze_image`. **Table questions abstain without header rows.** These are the M6 context gaps
-  surfacing honestly rather than being reconstructed by a generator.
-- **Assessment material is never sufficient alone.** A question bank records what an examiner
-  marked, not what the corpus establishes; a high rerank position does not change that.
-- **Conflicts are preserved, never resolved.** Two narrow deterministic detectors, both
-  over-triggering by design. Precedence `CONFLICTING` > `INSUFFICIENT` > `SUFFICIENT`, with every
-  triggered reason code reported regardless.
-- **Generator input** is the grounding policy, the question and the EvidenceSet — no corpus handle,
-  no tool, no web search, no rank or score. The prompt states pretrained knowledge is not evidence.
-- **Citations** are validated against the evidence actually supplied. That is a contract check;
-  whether a cited block *supports* its sentence is M8.
-- **Every failure abstains.** `max_attempts=1`, `fallback_policy=NONE`, and no `except
-  GenerationError` in the service — asserted by test.
+- **Claims come from the answer text, not the generator's declarations.** A sentence the generator
+  omitted from its own claim list is extracted, found uncited and failed `CLAIM_NOT_CITED`. This is
+  the milestone's most important structural decision.
+- **Deterministic checks run first and bind.** Citation identity in *this* EvidenceSet, provenance
+  resolution, `(value, unit)` agreement, negation polarity, certainty overstatement, canonical table
+  headers, formula artifacts, figure abstention. A model is never asked to overrule one — a test
+  asserts the verifier recorded **zero calls** on a wrong-dose claim it would have approved.
+- **The verifier sees one claim and only its cited evidence.** No corpus, retrieval, web search,
+  rank or score. Strict verdict schema; prose is never the decision. Unknown evidence, malformed
+  output and provider failure all abstain.
+- **Contradiction covers uncited retained evidence** — the shape a generator creates by citing only
+  the source that agrees with it — plus reference-vs-reference disagreement and
+  assessment-vs-reference. Rank never breaks a tie.
+- **One repair, capped by type**, same evidence only, then the entire flow runs again. A second
+  failure abstains.
+- **`verified=true` exists in one place**: `VerifiedAnswer`, built only behind a PASS.
+  `answering_enabled` stays false. Failed verdicts are retained so an abstention is auditable.
 
-Key modules: `backend/app/{sufficiency/{gate,model,question,conflicts},generation/{errors,
-grounding/model,prompts/grounded,citations/validate,providers/{base,openai,anthropic,fake,factory}},
-core/generation_config,schemas/generation,services/generation,evaluation/sufficiency}`; frontend
-`features/retrieval/DraftInspector.tsx`; `scripts/{evaluate_sufficiency,smoke_m7}`.
-See ADR-012, `docs/architecture/{sufficiency,generation}.md`, `docs/verification/m7.md`.
+Key modules: `backend/app/verification/{model,claims,deterministic,verifier,contradiction,engine}.py`,
+`core/verification_config.py`, `schemas/verification.py`, `services/verification.py`,
+`generation/prompts/repair.py`, `evaluation/verification.py`; frontend
+`features/retrieval/VerificationInspector.tsx`;
+`scripts/{evaluate_verification,smoke_m8,smoke_m8_live}.py`. See ADR-013 and
+`docs/architecture/verification.md`, `docs/verification/m8.md`.
 
 ## Verified results (2026-09-07)
 
 | Check | Result |
 |---|---|
-| M7 focused (`MEDRAG_RUN_INTEGRATION=1`) | **65 passed** (54 units + 11 integration) |
-| Backend regression, six disjoint fresh-process groups | **532 passed** (178+28+71+148+43+64) |
-| `ruff check` / `format --check` (`backend workers scripts`) | Passed / 208 files |
-| `mypy backend/app` | Success, 154 source files |
+| M8 focused (`MEDRAG_RUN_INTEGRATION=1`) | **52 passed** (42 units + 10 integration) |
+| Backend regression, seven disjoint fresh-process groups | **595 passed** (179+28+71+148+44+73+52) |
+| `ruff check` / `format --check` (`backend workers scripts`) | Passed / 225 files |
+| `mypy backend/app` | Success, 166 source files |
 | `scripts/check_skills.py` | 9 synchronized pairs |
-| `alembic current` / `check` | `m5_hybrid_retrieval (head)` / no drift, **no M7 migration** |
-| Frontend tests / build | **49 passed** (8 files) / passed |
-| Playwright live | **12 passed**, incl. `sufficiency.spec.ts` |
+| `alembic current` / `check` | `m5_hybrid_retrieval (head)` / no drift, **no M8 migration** |
+| Frontend tests / build | **54 passed** (9 files) / passed |
+| Playwright live | **13 passed**, incl. `verification.spec.ts` |
 | Docker `--profile app up -d --wait` | 9 services healthy |
-| Smokes M1–M5, M6, M7 × table/figure/question-bank | **PASS ×9** |
+| Smokes M1–M5, M6, M7, M8 × table/figure/question-bank | **PASS ×10** |
 
-`pytest --collect-only` reports 532, so the partition covers the suite with no overlap or gap. **No
-monolithic single-process run was attempted** — this host has already produced a native Docling
-access violation under memory pressure that way. Keep using the six-group fresh-process partition.
+`pytest --collect-only` reports 595, so the partition covers the suite exactly. **Never attempt a
+monolithic single-process run** — this host has produced a native Docling access violation that way.
 
-Sufficiency evaluation (`m7-sufficiency-gold-v1`, 14 cases over the frozen M5 gold corpus):
-agreement **1.0000**, **false allows 0**, unnecessary abstentions 0, abstention rate 0.7143. Each
-case abstains for its correct specific reason. **This is weak evidence:** the cases were written
-alongside the gate that decides them, in the same session. It shows internal consistency, not
-generalization, and nothing clinical.
+Evaluation (`m8-verification-gold-v1`, 19 cases): **false PASS 0**, agreement 1.0000, abstention
+rate 0.7895, unsupported-claim detection 1.0, reason-code precision 1.0, repair cap respected.
+**Weak evidence:** the cases were written alongside the checks that decide them, in the same session.
 
-Generation contract: attempted on 4 of 14, suppressed on 10; schema validity, citation validity and
-invented-citation rejection all 1.0; evidence-id hallucination 0.0; no rank or score leaked to the
-provider.
+**Browser flakiness, recorded not hidden.** Two full Playwright runs each failed one or two
+worker-dependent waits while a backend regression suite ran concurrently (worker parses at
+`MAX_CONCURRENCY: 1`). Each spec passed in isolation and the suite passed 13/13 on a drained queue.
+Host contention, not a product regression. Run Playwright when the ingestion queue is idle.
 
-Live, against real uploads with no provider configured — table → `TABLE_STRUCTURE_INCOMPLETE`,
-figure → `VISUAL_INTERPRETATION_UNAVAILABLE`, question-bank → `ASSESSMENT_ONLY_EVIDENCE`. All three
-abstained before any provider was reached. Gate cost 0.18–2.83 ms of a 394–440 ms pipeline.
+## Live provider verification
 
-## Defects found and fixed in M7
+2026-09-07, `scripts/smoke_m8_live.py` inside the API container, synthetic non-sensitive evidence:
+gate SUFFICIENT → real generator → claim extraction → deterministic checks → real verifier →
+**PASS**, `verified=true`, 1 of 1 material claims supported, **repair_count 1** (the first draft
+failed, the single repair succeeded and was re-verified in full). Generation 4139 ms, verification
+2244 ms, repair 2001 ms; extraction 0.6 ms. Prints no key, prompt or provider error body.
 
-Found by the live provider smoke, after M7 was committed:
+**The verifier is currently the same model as the generator** (`gpt-5.6-sol`), because
+`MEDRAG_VERIFIER__*` is unset — recorded as `independent_of_generator: false` in every spec and
+warned in the inspector. Set `MEDRAG_VERIFIER__PROVIDER` / `MEDRAG_VERIFIER__MODEL_ID` for genuine
+independence. Anthropic remains verified against mocked transports only.
 
-1. **The adapter sent `temperature: 0.0`, which some models reject outright** (`unsupported_value`
-   — only the default is supported), failing every live call. It is now omitted unless explicitly
-   configured, and `ProviderSpec.temperature` records `None` when the provider default was used,
-   because the trace must state what actually reached the provider.
-2. **A 4xx was reported as `GENERATION_PROVIDER_UNAVAILABLE`,** sending a reader hunting a down
-   provider instead of a bad field. Now `GENERATION_PROVIDER_REJECTED_REQUEST`, carrying only the
-   provider's machine-readable `code` and `param` — never its prose, which can echo the prompt.
-3. **`.env.example:38` documented `MEDRAG_RERANKER__OFFLINE=true`, which could not be loaded**
-   (`Literal[True]` does not coerce a string), so copying that block into `.env` broke *every*
-   `Settings()` construction on the host. Pre-existing M6 defect, committed at HEAD, unrelated to
-   M7. The string form is now accepted and the pin still holds — offline cannot be turned off.
-4. **`test_config.py` asserted `settings.generator is None`,** an M0-era assumption that no provider
-   would ever be configured. It now controls its own environment, with a companion test that a
-   configured generator parses and its key stays redacted.
+## Defects found and fixed in M8
 
-Found during M7 development:
+The first evaluation run produced two false PASSes and one unnecessary abstention. All three were
+real, and were fixed rather than relabelled:
 
-5. **API container would not boot** when a generator env var was declared but empty — compose
-   passes `""`, which failed `ModelSelection` validation and took the whole API down merely because
-   no provider account was configured. Fixed with a `field_validator` treating an all-empty
-   selection as unconfigured. A prior host check wrongly suggested this was safe; PowerShell's
-   `$env:X=""` *removes* a variable rather than emptying it, so it never reproduced the condition.
-6. **Vendor base URLs were in `core/generation_config.py`,** outside the adapters. Caught by the
-   isolation test written for exactly that; moved into the adapters.
-7. **The signals table overflowed a 390 px viewport.** The app already had a `.table-scroll`
-   convention I had not used. Caught by the browser test.
+1. **A numeric claim drawn from a table skipped the table check.** `classify()` returns one type and
+   tests `NUMERIC` before `TABLE_DERIVED`, so a headerless table passed. `check_structured_evidence`
+   now inspects the blocks the claim *cites*, not its type label.
+2. **`check_negation` fired on claims containing no negation**, because no single sentence of a
+   structured block met the overlap bar and the fallback reported reversal rather than agreement.
+   It now requires a genuine polarity disagreement.
+3. **A fixture did not encode the conflict it named** — its key and reference were not lexically
+   about the same subject. Corrected; the underlying limitation (lexically distant contradictions
+   are missed) is recorded in the report.
+
+Also fixed: the fake verifier did not mirror the real adapter's malformed-output handling, and a
+repaired draft citing invented evidence was reported as a phantom verifier fault instead of a
+citation failure.
 
 ## Provider setup
 
-`MEDRAG_GENERATOR__PROVIDER` (`openai`|`anthropic`), `MEDRAG_GENERATOR__MODEL_ID`, and
-`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` (the `MEDRAG_`-prefixed forms also work). All optional and
-empty by default: with none set the gate still runs and the draft stage reports
-`GENERATION_PROVIDER_UNCONFIGURED`, which is a declared unavailable state, **not** a fallback to
-some default model. Compose delivers them to the **API container only**. **Never create a `VITE_`
-copy** — anything `VITE_` is compiled into the browser bundle and would publish the key; a test
-asserts none exists. Keys stay out of responses, logs and metric labels.
-
-**One live OpenAI call has been made and it passed** (2026-09-07, `gpt-5.6-sol`): gate SUFFICIENT
-→ real adapter → schema-valid structured draft, 2 claims, every citation inside the supplied set,
-`verified=false`, `UNVERIFIED_AWAITING_CLAIM_VERIFICATION`; provider latency 2537 ms of a 2641 ms
-pipeline. Reproduce with `docker compose exec -T api python /tmp/smoke_m7_live.py` after copying
-`scripts/smoke_m7_live.py` in. It uses synthetic non-sensitive evidence and prints no key, prompt or
-provider error body. Adapters remain verified against mocked transports for both vendors; Anthropic
-has **not** been exercised live.
+`MEDRAG_GENERATOR__PROVIDER` / `MEDRAG_GENERATOR__MODEL_ID`, optional `MEDRAG_VERIFIER__*`, and
+`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`. All optional: with none set the gate still runs and the
+draft stage reports `GENERATION_PROVIDER_UNCONFIGURED` — a declared unavailable state, not a
+fallback. Compose delivers keys to the **API container only**. **Never create a `VITE_` copy.** An
+empty `ANTHROPIC_API_KEY` does not prevent startup.
 
 ## Infrastructure
 
-Alembic head `m5_hybrid_retrieval`; M7 adds no schema, no migration and no ingestion state. Nothing
-about a question, decision or draft is persisted. The private `retrieval` service still publishes no
+Alembic head `m5_hybrid_retrieval`; M8 adds no schema, migration or ingestion state, and persists
+nothing about a question, claim, verdict or answer. The private `retrieval` service publishes no
 host port. Rebuild app images after changing backend or frontend source — code is baked in.
 Playwright needs `MEDRAG_DEV_PRINCIPALS` exported from `.env` (single-quoted there — strip the
-quotes) plus `MEDRAG_E2E_LIVE=1`. Credentials stay in ignored `.env` and `.local/dev-access.txt`;
-**never print them**.
+quotes) plus `MEDRAG_E2E_LIVE=1`. Credentials stay in ignored `.env`; **never print them**.
 
 ## If you continue
 
-M7 is done; nothing is outstanding. Get explicit authorization before starting M8. What M7 leaves
-open: nothing in the gate is calibrated and no held-out evaluation exists; the conflict detectors
-over-trigger and miss prose-level contradictions; every figure question abstains; and answer
-correctness and claim entailment are entirely unmeasured — that is precisely M8's job.
+M8 is done; nothing is outstanding. Get explicit authorization before starting M9. What M8 leaves
+open: the verifier is not independent in this environment; deterministic checks are lexical and miss
+contradictions expressed in non-overlapping words; claim extraction is rule-based and will decompose
+unusual punctuation imperfectly; negation scope is approximated at sentence level; visually
+dependent claims always abstain; and no threshold anywhere is calibrated.
 
-Do not weaken an abstention to raise coverage. An unnecessary abstention costs coverage; a false
-allow emits an unsupported medical answer, and the two are not interchangeable. Preserve M5
-analyzer, BM25, RRF and index semantics, and M6 reranking and evidence semantics. Do not introduce
-score thresholds, query rewriting or medical answering.
+Do not weaken a check to raise coverage. A false PASS emits a wrong medical answer; an unnecessary
+abstention emits nothing, and the two are not interchangeable. Preserve M5 analyzer/BM25/RRF/index
+semantics, M6 reranking and evidence semantics, and the M7 gate. Do not introduce score thresholds,
+query rewriting or a calibrated confidence figure.

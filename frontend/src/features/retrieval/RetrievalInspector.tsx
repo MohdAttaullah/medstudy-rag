@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { EvidenceInspector } from './EvidenceInspector';
 import { DraftInspector } from './DraftInspector';
+import { VerificationInspector } from './VerificationInspector';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api, ApiError } from '../../api/client';
 import { AccessGate, useSession } from '../library/Session';
-import type { Candidate, DraftResponse, RetrievalStatus, SearchResponse, RerankedResponse } from '../../types/retrieval';
+import type { AnswerResponse, Candidate, DraftResponse, RetrievalStatus, SearchResponse, RerankedResponse } from '../../types/retrieval';
 
 const MODES = [
   ['HYBRID_RRF', 'Hybrid (RRF)'],
   ['RERANKED', 'Hybrid + reranking + evidence'],
   ['GROUNDED_DRAFT', 'Evidence gate + grounded draft (unverified)'],
+  ['VERIFIED_ANSWER', 'Full pipeline + claim verification'],
   ['DENSE_ONLY', 'Dense only'],
   ['BM25_ONLY', 'BM25 only'],
 ] as const;
@@ -35,7 +37,7 @@ function Inspector() {
   const { token } = useSession();
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<string>('HYBRID_RRF');
-  const [lane, setLane] = useState<'hybrid' | 'dense' | 'sparse' | 'reranked' | 'evidence' | 'sufficiency' | 'draft'>('hybrid');
+  const [lane, setLane] = useState<'hybrid' | 'dense' | 'sparse' | 'reranked' | 'evidence' | 'sufficiency' | 'draft' | 'claims' | 'answer'>('hybrid');
   const [selected, setSelected] = useState<Candidate | null>(null);
 
   const status = useQuery({
@@ -44,9 +46,11 @@ function Inspector() {
   });
 
   const search = useMutation({
-    mutationFn: (text: string) => api<SearchResponse | RerankedResponse | DraftResponse>(
+    mutationFn: (text: string) => api<SearchResponse | RerankedResponse | DraftResponse | AnswerResponse>(
       token,
-      mode === 'GROUNDED_DRAFT' ? '/retrieval/draft' : mode === 'RERANKED' ? '/retrieval/rerank' : '/retrieval/search',
+      mode === 'VERIFIED_ANSWER' ? '/retrieval/answer'
+        : mode === 'GROUNDED_DRAFT' ? '/retrieval/draft'
+        : mode === 'RERANKED' ? '/retrieval/rerank' : '/retrieval/search',
       {
         method: 'POST',
         // The server owns the evidence, the policy, the provider and the model. The client sends a
@@ -59,6 +63,7 @@ function Inspector() {
 
   const reranked = search.data && 'evidence_set' in search.data ? search.data : undefined;
   const drafted = search.data && 'sufficiency' in search.data ? (search.data as DraftResponse) : undefined;
+  const answered = search.data && 'verification' in search.data ? (search.data as AnswerResponse) : undefined;
   const result = reranked?.first_stage ?? (search.data as SearchResponse | undefined);
   const error = search.error as ApiError | null;
 
@@ -127,9 +132,13 @@ function Inspector() {
         {drafted && <><button aria-pressed={lane === 'sufficiency'} onClick={() => setLane('sufficiency')}>Sufficiency</button>
           <button aria-pressed={lane === 'draft'} onClick={() => setLane('draft')}>
             {drafted.abstention ? 'Abstention' : 'Grounded draft'}</button></>}
+        {answered?.verification && <><button aria-pressed={lane === 'claims'} onClick={() => setLane('claims')}>Claims</button>
+          <button aria-pressed={lane === 'answer'} onClick={() => setLane('answer')}>
+            {answered.verified ? 'Verified answer' : 'Verification abstention'}</button></>}
       </div>
       {reranked && (lane === 'reranked' || lane === 'evidence') && <EvidenceInspector result={reranked} stage={lane} />}
       {drafted && (lane === 'sufficiency' || lane === 'draft') && <DraftInspector result={drafted} stage={lane} />}
+      {answered && (lane === 'claims' || lane === 'answer') && <VerificationInspector result={answered} stage={lane} />}
 
       {lane === 'hybrid' && <section className="panel"><h2>{result.mode === 'HYBRID_RRF' ? 'Fused candidates' : 'Retrieved candidates'}</h2>
         <p className="muted">Ranked by reciprocal rank fusion. The fused score is a rank-based

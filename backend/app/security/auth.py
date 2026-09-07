@@ -25,6 +25,9 @@ PERMISSIONS = frozenset(
         # M7 drafts are unverified and expose the sufficiency decision, so they stay an authorized
         # inspection capability rather than a reading feature. The final Ask experience is M9.
         "generation:draft",
+        # M8 verification can release an answer, so it is a separate capability from producing an
+        # unverified draft. The user-facing Ask experience is still M9 and still disabled.
+        "generation:verify",
     }
 )
 ROLE_PERMISSIONS = {

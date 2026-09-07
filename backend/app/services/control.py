@@ -14,6 +14,7 @@ from app.services.retrieval import RetrievalService
 from app.services.sparse_index import SparseIndexService
 from app.services.storage import ObjectStorage
 from app.services.uploads import UploadService
+from app.services.verification import VerificationService
 from app.vectorindex.model import VectorIndex
 
 
@@ -64,4 +65,5 @@ class ControlPlane:
         )
         self.evidence = EvidenceService(self.retrieval, settings)
         self.generation = GenerationService(self.evidence, settings)
+        self.verification = VerificationService(self.generation, settings)
         self.jobs = JobService(sessions, storage)

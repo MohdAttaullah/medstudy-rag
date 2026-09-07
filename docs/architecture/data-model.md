@@ -196,3 +196,10 @@ is persisted; neither is the question or the provider response. Alembic head rem
 `m5_hybrid_retrieval` and no empty M7 migration exists. Source authority keeps the M1 meaning, where
 assessment source types are already forbidden from claiming REFERENCE or HIGH authority, and M7
 relies on that rather than restating it.
+
+## M8 request-scoped verification
+
+M8 adds typed, fingerprinted claim-extraction, verification, contradiction, repair and final-policy
+contracts, not relational entities. Claims, verdicts, contradiction findings, verified answers and
+abstentions are request-scoped and none is persisted. Alembic head remains `m5_hybrid_retrieval` and
+no empty M8 migration exists. Source authority keeps its M1 meaning throughout verification.

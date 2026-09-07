@@ -13,7 +13,8 @@ from app.generation.providers.base import LLMProvider
 from app.generation.providers.openai import OpenAIProvider
 
 if TYPE_CHECKING:
-    from app.core.config import Settings
+    from app.core.config import ModelSelection, Settings
+    from app.core.generation_config import GroundingConfig
 
 
 def build_provider(settings: "Settings") -> LLMProvider:
@@ -22,6 +23,17 @@ def build_provider(settings: "Settings") -> LLMProvider:
         raise GenerationError(
             "GENERATION_PROVIDER_UNCONFIGURED", "No generator model is configured."
         )
+    return build_named_provider(settings, selection, settings.grounding)
+
+
+def build_named_provider(
+    settings: "Settings", selection: "ModelSelection", grounding: "GroundingConfig"
+) -> LLMProvider:
+    """Build an adapter for one explicitly named selection.
+
+    Taking the selection as an argument is what lets the M8 verifier run on a different provider or
+    model from the generator without either stage reaching for the other's configuration.
+    """
     key = {
         "openai": settings.openai_api_key,
         "anthropic": settings.anthropic_api_key,
@@ -29,8 +41,8 @@ def build_provider(settings: "Settings") -> LLMProvider:
     if not key.get_secret_value():
         raise GenerationError(
             "GENERATION_PROVIDER_UNCONFIGURED",
-            f"No API key is configured for the {selection.provider} generator.",
+            f"No API key is configured for the {selection.provider} provider.",
         )
     if selection.provider == "openai":
-        return OpenAIProvider(selection, settings.provider, settings.grounding, key)
-    return AnthropicProvider(selection, settings.provider, settings.grounding, key)
+        return OpenAIProvider(selection, settings.provider, grounding, key)
+    return AnthropicProvider(selection, settings.provider, grounding, key)

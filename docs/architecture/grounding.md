@@ -43,3 +43,17 @@ ids, and M7 validates schema and citation-id membership deterministically. Claim
 verification, the repair attempt and streaming remain unimplemented and belong to M8; drafts are
 typed `UNVERIFIED_AWAITING_CLAIM_VERIFICATION`. Visually dependent questions abstain, because no
 vision path is approved and both adapters refuse `analyze_image`.
+
+## M8 implemented state
+
+Claim-level verification is implemented. Claims are extracted deterministically from the answer text
+rather than from the generator's declarations, deterministic citation, provenance, numeric, unit,
+negation and certainty checks run first and bind, and a provider-neutral `ClaimVerifier` then judges
+support for each surviving claim. Contradiction covers evidence the generator retained but did not
+cite. Exactly one repair is permitted and the repaired draft is re-verified in full. `verified=true`
+is constructed only behind a PASS; every other path abstains. See
+[verification](verification.md) and ADR-013.
+
+Still unimplemented: streaming (progress-then-verified-content), multimodal verification of original
+images, and a calibrated evidence confidence signal. Visually dependent questions continue to
+abstain. The user-facing Ask experience is M9.

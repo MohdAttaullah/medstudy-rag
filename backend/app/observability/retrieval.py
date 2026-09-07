@@ -21,6 +21,12 @@ class RetrievalMetrics:
             ["status"],
             registry=registry,
         )
+        self.verification = Counter(
+            "answer_verification_outcomes_total",
+            "M8 claim-verification outcomes",
+            ["outcome"],
+            registry=registry,
+        )
         self.evidence_stage = Histogram(
             "evidence_stage_duration_seconds",
             "M6 query stage duration",

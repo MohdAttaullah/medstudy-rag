@@ -110,3 +110,10 @@ with mode `GROUNDED_DRAFT`. Structured logs carry the correlation id, the status
 the declared reason codes and the policy fingerprint. The question, the evidence text, the generated
 draft, provider error bodies and every API key stay out of both logs and metric labels; a provider
 error body is not echoed because it can quote the prompt back.
+
+## M8 telemetry
+
+`answer_verification_outcomes_total{outcome}` counts PASS, REGENERATE_ONCE and ABSTAIN. Declared
+failures use `retrieval_failures_total` with mode `VERIFIED_ANSWER`. Structured logs carry the
+correlation id, the outcome, the declared reason codes and the repair count. Claim text, evidence,
+the generated answer, verifier prose and every API key stay out of both logs and metric labels.

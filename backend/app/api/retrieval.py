@@ -49,11 +49,14 @@ from app.schemas.retrieval import (
     SparseReindexRequest,
     TraceView,
 )
+from app.schemas.verification import AnswerRequest, AnswerResponse
 
 router = APIRouter(prefix="/api/v1")
 
 
-def _filters(body: SearchRequest | RerankRequest | DraftRequest) -> RetrievalFilters | None:
+def _filters(
+    body: SearchRequest | RerankRequest | DraftRequest | AnswerRequest,
+) -> RetrievalFilters | None:
     if body.filters is None:
         return None
     return RetrievalFilters(
@@ -374,3 +377,21 @@ async def draft(
     actor.require("retrieval:search")
     actor.require("generation:draft")
     return await service.generation.draft(actor, body.query, correlation(request), _filters(body))
+
+
+@router.post("/retrieval/answer", response_model=AnswerResponse)
+async def answer(
+    body: AnswerRequest, request: Request, actor: Actor, service: Service
+) -> dict[str, Any]:
+    """Retrieve, gate, draft, then verify every material claim before anything is released.
+
+    Returns a verified answer only when every material claim survived verification and the evidence
+    does not disagree with itself. Every other outcome is a typed abstention, and the full
+    verification report is returned either way so a refusal can be read rather than guessed at.
+    """
+    actor.require("retrieval:search")
+    actor.require("generation:draft")
+    actor.require("generation:verify")
+    return await service.verification.answer(
+        actor, body.query, correlation(request), _filters(body)
+    )

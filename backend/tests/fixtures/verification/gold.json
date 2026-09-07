@@ -1,0 +1,285 @@
+{
+  "dataset_version": "m8-verification-gold-v1",
+  "notice": "Synthetic engineering benchmark. Evidence is written for this file and is deliberately simple, non-sensitive and not real clinical guidance. Each case is a draft answer paired with the evidence it cites, so verification is measured independently of retrieval, the sufficiency gate and generation. No clinician reviewed these labels and none of this is evidence about clinical performance.",
+  "blocks": [
+    {
+      "label": "b-ref-dose",
+      "title": "Synthetic Reference Volume",
+      "source_type": "REFERENCE_BOOK",
+      "authority_level": "REFERENCE",
+      "text": "The illustrative maintenance dose of compound A is 5 mg daily. The compound is cleared by the synthetic enzyme E."
+    },
+    {
+      "label": "b-ref-dose-alt",
+      "title": "Synthetic Second Reference",
+      "source_type": "REFERENCE_BOOK",
+      "authority_level": "REFERENCE",
+      "text": "The illustrative maintenance dose of compound A is 10 mg daily in this second synthetic source."
+    },
+    {
+      "label": "b-ref-hedged",
+      "title": "Synthetic Reference Volume",
+      "source_type": "REFERENCE_BOOK",
+      "authority_level": "REFERENCE",
+      "text": "Compound B may be associated with synthetic adverse effect F in some illustrative reports."
+    },
+    {
+      "label": "b-ref-negated",
+      "title": "Synthetic Practice Guideline",
+      "source_type": "GUIDELINE",
+      "authority_level": "HIGH",
+      "text": "Compound C is not recommended for illustrative indication G in this synthetic guideline."
+    },
+    {
+      "label": "b-ref-second-fact",
+      "title": "Synthetic Reference Volume",
+      "source_type": "REFERENCE_BOOK",
+      "authority_level": "REFERENCE",
+      "text": "Compound A is cleared by the synthetic enzyme E in this illustrative description."
+    },
+    {
+      "label": "b-key",
+      "title": "Synthetic Answer Key",
+      "source_type": "ANSWER_KEY",
+      "authority_level": "ASSESSMENT",
+      "chunk_type": "QUESTION",
+      "text": "The recorded answer for the illustrative maintenance dose of compound A is 300 mg."
+    },
+    {
+      "label": "b-table",
+      "title": "Synthetic Reference Volume",
+      "source_type": "REFERENCE_BOOK",
+      "authority_level": "REFERENCE",
+      "chunk_type": "TABLE_PART",
+      "text": "Illustrative dosing table. Compound | Interval. Compound A | 12 h.",
+      "artifacts": [{"kind": "TABLE", "row_indexes": [1], "header_rows": [0]}]
+    },
+    {
+      "label": "b-table-headerless",
+      "title": "Synthetic Reference Volume",
+      "source_type": "REFERENCE_BOOK",
+      "authority_level": "REFERENCE",
+      "chunk_type": "TABLE_PART",
+      "text": "Compound A | 12 h.",
+      "artifacts": [{"kind": "TABLE", "row_indexes": [1]}]
+    },
+    {
+      "label": "b-formula",
+      "title": "Synthetic Reference Volume",
+      "source_type": "REFERENCE_BOOK",
+      "authority_level": "REFERENCE",
+      "chunk_type": "FORMULA",
+      "text": "Illustrative index = mass in kilograms divided by height in metres squared.",
+      "artifacts": [{"kind": "FORMULA"}]
+    },
+    {
+      "label": "b-figure",
+      "title": "Synthetic Reference Volume",
+      "source_type": "REFERENCE_BOOK",
+      "authority_level": "REFERENCE",
+      "chunk_type": "FIGURE_CONTEXT",
+      "visual": true,
+      "text": "Figure S1. Synthetic illustrative schematic. Source figure; no source caption or explanatory text."
+    }
+  ],
+  "cases": [
+    {
+      "id": "v-fully-supported",
+      "category": "fully supported answer",
+      "expected": "PASS",
+      "answer": "The illustrative maintenance dose of compound A is 5 mg daily.",
+      "claims": [{"text": "The illustrative maintenance dose of compound A is 5 mg daily.", "cites": ["b-ref-dose"]}],
+      "blocks": ["b-ref-dose"],
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "v-extra-unsupported-claim",
+      "category": "one unsupported extra claim",
+      "expected": "ABSTAIN",
+      "expect_codes": ["CLAIM_NOT_CITED"],
+      "answer": "The illustrative maintenance dose of compound A is 5 mg daily. Compound A also reverses illustrative condition Z.",
+      "claims": [{"text": "The illustrative maintenance dose of compound A is 5 mg daily.", "cites": ["b-ref-dose"]}],
+      "blocks": ["b-ref-dose"],
+      "verifier": "SUPPORTED",
+      "repair_enabled": false
+    },
+    {
+      "id": "v-wrong-dose",
+      "category": "wrong numeric dose",
+      "expected": "ABSTAIN",
+      "expect_codes": ["NUMERIC_MISMATCH"],
+      "answer": "The illustrative maintenance dose of compound A is 50 mg daily.",
+      "claims": [{"text": "The illustrative maintenance dose of compound A is 50 mg daily.", "cites": ["b-ref-dose"]}],
+      "blocks": ["b-ref-dose"],
+      "verifier": "SUPPORTED",
+      "repair_enabled": false
+    },
+    {
+      "id": "v-wrong-unit",
+      "category": "wrong unit",
+      "expected": "ABSTAIN",
+      "expect_codes": ["UNIT_MISMATCH"],
+      "answer": "The illustrative maintenance dose of compound A is 5 mL daily.",
+      "claims": [{"text": "The illustrative maintenance dose of compound A is 5 mL daily.", "cites": ["b-ref-dose"]}],
+      "blocks": ["b-ref-dose"],
+      "verifier": "SUPPORTED",
+      "repair_enabled": false
+    },
+    {
+      "id": "v-negation-reversed",
+      "category": "negation reversal",
+      "expected": "ABSTAIN",
+      "expect_codes": ["NEGATION_REVERSED"],
+      "answer": "Compound C is recommended for illustrative indication G in this synthetic guideline.",
+      "claims": [{"text": "Compound C is recommended for illustrative indication G in this synthetic guideline.", "cites": ["b-ref-negated"]}],
+      "blocks": ["b-ref-negated"],
+      "verifier": "SUPPORTED",
+      "repair_enabled": false
+    },
+    {
+      "id": "v-overstated-causation",
+      "category": "overstated causal language",
+      "expected": "ABSTAIN",
+      "expect_codes": ["OVERSTATED_CERTAINTY"],
+      "answer": "Compound B causes synthetic adverse effect F in illustrative reports.",
+      "claims": [{"text": "Compound B causes synthetic adverse effect F in illustrative reports.", "cites": ["b-ref-hedged"]}],
+      "blocks": ["b-ref-hedged"],
+      "verifier": "SUPPORTED",
+      "repair_enabled": false
+    },
+    {
+      "id": "v-wrong-block-cited",
+      "category": "citation to the wrong EvidenceBlock",
+      "expected": "ABSTAIN",
+      "expect_codes": ["NUMERIC_MISMATCH", "SEMANTICALLY_UNSUPPORTED"],
+      "answer": "The illustrative maintenance dose of compound A is 5 mg daily.",
+      "claims": [{"text": "The illustrative maintenance dose of compound A is 5 mg daily.", "cites": ["b-ref-negated"]}],
+      "blocks": ["b-ref-negated", "b-ref-dose"],
+      "verifier": "UNSUPPORTED",
+      "repair_enabled": false
+    },
+    {
+      "id": "v-invented-block-id",
+      "category": "invented EvidenceBlock ID",
+      "expected": "ABSTAIN",
+      "expect_codes": ["UNKNOWN_CITATION"],
+      "answer": "The illustrative maintenance dose of compound A is 5 mg daily.",
+      "claims": [{"text": "The illustrative maintenance dose of compound A is 5 mg daily.", "cites": ["__invented__"]}],
+      "blocks": ["b-ref-dose"],
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "v-support-split-across-blocks",
+      "category": "support split across multiple blocks",
+      "expected": "PASS",
+      "answer": "The illustrative maintenance dose of compound A is 5 mg daily and compound A is cleared by the synthetic enzyme E.",
+      "claims": [
+        {"text": "The illustrative maintenance dose of compound A is 5 mg daily.", "cites": ["b-ref-dose"]},
+        {"text": "Compound A is cleared by the synthetic enzyme E.", "cites": ["b-ref-second-fact"]}
+      ],
+      "blocks": ["b-ref-dose", "b-ref-second-fact"],
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "v-authoritative-conflict",
+      "category": "contradictory authoritative sources",
+      "expected": "ABSTAIN",
+      "expect_codes": ["AUTHORITATIVE_SOURCES_DISAGREE"],
+      "answer": "The illustrative maintenance dose of compound A is 5 mg daily.",
+      "claims": [{"text": "The illustrative maintenance dose of compound A is 5 mg daily.", "cites": ["b-ref-dose"]}],
+      "blocks": ["b-ref-dose", "b-ref-dose-alt"],
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "v-question-bank-conflict",
+      "category": "question-bank conflict",
+      "expected": "ABSTAIN",
+      "expect_codes": ["CONTRADICTED_BY_RETAINED_EVIDENCE", "ASSESSMENT_CONTRADICTS_REFERENCE"],
+      "answer": "The recorded answer for the illustrative maintenance dose of compound A is 300 mg.",
+      "claims": [{"text": "The recorded answer for the illustrative maintenance dose of compound A is 300 mg.", "cites": ["b-key"]}],
+      "blocks": ["b-key", "b-ref-dose"],
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "v-table-supported",
+      "category": "table claim with canonical structure",
+      "expected": "PASS",
+      "answer": "The illustrative dosing table lists compound A at 12 h.",
+      "claims": [{"text": "The illustrative dosing table lists compound A at 12 h.", "cites": ["b-table"]}],
+      "blocks": ["b-table"],
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "v-table-header-mismatch",
+      "category": "table row/header mismatch",
+      "expected": "ABSTAIN",
+      "expect_codes": ["PROVENANCE_UNRESOLVED"],
+      "answer": "The illustrative dosing table lists compound A at 12 h.",
+      "claims": [{"text": "The illustrative dosing table lists compound A at 12 h.", "cites": ["b-table-headerless"]}],
+      "blocks": ["b-table-headerless"],
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "v-formula-mismatch",
+      "category": "formula mismatch",
+      "expected": "ABSTAIN",
+      "expect_codes": ["SEMANTICALLY_UNSUPPORTED"],
+      "answer": "The illustrative index is mass in kilograms multiplied by height in metres squared.",
+      "claims": [{"text": "The illustrative index is mass in kilograms multiplied by height in metres squared.", "cites": ["b-formula"]}],
+      "blocks": ["b-formula"],
+      "verifier": "UNSUPPORTED",
+      "repair_enabled": false
+    },
+    {
+      "id": "v-figure-dependent",
+      "category": "figure-dependent unsupported claim",
+      "expected": "ABSTAIN",
+      "expect_codes": ["VISUAL_INTERPRETATION_REQUIRED"],
+      "answer": "The synthetic schematic shows three illustrative labelled compartments.",
+      "claims": [{"text": "The synthetic schematic shows three illustrative labelled compartments.", "cites": ["b-figure"]}],
+      "blocks": ["b-figure"],
+      "verifier": "SUPPORTED"
+    },
+    {
+      "id": "v-verifier-malformed",
+      "category": "verifier malformed response",
+      "expected": "ABSTAIN",
+      "expect_codes": ["VERIFIER_MALFORMED_OUTPUT"],
+      "answer": "The illustrative maintenance dose of compound A is 5 mg daily.",
+      "claims": [{"text": "The illustrative maintenance dose of compound A is 5 mg daily.", "cites": ["b-ref-dose"]}],
+      "blocks": ["b-ref-dose"],
+      "verifier": "MALFORMED"
+    },
+    {
+      "id": "v-verifier-unavailable",
+      "category": "provider/verifier failure",
+      "expected": "ABSTAIN",
+      "expect_codes": ["VERIFIER_FAILED"],
+      "answer": "The illustrative maintenance dose of compound A is 5 mg daily.",
+      "claims": [{"text": "The illustrative maintenance dose of compound A is 5 mg daily.", "cites": ["b-ref-dose"]}],
+      "blocks": ["b-ref-dose"],
+      "verifier": "FAILED"
+    },
+    {
+      "id": "v-repair-succeeds",
+      "category": "successful one-time repair",
+      "expected": "PASS",
+      "expect_repair": 1,
+      "answer": "The illustrative maintenance dose of compound A is 5 mg daily.",
+      "claims": [{"text": "The illustrative maintenance dose of compound A is 5 mg daily.", "cites": ["b-ref-dose"]}],
+      "blocks": ["b-ref-dose"],
+      "verifier": "FAIL_THEN_SUPPORT"
+    },
+    {
+      "id": "v-repair-fails",
+      "category": "failed repair then abstain",
+      "expected": "ABSTAIN",
+      "expect_repair": 1,
+      "expect_codes": ["SEMANTICALLY_UNSUPPORTED"],
+      "answer": "The illustrative maintenance dose of compound A is 5 mg daily.",
+      "claims": [{"text": "The illustrative maintenance dose of compound A is 5 mg daily.", "cites": ["b-ref-dose"]}],
+      "blocks": ["b-ref-dose"],
+      "verifier": "UNSUPPORTED"
+    }
+  ]
+}

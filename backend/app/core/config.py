@@ -30,6 +30,13 @@ from app.core.retrieval_config import (
     SparseAnalyzerConfig,
     SparseIndexConfig,
 )
+from app.core.verification_config import (
+    ClaimExtractionConfig,
+    ClaimVerificationConfig,
+    ContradictionConfig,
+    FinalVerificationConfig,
+    RepairConfig,
+)
 from app.security.auth import DevCredential
 
 
@@ -105,6 +112,11 @@ class Settings(BaseSettings):
     expansion: ExpansionConfig = ExpansionConfig()
     evidence_budget: EvidenceBudgetConfig = EvidenceBudgetConfig()
     sufficiency: SufficiencyConfig = SufficiencyConfig()
+    claim_extraction: ClaimExtractionConfig = ClaimExtractionConfig()
+    claim_verification: ClaimVerificationConfig = ClaimVerificationConfig()
+    contradiction: ContradictionConfig = ContradictionConfig()
+    repair: RepairConfig = RepairConfig()
+    final_verification: FinalVerificationConfig = FinalVerificationConfig()
     grounding: GroundingConfig = GroundingConfig()
     provider: ProviderConfig = ProviderConfig()
     dev_principals: tuple[DevCredential, ...] = ()

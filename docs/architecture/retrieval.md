@@ -53,3 +53,10 @@ A separately authorized draft endpoint runs the M5 and M6 stages unchanged, then
 sufficiency gate, then at most one grounded generation. M5 lane semantics, analyzer, BM25
 parameters, RRF constant and weights remain untouched, and no retrieval score participates in the
 sufficiency decision. See [sufficiency](sufficiency.md) and [generation](generation.md).
+
+## M8 extension
+
+A separately authorized answer endpoint runs the M5–M7 stages unchanged, then verifies every
+material claim in the draft before anything is released. No retrieval, fusion or reranker score
+participates in verification, and rank never decides which of two disagreeing sources is correct.
+See [verification](verification.md).

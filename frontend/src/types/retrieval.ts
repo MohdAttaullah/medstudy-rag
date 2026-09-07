@@ -159,3 +159,43 @@ export interface DraftResponse extends RerankedResponse {
   draft: GroundedDraft | null; abstention: Abstention | null;
   durations_ms: Record<string, number>;
 }
+
+export interface ClaimVerification {
+  claim_id: string; claim_text: string; claim_type: string; material: boolean;
+  verdict: 'SUPPORTED' | 'UNSUPPORTED' | 'CONTRADICTED' | 'INSUFFICIENT_EVIDENCE' | 'UNVERIFIABLE';
+  reason_codes: string[]; supporting_evidence_ids: string[]; contradicting_evidence_ids: string[];
+  detail: Record<string, unknown>;
+}
+export interface ContradictionFinding {
+  kind: string; description: string; claim_ids: string[]; evidence_ids: string[];
+  document_version_ids: string[]; detail: Record<string, unknown>;
+}
+export interface VerifierSpec {
+  verifier: string; provider: string; model_id: string; prompt_version: string;
+  schema_version: string; independent_of_generator: boolean;
+}
+/** No score or percentage: M8 establishes no calibrated medical confidence. */
+export interface VerificationReport {
+  outcome: 'PASS' | 'REGENERATE_ONCE' | 'ABSTAIN';
+  claims: {claim_id: string; text: string; claim_type: string; material: boolean; cited_evidence_ids: string[]}[];
+  verifications: ClaimVerification[]; contradictions: ContradictionFinding[];
+  failed_reason_codes: string[]; material_claims: number; supported_claims: number;
+  repair_count: number; verifier: VerifierSpec | null;
+  claim_extraction_fingerprint: string; final_policy_fingerprint: string;
+  durations_ms: Record<string, number>;
+}
+export interface VerifiedAnswer {
+  answer_id: string; verified: true; verification_status: 'VERIFIED'; answer: string;
+  claims: ClaimVerification[]; cited_evidence_ids: string[]; query_hash: string;
+  generator: {provider: string; model_id: string}; verifier: VerifierSpec; repair_count: number;
+}
+export interface VerificationAbstention {
+  abstained: true; verified: false; reason: string; reason_codes: string[]; message: string;
+  unsupported_claim_ids: string[]; contradicting_evidence_ids: string[];
+}
+export interface AnswerResponse extends Omit<DraftResponse, 'verified'> {
+  verified: boolean;
+  verification: VerificationReport | null;
+  verified_answer: VerifiedAnswer | null;
+  verification_abstention: VerificationAbstention | null;
+}

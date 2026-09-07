@@ -1,5 +1,41 @@
 # Changelog
 
+## M8 - 2026-09-07
+
+- Added claim-level verification between the M7 grounded draft and any released answer. A draft
+  becomes an answer only when every material claim survives every check; every other path abstains.
+- Extracted claims deterministically from the answer text a reader would see rather than from the
+  claim list the generator declared, so a sentence the generator never bound to evidence is caught
+  as uncited instead of shipping inside a verified answer.
+- Split conjoined propositions apart, biased toward over-splitting, so a statement joining a
+  supported claim to an unsupported one cannot pass on the strength of its first half.
+- Ran deterministic checks before any model and made them binding: citation identity within the
+  request's own EvidenceSet, provenance resolution, value-and-unit agreement, negation polarity,
+  certainty overstatement, canonical table headers and formula artifacts. A model is never asked
+  whether a nonexistent citation, a wrong dose or a reversed negation is acceptable.
+- Added a provider-neutral claim verifier that sees one claim and only the evidence it cites, with
+  no corpus, no retrieval, no web search and no rank or score, returning a strict verdict schema.
+- Made generator/verifier independence configurable and reported it honestly, because a verifier
+  that is the same model as the generator shares its blind spots.
+- Extended contradiction detection to the case a generator actually creates: a claim supported by
+  the source it cited and contradicted by a source retrieval retained but did not cite. Competing
+  evidence is preserved, and rank never decides which source is true.
+- Permitted exactly one repair, constrained to the same evidence and instructed that removing an
+  unsupported statement is success, then re-verified the repaired draft in full. A second failure
+  abstains; there is no repair loop.
+- Confined `verified=true` to a single object built only behind a PASS, kept M7 drafts unverified,
+  and left `answering_enabled` false — the user-facing Ask experience is still a later milestone.
+- Retained every failed verdict in the request trace, so an abstention says what failed instead of
+  quietly returning what remained.
+- Measured, and reported as measurements: 19 verification cases with **zero false PASSes**, full
+  agreement with the labelled outcomes, an abstention rate of 0.79, and a live OpenAI run in which
+  the first draft failed, the single repair succeeded and the repaired draft was re-verified before
+  release.
+- Fixed three real defects the evaluation itself found: a numeric claim drawn from a table skipped
+  the header check, negation checking fired on claims containing no negation, and one fixture did
+  not encode the conflict it named.
+- Added no schema change and no migration; the Alembic head remains `m5_hybrid_retrieval`.
+
 ## M7 - 2026-09-07
 
 - Added the Evidence Sufficiency Gate between the M6 EvidenceSet and any provider call, emitting
