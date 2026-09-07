@@ -203,3 +203,14 @@ M8 adds typed, fingerprinted claim-extraction, verification, contradiction, repa
 contracts, not relational entities. Claims, verdicts, contradiction findings, verified answers and
 abstentions are request-scoped and none is persisted. Alembic head remains `m5_hybrid_retrieval` and
 no empty M8 migration exists. Source authority keeps its M1 meaning throughout verification.
+
+## M9 conversations
+
+The first new durable state since M1: `conversations`, `conversation_turns` and `turn_citations`,
+all tenant-scoped through composite keys. A turn stores the question, the outcome, the answer only
+when verified, declared reason codes, model identity and timings; a citation stores the identifiers
+that resolve to the live document plus the exact text the answer was verified against. Two CHECK
+constraints put the display rule in the schema: `answer_text` exists exactly when the outcome is
+VERIFIED, and `verified` agrees with the outcome. Prompts, provider responses, failed drafts,
+verifier reasoning and EvidenceSets are not persisted. Alembic head is `m9_conversations`; its
+downgrade refuses while history exists unless the loss is explicitly acknowledged.

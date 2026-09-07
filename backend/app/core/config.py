@@ -13,6 +13,7 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.ask_config import AskConfig
 from app.core.chunking_config import ChunkingConfig
 from app.core.embedding_config import EmbeddingConfig, IndexConfig
 from app.core.generation_config import GroundingConfig, ProviderConfig, SufficiencyConfig
@@ -117,6 +118,7 @@ class Settings(BaseSettings):
     contradiction: ContradictionConfig = ContradictionConfig()
     repair: RepairConfig = RepairConfig()
     final_verification: FinalVerificationConfig = FinalVerificationConfig()
+    ask: AskConfig = AskConfig()
     grounding: GroundingConfig = GroundingConfig()
     provider: ProviderConfig = ProviderConfig()
     dev_principals: tuple[DevCredential, ...] = ()

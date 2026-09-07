@@ -200,7 +200,7 @@ class RetrievalService:
         top_k: int | None = None,
         filters: RetrievalFilters | None = None,
     ) -> CandidateSet:
-        actor.require("retrieval:search")
+        actor.require_any("retrieval:search", "ask:submit")
         chosen = (mode or self.config.mode).upper()
         if chosen not in MODES:
             raise DomainError("INVALID_REQUEST", "Unknown retrieval mode.", 422)

@@ -129,7 +129,7 @@ class VerificationService:
         correlation_id: UUID,
         filters: RetrievalFilters | None,
     ) -> dict[str, Any]:
-        actor.require("generation:verify")
+        actor.require_any("generation:verify", "ask:submit")
         started = perf_counter()
         # M7 owns retrieval, the sufficiency gate and the draft. M8 never re-opens that decision:
         # an INSUFFICIENT or CONFLICTING question stays abstained and no generation is attempted.

@@ -60,7 +60,7 @@ class EvidenceService:
         correlation_id: UUID,
         filters: RetrievalFilters | None = None,
     ) -> dict[str, Any]:
-        actor.require("retrieval:search")
+        actor.require_any("retrieval:search", "ask:submit")
         started = perf_counter()
         r = self.retrieval
         c = self.settings

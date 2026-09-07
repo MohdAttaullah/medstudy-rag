@@ -55,10 +55,13 @@ def database():
         command.upgrade(config, "head")
         command.check(config)
         yield value
-        # Exercise reversible migration on this isolated test schema only.
+        # Exercise reversible migration on this isolated test schema only. The M9 downgrade guard
+        # protects real question history, so this throwaway schema acknowledges the loss.
+        os.environ["MEDRAG_ALLOW_CONVERSATION_LOSS"] = "1"
         command.downgrade(config, "base")
         command.upgrade(config, "head")
     finally:
+        os.environ.pop("MEDRAG_ALLOW_CONVERSATION_LOSS", None)
         if previous is None:
             os.environ.pop("MEDRAG_DATABASE_URL", None)
         else:

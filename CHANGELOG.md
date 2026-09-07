@@ -1,5 +1,41 @@
 # Changelog
 
+## M9 - 2026-09-07
+
+- Added the public Ask endpoint and page: the first surface in this system that may show a medical
+  answer, and it shows one only when M8 verified every material claim.
+- Made the display rule unrepresentable to violate. The public response carries an answer if and
+  only if its outcome is VERIFIED, a refusal carries no claims, citations or sources, and two
+  database CHECK constraints enforce the same rule beneath the application — so a rejected draft
+  cannot be placed in a response, a stored turn or a history view even by mistake.
+- Distinguished five outcomes rather than one failure: verified, insufficient evidence, conflicting
+  sources, unverified draft and technical failure. An outage is never reported as missing evidence,
+  and missing evidence is never filled in from model knowledge.
+- Kept every M5–M8 response exactly as it was, still refusing to answer. Enablement is a property of
+  the new contract, not a global switch, and no configuration can relax the verified requirement or
+  turn on draft-token streaming.
+- Added tenant-scoped conversations with a real migration, storing the question, the outcome, the
+  answer only when verified, and the citations behind it — and deliberately not storing prompts,
+  provider responses, failed drafts, verifier reasoning or evidence sets.
+- Stored citation text rather than re-resolving it, so a later re-parse cannot silently change what
+  a stored answer appears to cite, and refused to downgrade the migration while question history
+  exists unless the loss is explicitly acknowledged.
+- Made asking a reading capability while keeping the inspector closed: a reader may ask a question
+  and read their own conversations, and still cannot see a draft, a lane score or a verifier verdict.
+- Resolved conversation ownership from the authenticated principal and before any provider call, so
+  another tenant's id is indistinguishable from one that never existed and costs nothing.
+- Rendered citations into the existing authorized parse viewer rather than adding document routes,
+  linking to the page the cited span is actually on, highlighting only regions M2 really recorded,
+  and labelling assessment material wherever it appears.
+- Returned bounded progress stages while waiting and delivered answer text atomically after
+  verification; unverified tokens are never streamed.
+- Verified live end to end with the configured OpenAI provider: a synthetic document ingested
+  through the real worker, retrieved, reranked, gated, drafted, verified and delivered as a verified
+  answer whose citation resolved to three real source elements with a real bounding box.
+- Fixed three defects found during the work: relaxing service-level authorization briefly opened the
+  M5 search endpoint to readers, an unknown conversation id was detected only after a provider call,
+  and a citation opened the citation's first page rather than the page its region is on.
+
 ## M8 - 2026-09-07
 
 - Added claim-level verification between the M7 grounded draft and any released answer. A draft

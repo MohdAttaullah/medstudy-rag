@@ -28,10 +28,17 @@ PERMISSIONS = frozenset(
         # M8 verification can release an answer, so it is a separate capability from producing an
         # unverified draft. The user-facing Ask experience is still M9 and still disabled.
         "generation:verify",
+        # M9. Asking is the reading capability; the diagnostic scopes above stay separate so a
+        # reader who may ask a question does not thereby gain the inspector's view of drafts,
+        # lane scores and verifier verdicts.
+        "ask:submit",
+        "conversation:read",
     }
 )
 ROLE_PERMISSIONS = {
-    "reader": frozenset({"document:read", "ingestion:read"}),
+    # A reader may ask and read their own conversations, and still may not see an unverified
+    # draft, a lane score or a verifier verdict.
+    "reader": frozenset({"document:read", "ingestion:read", "ask:submit", "conversation:read"}),
     "curator": PERMISSIONS,
     "admin": PERMISSIONS | {"audit:read"},
 }
@@ -59,6 +66,17 @@ class Principal:
 
     def require(self, permission: str) -> None:
         if permission not in self.permissions:
+            raise DomainError("FORBIDDEN", "You do not have permission for this action.", 403)
+
+    def require_any(self, *permissions: str) -> None:
+        """Allow a stage to run for any principal entitled to reach it.
+
+        Retrieval, drafting and verification each run for two kinds of caller: a reviewer using the
+        diagnostic endpoints, and an ordinary reader asking a question. Each route still enforces
+        its own scope, so a reader is refused at `/retrieval/draft` and admitted at `/ask` — but the
+        shared stages in between must not refuse the reader whose question they are answering.
+        """
+        if not set(permissions) & self.permissions:
             raise DomainError("FORBIDDEN", "You do not have permission for this action.", 403)
 
 

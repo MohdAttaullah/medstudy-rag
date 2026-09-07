@@ -57,3 +57,11 @@ is constructed only behind a PASS; every other path abstains. See
 Still unimplemented: streaming (progress-then-verified-content), multimodal verification of original
 images, and a calibrated evidence confidence signal. Visually dependent questions continue to
 abstain. The user-facing Ask experience is M9.
+
+## M9 delivery
+
+The user-facing Ask experience exists from M9 and is the only surface that may present an answer. It
+presents one only when M8 returned PASS, enforced by a response contract in which an answer and a
+non-verified outcome cannot coexist, and by two database constraints beneath it. Every other outcome
+renders as a distinct, explained refusal. Streaming carries progress stages only; unverified draft
+text is never shown. See [ask](ask.md) and ADR-014.

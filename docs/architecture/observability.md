@@ -117,3 +117,11 @@ error body is not echoed because it can quote the prompt back.
 failures use `retrieval_failures_total` with mode `VERIFIED_ANSWER`. Structured logs carry the
 correlation id, the outcome, the declared reason codes and the repair count. Claim text, evidence,
 the generated answer, verifier prose and every API key stay out of both logs and metric labels.
+
+## M9 telemetry
+
+`ask_outcomes_total{outcome}` counts VERIFIED, INSUFFICIENT_EVIDENCE, CONFLICTING_EVIDENCE,
+UNVERIFIED and FAILED. Structured logs carry the correlation id, the outcome and the declared reason
+codes. The question, the answer, citation text, source content and every API key stay out of both
+logs and metric labels. Stage timings are returned to the caller as bounded labels rather than
+lane scores.

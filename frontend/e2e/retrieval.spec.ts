@@ -93,7 +93,7 @@ test('a real upload becomes retrievable and a candidate resolves to its source p
   await page.screenshot({ path: testInfo.outputPath('retrieval-source-page.png'), fullPage: true });
 });
 
-test('the retrieval inspector never presents an answer, and Ask stays disabled', async ({ page }) => {
+test('the retrieval inspector never presents an answer, and Ask shows none unasked', async ({ page }) => {
   test.skip(process.env.MEDRAG_E2E_LIVE !== '1', 'Requires the running API.');
   const credentials = JSON.parse(process.env.MEDRAG_DEV_PRINCIPALS ?? '[]') as { token: string; role: string }[];
   const token = credentials.find(item => item.role === 'admin')?.token;
@@ -110,9 +110,11 @@ test('the retrieval inspector never presents an answer, and Ask stays disabled',
   await expect(page.getByText(/hallucination/i)).toHaveCount(0);
   await expect(page.getByRole('heading', { name: /^Answer/ })).toHaveCount(0);
 
-  // And the Ask page is still closed, with the reason stated rather than implied.
+  // The Ask page is open from M9, but it answers nothing until asked, and the diagnostic view
+  // never becomes an answering surface just because answering exists elsewhere.
   await page.getByRole('link', { name: 'Ask', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Answering is not available' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Educational use only' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ask with evidence' })).toBeDisabled();
-  await expect(page.getByPlaceholder('Ask a question about your source material…')).toBeDisabled();
+  await expect(page.getByRole('heading', { name: 'Answer', exact: true })).toHaveCount(0);
+  await expect(page.getByText(/confidence/i)).toHaveCount(0);
 });

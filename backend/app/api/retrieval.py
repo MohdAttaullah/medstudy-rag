@@ -73,6 +73,10 @@ def _filters(
 @router.post("/retrieval/search", response_model=SearchResponse)
 def search(body: SearchRequest, request: Request, actor: Actor, service: Service) -> SearchResponse:
     """Return ranked evidence candidates. This endpoint never generates or summarises anything."""
+    # Enforced here as well as in the service. The stage itself also runs for an ordinary reader
+    # asking a question through /ask, so the scope that keeps this diagnostic view closed to them
+    # has to be checked at the boundary that is actually the diagnostic view.
+    actor.require("retrieval:search")
     result = service.retrieval.search(
         actor,
         body.query,

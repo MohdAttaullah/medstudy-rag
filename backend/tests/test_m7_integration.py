@@ -231,6 +231,7 @@ def test_no_provider_key_appears_in_any_response(pipeline):
     )
     for path in ("/api/v1/retrieval/draft", "/api/v1/retrieval/rerank"):
         body = client.post(path, headers=auth(credentials), json={"query": QUERY}).text
+        # A response body is JSON, so a bare key prefix here would be a real leak.
         assert "api_key" not in body and "sk-" not in body and "x-api-key" not in body
 
 

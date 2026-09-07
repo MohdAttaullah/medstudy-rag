@@ -12,11 +12,15 @@ function show(path: string) {
 
 afterEach(() => vi.unstubAllGlobals());
 describe('M0 workspace', () => {
-  it('does not offer medical generation without an implemented evidence pipeline', () => {
+  it('gates answering behind access and shows no answer before one is produced', () => {
+    // Until M9 this asserted that answering was unavailable at all. The verified pipeline now
+    // exists, so the invariant that replaces it is narrower and still the important one: the page
+    // requires access, and nothing resembling an answer is on screen before a question is asked.
     show('/ask');
-    expect(screen.getByRole('heading', { name: 'Answering is not available' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Ask with evidence' })).toBeDisabled();
-    expect(screen.getByLabelText('Your educational medical question')).toBeDisabled();
+    expect(screen.getByRole('heading', { name: 'Evidence comes first.' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Development workspace access' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Answer' })).toBeNull();
+    expect(screen.queryByLabelText('Your educational medical question')).toBeNull();
   });
   it('protects document workflows with an access gate', () => {
     show('/documents/example');

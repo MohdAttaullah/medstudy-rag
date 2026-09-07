@@ -2,6 +2,7 @@
 
 import asyncio
 import inspect
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -484,10 +485,13 @@ def test_no_vendor_sdk_or_endpoint_leaks_outside_the_adapters():
 
 
 def test_no_provider_key_reaches_the_frontend_bundle():
+    # Matched as a key shape rather than a bare "sk-", which also occurs inside ordinary markup
+    # such as an `ask-outcome` element id.
+    key = re.compile(r"sk-[A-Za-z0-9_-]{16,}")
     for path in Path(ROOT, "frontend/src").rglob("*.ts*"):
         body = path.read_text(encoding="utf-8")
         assert "VITE_OPENAI" not in body and "VITE_ANTHROPIC" not in body
-        assert "sk-" not in body
+        assert not key.search(body), path
 
 
 def test_an_unconfigured_generator_is_unavailable_not_a_default_model():

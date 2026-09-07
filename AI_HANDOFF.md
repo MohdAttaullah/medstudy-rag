@@ -2,134 +2,137 @@
 
 ## Current milestone
 
-**M8 is complete and verified, including one live OpenAI run.** Baseline `9965c4d` on branch `main`
-(M7 `5d83197`, M6 `2061000`, M5 `ecb4941`). All M8 work is uncommitted; nothing is staged — the user
-has not authorized a commit. **M9 has NOT started:** no conversations, no citations UI, no
-source-page highlighting, no streaming, and the production Ask experience is disabled.
+**M9 is complete and verified, including a live end-to-end OpenAI run with nothing stubbed.**
+Baseline `e85cecc` on branch `main` (M8 `e85cecc`, M7 `5d83197`, M6 `2061000`, M5 `ecb4941`). All M9
+work is uncommitted; nothing is staged — the user has not authorized a commit. **M10 has NOT
+started.**
 
-## What M8 is
+## What M9 is
 
-Claim-level verification between the M7 grounded draft and any released answer.
+The public Ask experience, connected to the M5–M8 chain without altering any stage in it.
 
 ```
 question → M5 retrieval → M6 rerank + evidence → M7 gate → M7 draft
-        → M8 claim extraction → deterministic checks → semantic verification → contradiction
-        → PASS (verified answer) / REGENERATE_ONCE (one repair, fully re-verified) / ABSTAIN
+        → M8 claim verification → PASS → verified answer + citations
+        ↘ any other outcome → typed refusal; no answer text anywhere
 ```
 
-`POST /api/v1/retrieval/answer` requires `retrieval:search` + `generation:draft` +
-`generation:verify`. An `INSUFFICIENT` or `CONFLICTING` gate still abstains; M8 never generates to
-overcome missing evidence.
+`POST /api/v1/ask` requires `ask:submit`. `GET /api/v1/conversations[/{id}]` requires
+`conversation:read`.
 
-- **Claims come from the answer text, not the generator's declarations.** A sentence the generator
-  omitted from its own claim list is extracted, found uncited and failed `CLAIM_NOT_CITED`. This is
-  the milestone's most important structural decision.
-- **Deterministic checks run first and bind.** Citation identity in *this* EvidenceSet, provenance
-  resolution, `(value, unit)` agreement, negation polarity, certainty overstatement, canonical table
-  headers, formula artifacts, figure abstention. A model is never asked to overrule one — a test
-  asserts the verifier recorded **zero calls** on a wrong-dose claim it would have approved.
-- **The verifier sees one claim and only its cited evidence.** No corpus, retrieval, web search,
-  rank or score. Strict verdict schema; prose is never the decision. Unknown evidence, malformed
-  output and provider failure all abstain.
-- **Contradiction covers uncited retained evidence** — the shape a generator creates by citing only
-  the source that agrees with it — plus reference-vs-reference disagreement and
-  assessment-vs-reference. Rank never breaks a tie.
-- **One repair, capped by type**, same evidence only, then the entire flow runs again. A second
-  failure abstains.
-- **`verified=true` exists in one place**: `VerifiedAnswer`, built only behind a PASS.
-  `answering_enabled` stays false. Failed verdicts are retained so an abstention is auditable.
+- **The display rule is unrepresentable to violate.** `AskResponse` validates that an answer exists
+  **iff** the outcome is `VERIFIED`, that `verified` agrees, and that a refusal carries no claims,
+  citations or sources. The stored view enforces the same on read, and two database CHECK
+  constraints enforce it underneath — a direct SQL insert of an answer on an unverified turn is
+  rejected by PostgreSQL.
+- **M9 decides nothing.** It reads the outcome M7 and M8 already reached. `RETRIEVAL_READY` still
+  means the corpus may participate in retrieval, not that any question is answerable.
+- **Five distinct outcomes**: verified, insufficient evidence, conflicting sources, unverified draft,
+  technical failure. An outage is never reported as missing evidence.
+- **Enablement is per-contract.** M5–M8 keep `answering_enabled: Literal[False]`; `AskResponse` pins
+  `Literal[True]`. `AskConfig.requires_verified_pass` is `Literal[True]` and `stream_answer_tokens`
+  is `Literal[False]` — no configuration relaxes either.
+- **No confidence figure exists anywhere.**
 
-Key modules: `backend/app/verification/{model,claims,deterministic,verifier,contradiction,engine}.py`,
-`core/verification_config.py`, `schemas/verification.py`, `services/verification.py`,
-`generation/prompts/repair.py`, `evaluation/verification.py`; frontend
-`features/retrieval/VerificationInspector.tsx`;
-`scripts/{evaluate_verification,smoke_m8,smoke_m8_live}.py`. See ADR-013 and
-`docs/architecture/verification.md`, `docs/verification/m8.md`.
+Key modules: `backend/app/{api/ask,core/ask_config,models/conversations,repositories/conversations,
+schemas/ask,services/ask}.py`; `migrations/versions/m9_conversations_*.py`; frontend
+`features/ask/{Ask,Answer}.tsx`; `scripts/{smoke_m9,smoke_m9_live}.py`. See ADR-014 and
+`docs/architecture/ask.md`, `docs/verification/m9.md`.
 
 ## Verified results (2026-09-07)
 
 | Check | Result |
 |---|---|
-| M8 focused (`MEDRAG_RUN_INTEGRATION=1`) | **52 passed** (42 units + 10 integration) |
-| Backend regression, seven disjoint fresh-process groups | **595 passed** (179+28+71+148+44+73+52) |
-| `ruff check` / `format --check` (`backend workers scripts`) | Passed / 225 files |
-| `mypy backend/app` | Success, 166 source files |
+| M9 focused (`MEDRAG_RUN_INTEGRATION=1`) | **64 passed** (43 units + 21 integration) |
+| Backend regression, eight fresh-process groups | **659 passed** (179+28+71+148+44+73+52+64) |
+| `ruff check` / `format --check` | Passed / 237 files |
+| `mypy backend/app` | Success, 172 source files |
 | `scripts/check_skills.py` | 9 synchronized pairs |
-| `alembic current` / `check` | `m5_hybrid_retrieval (head)` / no drift, **no M8 migration** |
-| Frontend tests / build | **54 passed** (9 files) / passed |
-| Playwright live | **13 passed**, incl. `verification.spec.ts` |
+| `alembic current` / `check` | **`m9_conversations (head)`** / no drift |
+| Migration round trip | `head → m5_hybrid_retrieval → head` passed |
+| Frontend tests / build | **69 passed** (10 files) / passed |
+| Playwright live | **15 passed**, incl. two new Ask specs |
 | Docker `--profile app up -d --wait` | 9 services healthy |
-| Smokes M1–M5, M6, M7, M8 × table/figure/question-bank | **PASS ×10** |
+| Smokes M1–M5, M6, M7, M8, M9 × 3 fixtures | **PASS ×11** |
 
-`pytest --collect-only` reports 595, so the partition covers the suite exactly. **Never attempt a
-monolithic single-process run** — this host has produced a native Docling access violation that way.
+`pytest --collect-only` reports 659, so the partition covers the suite exactly. **Never attempt a
+monolithic single-process run** — this host produces a native Docling access violation that way.
+**Run Playwright only against a drained ingestion queue**; the worker parses at
+`MAX_CONCURRENCY: 1` and concurrent regression load makes worker-dependent waits flake.
 
-Evaluation (`m8-verification-gold-v1`, 19 cases): **false PASS 0**, agreement 1.0000, abstention
-rate 0.7895, unsupported-claim detection 1.0, reason-code precision 1.0, repair cap respected.
-**Weak evidence:** the cases were written alongside the checks that decide them, in the same session.
+## Live end-to-end (nothing stubbed)
 
-**Browser flakiness, recorded not hidden.** Two full Playwright runs each failed one or two
-worker-dependent waits while a backend regression suite ran concurrently (worker parses at
-`MAX_CONCURRENCY: 1`). Each spec passed in isolation and the suite passed 13/13 on a drained queue.
-Host contention, not a product regression. Run Playwright when the ingestion queue is idle.
+`scripts/smoke_m9_live.py` generates a synthetic coherent document, uploads it, waits for real
+ingestion, then asks through the public endpoint — so M5, M6, M7, the real OpenAI generator, the real
+verifier, persistence and citation rendering all run.
 
-## Live provider verification
+Result: **VERIFIED**, `verified: true`, 1 citation resolving to 3 real source elements with a real
+bounding box on page 1. **13 656 ms** end to end — drafting 3 794 ms, verification 13 627 ms,
+retrieval + rerank + assembly ≈ 200 ms. One passing call proves the integration, not the model.
 
-2026-09-07, `scripts/smoke_m8_live.py` inside the API container, synthetic non-sensitive evidence:
-gate SUFFICIENT → real generator → claim extraction → deterministic checks → real verifier →
-**PASS**, `verified=true`, 1 of 1 material claims supported, **repair_count 1** (the first draft
-failed, the single repair succeeded and was re-verified in full). Generation 4139 ms, verification
-2244 ms, repair 2001 ms; extraction 0.6 ms. Prints no key, prompt or provider error body.
+Non-PASS branches were also exercised live: corpus fixtures return `INSUFFICIENT_EVIDENCE`, and a
+probe against the ingested parsing fixtures returned `UNVERIFIED` after the real generator and
+verifier ran, the deterministic layer rejecting `NEGATION_REVERSED`, `NUMERIC_MISMATCH` and
+`CLAIM_NOT_CITED`.
 
-**The verifier is currently the same model as the generator** (`gpt-5.6-sol`), because
-`MEDRAG_VERIFIER__*` is unset — recorded as `independent_of_generator: false` in every spec and
-warned in the inspector. Set `MEDRAG_VERIFIER__PROVIDER` / `MEDRAG_VERIFIER__MODEL_ID` for genuine
-independence. Anthropic remains verified against mocked transports only.
+The parsing fixtures are shaped to exercise the parser and their text is fragmentary, so a verifier
+correctly refuses claims drawn from them. **A live PASS needs a document written in coherent prose**
+— that is why the live smoke generates its own.
 
-## Defects found and fixed in M8
+## Persistence
 
-The first evaluation run produced two false PASSes and one unnecessary abstention. All three were
-real, and were fixed rather than relabelled:
+`m9_conversations` (revises `m5_hybrid_retrieval`): `conversations`, `conversation_turns`,
+`turn_citations`, all tenant-scoped with composite keys. Stored: question, outcome, answer only when
+verified, declared reason codes, model identity, timings, citation identifiers and the exact cited
+text. **Not stored**: prompts, provider responses, failed drafts, verifier reasoning, EvidenceSets.
 
-1. **A numeric claim drawn from a table skipped the table check.** `classify()` returns one type and
-   tests `NUMERIC` before `TABLE_DERIVED`, so a headerless table passed. `check_structured_evidence`
-   now inspects the blocks the claim *cites*, not its type label.
-2. **`check_negation` fired on claims containing no negation**, because no single sentence of a
-   structured block met the overlap bar and the fallback reported reversal rather than agreement.
-   It now requires a genuine polarity disagreement.
-3. **A fixture did not encode the conflict it named** — its key and reference were not lexically
-   about the same subject. Corrected; the underlying limitation (lexically distant contradictions
-   are missed) is recorded in the report.
+Citation text is stored rather than re-resolved, so a later re-parse cannot silently change what a
+stored answer appears to cite.
 
-Also fixed: the fake verifier did not mirror the real adapter's malformed-output handling, and a
-repaired draft citing invented evidence was reported as a phantom verifier fault instead of a
-citation failure.
+**The downgrade refuses while conversations exist.** Set `MEDRAG_ALLOW_CONVERSATION_LOSS=1` to
+acknowledge the loss — the integration harness sets it on its throwaway schema, which is why the
+suite can still prove reversibility.
+
+## Defects found and fixed in M9
+
+1. **Relaxing service-level authorization opened `/retrieval/search` to readers.** The shared
+   retrieval, drafting and verification stages must accept a reader's `ask:submit`, and that route
+   had no check of its own. It now enforces the scope its docstring already claimed. Every
+   diagnostic route needs its own check; the service check is not the boundary.
+2. **An unknown conversation id was detected only after a provider call.** Ownership is now resolved
+   before the pipeline runs.
+3. **A citation opened the citation's first page, not the page its region is on.**
+4. **Three obsolete assertions** in `App.test.tsx`, `workspace.spec.ts` and `retrieval.spec.ts` said
+   answering was unavailable — the thing M9 changes. Each was rewritten to the narrower invariant
+   that still holds, not deleted.
+5. **A crude `sk-` substring check** in an M7 test matched the new `ask-outcome` element id; it now
+   matches a key shape.
 
 ## Provider setup
 
 `MEDRAG_GENERATOR__PROVIDER` / `MEDRAG_GENERATOR__MODEL_ID`, optional `MEDRAG_VERIFIER__*`, and
-`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`. All optional: with none set the gate still runs and the
-draft stage reports `GENERATION_PROVIDER_UNCONFIGURED` — a declared unavailable state, not a
-fallback. Compose delivers keys to the **API container only**. **Never create a `VITE_` copy.** An
-empty `ANTHROPIC_API_KEY` does not prevent startup.
+`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`. All optional; with none set the pipeline still runs and the
+draft stage reports `GENERATION_PROVIDER_UNCONFIGURED`, which surfaces to the user as `FAILED`, not
+as missing evidence. Compose delivers keys to the **API container only**. **Never create a `VITE_`
+copy.** **The verifier is currently the same model as the generator** (`MEDRAG_VERIFIER__*` unset),
+recorded on every turn as `verifier_independent: false`.
 
 ## Infrastructure
 
-Alembic head `m5_hybrid_retrieval`; M8 adds no schema, migration or ingestion state, and persists
-nothing about a question, claim, verdict or answer. The private `retrieval` service publishes no
-host port. Rebuild app images after changing backend or frontend source — code is baked in.
-Playwright needs `MEDRAG_DEV_PRINCIPALS` exported from `.env` (single-quoted there — strip the
-quotes) plus `MEDRAG_E2E_LIVE=1`. Credentials stay in ignored `.env`; **never print them**.
+Alembic head `m9_conversations`. The private `retrieval` service publishes no host port. Rebuild app
+images after changing backend or frontend source — code is baked in. Playwright needs
+`MEDRAG_DEV_PRINCIPALS` exported from `.env` (single-quoted there — strip the quotes) plus
+`MEDRAG_E2E_LIVE=1`. Credentials stay in ignored `.env`; **never print them**.
 
 ## If you continue
 
-M8 is done; nothing is outstanding. Get explicit authorization before starting M9. What M8 leaves
-open: the verifier is not independent in this environment; deterministic checks are lexical and miss
-contradictions expressed in non-overlapping words; claim extraction is rule-based and will decompose
-unusual punctuation imperfectly; negation scope is approximated at sentence level; visually
-dependent claims always abstain; and no threshold anywhere is calibrated.
+M9 is done; nothing is outstanding. Get explicit authorization before starting M10. What M9 leaves
+open: the verifier is not independent; coverage is low because most questions against the ingested
+fixtures abstain; latency is provider-dominated at ~13.7 s and is not an SLO; streaming carries
+progress only; region highlighting depends on M2 having recorded a box; and conversations have no
+sharing, export, deletion or retention policy.
 
-Do not weaken a check to raise coverage. A false PASS emits a wrong medical answer; an unnecessary
-abstention emits nothing, and the two are not interchangeable. Preserve M5 analyzer/BM25/RRF/index
-semantics, M6 reranking and evidence semantics, and the M7 gate. Do not introduce score thresholds,
-query rewriting or a calibrated confidence figure.
+Do not weaken a check to raise coverage or to make the UI feel faster. An unverified answer shown to
+a reader is the failure this entire chain exists to prevent. Preserve M5 analyzer/BM25/RRF/index
+semantics, M6 reranking and evidence, the M7 gate and M8 verification. Do not introduce score
+thresholds, query rewriting, a calibrated confidence figure, or draft-token streaming.

@@ -12,6 +12,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, g
 from sqlalchemy import Integer, func, select
 from starlette.middleware.base import RequestResponseEndpoint
 
+from app.api.ask import router as ask_router
 from app.api.chunking import router as chunking_router
 from app.api.documents import router
 from app.api.embeddings import router as embedding_router
@@ -428,4 +429,5 @@ def create_app(
     app.include_router(chunking_router)
     app.include_router(embedding_router)
     app.include_router(retrieval_router)
+    app.include_router(ask_router)
     return app

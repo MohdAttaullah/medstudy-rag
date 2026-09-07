@@ -75,7 +75,7 @@ class GenerationService:
         correlation_id: UUID,
         filters: RetrievalFilters | None,
     ) -> dict[str, Any]:
-        actor.require("generation:draft")
+        actor.require_any("generation:draft", "ask:submit")
         if len(query) > self.settings.grounding.max_question_chars:
             raise GenerationError(
                 "GENERATION_NOT_PERMITTED", "The question exceeds the configured length."

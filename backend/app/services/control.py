@@ -5,6 +5,7 @@ from app.observability.ingestion import IngestionMetrics
 from app.observability.parsing import ParseMetrics
 from app.observability.retrieval import RetrievalMetrics
 from app.security.auth import AuthProvider, DevAuthProvider
+from app.services.ask import AskService
 from app.services.chunking import ChunkService
 from app.services.embedding import EmbeddingService
 from app.services.evidence import EvidenceService
@@ -66,4 +67,5 @@ class ControlPlane:
         self.evidence = EvidenceService(self.retrieval, settings)
         self.generation = GenerationService(self.evidence, settings)
         self.verification = VerificationService(self.generation, settings)
+        self.ask = AskService(self.verification, settings)
         self.jobs = JobService(sessions, storage)

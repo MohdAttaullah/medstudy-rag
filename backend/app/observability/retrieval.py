@@ -21,6 +21,12 @@ class RetrievalMetrics:
             ["status"],
             registry=registry,
         )
+        self.ask = Counter(
+            "ask_outcomes_total",
+            "M9 user-facing Ask outcomes",
+            ["outcome"],
+            registry=registry,
+        )
         self.verification = Counter(
             "answer_verification_outcomes_total",
             "M8 claim-verification outcomes",

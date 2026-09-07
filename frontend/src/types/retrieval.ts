@@ -199,3 +199,40 @@ export interface AnswerResponse extends Omit<DraftResponse, 'verified'> {
   verified_answer: VerifiedAnswer | null;
   verification_abstention: VerificationAbstention | null;
 }
+
+export type AskOutcome = 'VERIFIED' | 'INSUFFICIENT_EVIDENCE' | 'CONFLICTING_EVIDENCE' | 'UNVERIFIED' | 'FAILED';
+export interface CitationSpan {
+  element_id: string; page: number | null; start: number; end: number; role: string;
+  bbox: [number | null, number | null, number | null, number | null] | null;
+}
+export interface CitationArtifact {
+  artifact_id: string; kind: string; row_indexes: number[]; header_rows: number[]; image_available: boolean;
+}
+export interface AskCitation {
+  citation_id: string; ordinal: number; document_id: string; document_version_id: string;
+  parse_run_id: string; chunk_run_id: string; document_title: string; source_type: string;
+  authority_level: string; chunk_type: string; pages: number[];
+  spans: CitationSpan[]; artifacts: CitationArtifact[]; cited_text: string;
+}
+export interface AskSource {
+  document_id: string; document_version_id: string; parse_run_id: string; title: string;
+  source_type: string; authority_level: string; pages: number[]; citation_ids: string[];
+}
+export interface AskClaim { text: string; citation_ids: string[] }
+/** No confidence figure exists: an answer is verified or it is not shown. */
+export interface AskResponse {
+  correlation_id: string; conversation_id: string; turn_id: string; question: string;
+  outcome: AskOutcome; verified: boolean; answering_enabled: true;
+  answer: string | null; claims: AskClaim[]; citations: AskCitation[]; sources: AskSource[];
+  message: string; reason_codes: string[];
+  stages: {stage: string; duration_ms: number}[]; created_at: string;
+}
+export interface ConversationTurnView {
+  turn_id: string; sequence_number: number; question: string; outcome: AskOutcome;
+  verified: boolean; answer: string | null; message: string; reason_codes: string[];
+  citations: AskCitation[]; sources: AskSource[]; created_at: string;
+}
+export interface ConversationView {
+  conversation_id: string; title: string; created_at: string; updated_at: string;
+  turns: ConversationTurnView[];
+}

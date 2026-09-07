@@ -60,3 +60,10 @@ A separately authorized answer endpoint runs the M5–M7 stages unchanged, then 
 material claim in the draft before anything is released. No retrieval, fusion or reranker score
 participates in verification, and rank never decides which of two disagreeing sources is correct.
 See [verification](verification.md).
+
+## M9 delivery
+
+The public Ask endpoint runs the M5–M8 stages unchanged and adds no retrieval behaviour. Diagnostic
+retrieval endpoints keep their own scopes and still return `answering_enabled: false`; the shared
+stages accept either an inspector scope or `ask:submit`, so a reader's question can run them without
+the reader gaining the inspector's view. See [ask](ask.md).
