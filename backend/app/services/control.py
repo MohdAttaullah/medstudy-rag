@@ -1,12 +1,16 @@
+from copy import copy
+
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.configuration.registry import overlay
 from app.core.config import Settings
 from app.observability.ingestion import IngestionMetrics
 from app.observability.parsing import ParseMetrics
 from app.observability.retrieval import RetrievalMetrics
-from app.security.auth import AuthProvider, DevAuthProvider
+from app.security.auth import AuthProvider, DevAuthProvider, Principal
 from app.services.ask import AskService
 from app.services.chunking import ChunkService
+from app.services.configuration import ConfigurationService
 from app.services.embedding import EmbeddingService
 from app.services.evidence import EvidenceService
 from app.services.generation import GenerationService
@@ -69,3 +73,42 @@ class ControlPlane:
         self.verification = VerificationService(self.generation, settings)
         self.ask = AskService(self.verification, settings)
         self.jobs = JobService(sessions, storage)
+        self.configuration = ConfigurationService(sessions, settings)
+
+    def for_request(self, actor: Principal) -> "ControlPlane":
+        """Capture one revision before the pipeline; never mutate the shared service graph."""
+        settings, snapshot = self.configuration.resolve(actor)
+        runtime = snapshot.pop("runtime_values")
+        scoped = copy(self)
+        scoped.settings = settings
+        # Reuse immutable model adapters/caches while copying every policy-bearing service.
+        scoped.retrieval = copy(self.retrieval)
+        scoped.retrieval._encoder_factory = self.retrieval.encoder
+        scoped.retrieval.config = overlay(
+            self.settings.model_copy(update={"retrieval": self.retrieval.config}), runtime
+        ).retrieval
+        scoped.evidence = copy(self.evidence)
+        scoped.evidence.retrieval = copy(self.evidence.retrieval)
+        scoped.evidence.retrieval._encoder_factory = self.evidence.retrieval.encoder
+        scoped.evidence.retrieval.config = overlay(
+            self.settings.model_copy(update={"retrieval": self.evidence.retrieval.config}), runtime
+        ).retrieval
+        scoped.evidence.settings = overlay(self.evidence.settings, runtime)
+        scoped.generation = copy(self.generation)
+        scoped.generation.evidence = scoped.evidence
+        scoped.generation.settings = overlay(self.generation.settings, runtime)
+        scoped.generation.gate = copy(self.generation.gate)
+        if any(key.startswith("sufficiency.") for key in runtime):
+            scoped.generation.gate.config = scoped.generation.settings.sufficiency
+        scoped.verification = copy(self.verification)
+        scoped.verification.generation = scoped.generation
+        scoped.verification.settings = overlay(self.verification.settings, runtime)
+        if "generator" in runtime or "verifier" in runtime:
+            scoped.generation._provider = None
+            scoped.verification._provider = None
+            scoped.verification._verifier = None
+        scoped.ask = copy(self.ask)
+        scoped.ask.verification = scoped.verification
+        scoped.ask.settings = overlay(self.ask.settings, runtime)
+        scoped.ask.configuration_snapshot = snapshot
+        return scoped

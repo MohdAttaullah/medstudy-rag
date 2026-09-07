@@ -1,3 +1,10 @@
+# Current configuration management
+
+M10 adds [typed configuration management](configuration-management.md), including registry,
+precedence, tenant revisions, previews, pending rebuild values, audit and secret handling. The
+foundation notes below describe how individual policy groups originated; statements that there is
+no writable API are historical and are superseded by the M10 contract.
+
 # Configuration foundation
 
 `Settings` is injected through `create_app`, with `MEDRAG_` environment variables and `__` nested

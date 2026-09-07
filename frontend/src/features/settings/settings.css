@@ -1,0 +1,14 @@
+.settings-workspace { min-width: 0; }
+.settings-workspace input:not([type=checkbox]), .settings-workspace select { max-width: 100%; box-sizing: border-box; }
+.settings-sections, .settings-actions { display: flex; flex-wrap: wrap; gap: .55rem; margin: 1rem 0; }
+.settings-sections [aria-pressed=true] { outline: 2px solid #17645c; outline-offset: 2px; }
+.settings-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 1rem; }
+.setting-card, .settings-editor, .settings-history li { overflow-wrap: anywhere; min-width: 0; }
+.setting-card h2 { font-size: 1.05rem; }
+.setting-card dd { margin: .2rem 0 .7rem; }
+.setting-card dt { font-weight: 600; }
+.settings-confirm { display: flex; align-items: center; gap: .6rem; margin: 1rem 0; }
+.settings-confirm input { width: auto; }
+.settings-history { padding-left: 1.3rem; }
+.settings-history li { margin-bottom: 1.4rem; }
+.settings-editor label { display: block; margin-top: .6rem; }

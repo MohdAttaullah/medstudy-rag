@@ -62,6 +62,13 @@ Actor = Annotated[Principal, Depends(principal)]
 Service = Annotated[ControlPlane, Depends(control)]
 
 
+def configured_control(actor: Actor, service: Service) -> ControlPlane:
+    return service.for_request(actor)
+
+
+ConfiguredService = Annotated[ControlPlane, Depends(configured_control)]
+
+
 def correlation(request: Request) -> UUID:
     return UUID(request.state.request_id)
 

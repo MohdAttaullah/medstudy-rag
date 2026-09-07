@@ -16,7 +16,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from app.api.documents import Actor, Service, correlation
+from app.api.documents import Actor, ConfiguredService, Service, correlation
 from app.repositories.conversations import ConversationRepository
 from app.retrieval.model import RetrievalFilters
 from app.schemas.ask import (
@@ -44,7 +44,9 @@ def _filters(body: AskRequest) -> RetrievalFilters | None:
 
 
 @router.post("/ask", response_model=AskResponse)
-async def ask(body: AskRequest, request: Request, actor: Actor, service: Service) -> AskResponse:
+async def ask(
+    body: AskRequest, request: Request, actor: Actor, service: ConfiguredService
+) -> AskResponse:
     """Answer an educational question from the indexed corpus, or explain why it was not answered.
 
     Runs the whole verified pipeline — retrieval, reranking, evidence assembly, the sufficiency

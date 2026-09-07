@@ -88,3 +88,11 @@ bodies. Correlation/resource UUIDs are diagnostic identifiers, not evidence or a
 Metrics use bounded labels. Health/metrics remain unauthenticated on loopback development ports.
 Future corpus/model boundaries must treat document instructions as untrusted and preserve grounding
 and tenant isolation. No compliance certification follows from these controls.
+
+
+## M10 configuration
+
+`settings:read` and `settings:write` are admin-only and tenant-scoped; curators and readers hold
+neither. Shared SYSTEM-scope fields are read-only. Backend registry validation, revision checks and
+mandatory auditing govern every change. Secrets are managed externally and never returned; see
+[configuration management](configuration-management.md).

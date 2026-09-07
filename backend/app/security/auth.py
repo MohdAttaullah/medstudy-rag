@@ -40,7 +40,7 @@ ROLE_PERMISSIONS = {
     # draft, a lane score or a verifier verdict.
     "reader": frozenset({"document:read", "ingestion:read", "ask:submit", "conversation:read"}),
     "curator": PERMISSIONS,
-    "admin": PERMISSIONS | {"audit:read"},
+    "admin": PERMISSIONS | {"audit:read", "settings:read", "settings:write"},
 }
 
 

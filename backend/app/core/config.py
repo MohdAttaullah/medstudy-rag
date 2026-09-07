@@ -122,6 +122,8 @@ class Settings(BaseSettings):
     grounding: GroundingConfig = GroundingConfig()
     provider: ProviderConfig = ProviderConfig()
     dev_principals: tuple[DevCredential, ...] = ()
+    # Operator-controlled allowlist; never accepted from the settings API.
+    approved_models: tuple[ModelSelection, ...] = ()
     generator: ModelSelection | None = None
     verifier: ModelSelection | None = None
 

@@ -89,6 +89,7 @@ class ConversationRepository:
         verifier_independent: bool | None,
         durations: dict[str, Any],
         citations: list[dict[str, Any]],
+        configuration_snapshot: dict[str, Any] | None = None,
     ) -> ConversationTurn:
         turn = ConversationTurn(
             id=uuid4(),
@@ -112,6 +113,7 @@ class ConversationRepository:
             verifier_model=verifier_model,
             verifier_independent=verifier_independent,
             durations_ms=durations,
+            configuration_snapshot=configuration_snapshot,
         )
         self.session.add(turn)
         self.session.flush()

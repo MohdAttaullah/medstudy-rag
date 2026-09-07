@@ -207,3 +207,11 @@ generator unconfigured — a declared unavailable state, not a fallback to some 
 the stack starts and the sufficiency gate still runs without any provider account. No provider call
 is made unless the gate returns SUFFICIENT. Keys are never baked into an image; a `VITE_`-prefixed
 copy would be compiled into the browser bundle and is forbidden.
+
+
+## M10 configuration
+
+M10 requires migration `m10_configuration` before the API starts. `MEDRAG_APPROVED_MODELS` and
+explicit verifier selection are delivered only to the API. Rebuild the API and frontend images.
+Runtime tenant overrides are read per request; shared restart settings stay externally managed. No
+restart or rebuild control is exposed in the UI.

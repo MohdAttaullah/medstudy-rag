@@ -125,3 +125,11 @@ UNVERIFIED and FAILED. Structured logs carry the correlation id, the outcome and
 codes. The question, the answer, citation text, source content and every API key stay out of both
 logs and metric labels. Stage timings are returned to the caller as bounded labels rather than
 lane scores.
+
+
+## M10 configuration
+
+`configuration_changes_total` uses bounded ACTIVE/PENDING_REBUILD/REJECTED labels drawn from durable
+audit events, and `configuration_pending_rebuild` counts pending keys in the latest tenant
+revisions. Logs omit old and new values; successful audit rows retain the allowlisted policy
+changes. Rejected arbitrary values, secrets and invalid bodies are never recorded.

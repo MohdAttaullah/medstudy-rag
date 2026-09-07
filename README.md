@@ -13,12 +13,13 @@ provider-independent grounded drafting, where generation is attempted only when 
 SUFFICIENT and a draft is explicitly unverified; M8 adds claim-level verification, where a draft
 becomes an answer only if every material claim survives citation, provenance, numeric, negation and
 support checks, with at most one repair; M9 adds the Ask experience, where a verified answer is
-delivered with its citations and every other outcome is an explained refusal. Successful jobs stop
-at **RETRIEVAL_READY**, which
-means both retrieval lanes verified over the same chunk dataset — **not** that the document is
-answerable. Retrieval returns ranked evidence candidates with their provenance, and the EvidenceSet
-is source material for inspection, not a judgment that the evidence suffices. Medical answering
-remains disabled.
+delivered with its citations and every other outcome is an explained refusal; M10 adds authorized,
+versioned tenant configuration with explicit runtime/rebuild lifecycles and immutable safety rules.
+Successful jobs stop at **RETRIEVAL_READY**, which means both retrieval lanes verified over the same
+chunk dataset — **not** that the document is answerable. Retrieval returns ranked evidence candidates
+with their provenance, and the EvidenceSet is source material for inspection, not a judgment that the
+evidence suffices. Only the verified Ask contract can deliver answers; diagnostic endpoints remain
+non-answering.
 
 The stack is FastAPI/Pydantic/SQLAlchemy, React/TypeScript/Vite/TanStack Query, PostgreSQL,
 Redis/Celery, MinIO/S3, Docling and Qdrant, with OpenAI and Anthropic reached only through isolated
@@ -184,3 +185,19 @@ This is a local development implementation: development bearer identities are no
 basic PDF checks are not antivirus, parse-, chunk- and index-quality thresholds are uncalibrated
 defaults chosen against synthetic fixtures, retrieval quality has not been measured at all, and
 there is no clinical validation or compliance certification.
+
+
+## Configuration administration (M10)
+
+Open `/settings` with an admin account. The ten sections project approved typed settings from the
+backend registry. Preview and confirm runtime policy changes; subsequent tenant requests use one
+immutable revision. Chunk/analyzer proposals stay pending until the established external rebuild
+and activation workflow is completed; this UI does not restart services or rebuild indexes.
+
+Shared runtime settings and safety requirements are read-only. API keys are managed externally;
+only credential presence is shown. `MEDRAG_APPROVED_MODELS` provides an operator-owned JSON list
+of approved provider/model pairs; configured generator/verifier pairs are included automatically.
+Migration `m10_configuration` is required before starting the updated API.
+
+See [configuration management](docs/architecture/configuration-management.md),
+[ADR-015](docs/adr/015-m10-controlled-configuration.md) and [verification](docs/verification/m10.md).

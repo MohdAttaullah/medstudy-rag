@@ -14,6 +14,7 @@ from starlette.middleware.base import RequestResponseEndpoint
 
 from app.api.ask import router as ask_router
 from app.api.chunking import router as chunking_router
+from app.api.configuration import router as configuration_router
 from app.api.documents import router
 from app.api.embeddings import router as embedding_router
 from app.api.parsing import router as parsing_router
@@ -27,7 +28,8 @@ from app.models.chunking import (
     ChunkValidationFinding,
     QuestionArtifact,
 )
-from app.models.documents import IngestionJob, IngestionStageEvent
+from app.models.configuration import ConfigurationRevision
+from app.models.documents import AuditEvent, IngestionJob, IngestionStageEvent
 from app.models.embeddings import (
     ChunkEmbedding,
     EmbeddingRun,
@@ -42,7 +44,7 @@ from app.models.retrieval import (
     SparseTerm,
     SparseValidationFinding,
 )
-from app.observability.ingestion import IngestionMetrics
+from app.observability.ingestion import IngestionMetrics, audit
 from app.observability.retrieval import RetrievalMetrics
 from app.services.control import ControlPlane
 from app.services.health import DependencyProbe, InfrastructureProbe
@@ -50,6 +52,49 @@ from app.services.storage import S3ObjectStorage
 from app.vectorindex.qdrant import QdrantVectorIndex
 
 logger = logging.getLogger("medical_rag.requests")
+
+
+def _configuration_metric_lines(service: ControlPlane) -> list[str]:
+    with service.sessions() as session:
+        events = session.execute(
+            select(AuditEvent.event_type, func.count())
+            .where(
+                AuditEvent.event_type.in_(
+                    (
+                        "CONFIGURATION_ACTIVE",
+                        "CONFIGURATION_PENDING_REBUILD",
+                        "CONFIGURATION_REJECTED",
+                    )
+                )
+            )
+            .group_by(AuditEvent.event_type)
+        ).all()
+        latest = (
+            select(
+                ConfigurationRevision.tenant_id,
+                func.max(ConfigurationRevision.revision).label("revision"),
+            )
+            .group_by(ConfigurationRevision.tenant_id)
+            .subquery()
+        )
+        pending = session.scalars(
+            select(ConfigurationRevision).join(
+                latest,
+                (ConfigurationRevision.tenant_id == latest.c.tenant_id)
+                & (ConfigurationRevision.revision == latest.c.revision),
+            )
+        ).all()
+        pending_count = sum(len(row.desired_values) for row in pending)
+    return [
+        "# TYPE configuration_changes_total counter",
+        *[
+            f'configuration_changes_total{{result="{event.removeprefix("CONFIGURATION_")}"}} '
+            f"{count}"
+            for event, count in events
+        ],
+        "# TYPE configuration_pending_rebuild gauge",
+        f"configuration_pending_rebuild {pending_count}",
+    ]
 
 
 def _parse_metric_lines(service: ControlPlane) -> list[str]:
@@ -321,6 +366,30 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        if request.url.path == "/api/v1/settings/changes" and request.app.state.control is not None:
+            from starlette.concurrency import run_in_threadpool
+
+            def record_invalid_configuration() -> None:
+                service = request.app.state.control
+                try:
+                    actor = service.auth.authenticate(request.headers.get("Authorization"))
+                except DomainError:
+                    return
+                with service.sessions.begin() as session:
+                    from app.repositories.documents import ensure_actor
+
+                    ensure_actor(session, actor)
+                    audit(
+                        session,
+                        actor.tenant_id,
+                        actor.user_id,
+                        "CONFIGURATION_REJECTED",
+                        None,
+                        UUID(request.state.request_id),
+                        {"result": "INVALID_REQUEST", "scope": "TENANT"},
+                    )
+
+            await run_in_threadpool(record_invalid_configuration)
         # Never return Pydantic input values, raw header tokens or document metadata in errors.
         return JSONResponse(
             {
@@ -417,7 +486,7 @@ def create_app(
                 "# TYPE ingestion_jobs_failed_total counter",
                 f"ingestion_jobs_failed_total {failures}",
             ]
-            lines += _parse_metric_lines(service)
+            lines += _parse_metric_lines(service) + _configuration_metric_lines(service)
             lines += _chunk_metric_lines(service)
             lines += _index_metric_lines(service)
             lines += _retrieval_metric_lines(service)
@@ -430,4 +499,5 @@ def create_app(
     app.include_router(embedding_router)
     app.include_router(retrieval_router)
     app.include_router(ask_router)
+    app.include_router(configuration_router)
     return app

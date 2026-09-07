@@ -85,6 +85,9 @@ services:
       # the shared anchor: the dispatcher, worker, retrieval runtime and frontend have no use for
       # them, and a key that is never delivered cannot leak from those containers. Empty by
       # default, which leaves the generator unconfigured rather than falling back to a model.
+      MEDRAG_APPROVED_MODELS: ${MEDRAG_APPROVED_MODELS:-[]}
+      MEDRAG_VERIFIER__PROVIDER: ${MEDRAG_VERIFIER__PROVIDER:-}
+      MEDRAG_VERIFIER__MODEL_ID: ${MEDRAG_VERIFIER__MODEL_ID:-}
       MEDRAG_GENERATOR__PROVIDER: ${MEDRAG_GENERATOR__PROVIDER:-}
       MEDRAG_GENERATOR__MODEL_ID: ${MEDRAG_GENERATOR__MODEL_ID:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}

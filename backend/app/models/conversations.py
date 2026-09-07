@@ -88,6 +88,7 @@ class ConversationTurn(UUIDTimestampMixin, Base):
         # of spending another provider call.
         UniqueConstraint("tenant_id", "idempotency_key", name="uq_turn_idempotency"),
     )
+    configuration_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
     conversation_id: Mapped[UUID] = mapped_column(index=True)
     created_by_user_id: Mapped[UUID]

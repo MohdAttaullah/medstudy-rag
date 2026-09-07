@@ -1,5 +1,35 @@
 # Changelog
 
+## M10 - 2026-09-07
+
+- Added authorized, versioned tenant configuration: an explicit typed registry of 125 settings
+  across ten sections, projected from the existing M3-M9 policies rather than serialized from
+  Settings, so no environment variable, endpoint or credential is editable through it.
+- Gave every setting a backend-owned lifecycle and made the frontend render that classification
+  instead of deriving its own. 43 settings are editable; the other 82 are read-only, and 61 of
+  those are architectural invariants an administrator cannot weaken.
+- Refused to make safety optional. There is no control anywhere to disable the sufficiency gate,
+  disable claim verification, release unverified answers, stream unverified tokens, treat
+  pretrained knowledge as evidence or search partial ingestion. The gate thresholds that are
+  editable already sit at their floor, so every reachable change makes the gate stricter.
+- Separated what a change activates from what it merely proposes. Runtime-safe changes apply to
+  subsequent requests through a copied service graph; chunk and analyzer changes stay pending and
+  never move an effective value, because this system does not rebuild an index to match a
+  dropdown.
+- Stored tenant policy as append-only revisions with a database trigger that rejects any mutation
+  of history, optimistic revision checks, tenant row locking and preview digests, so two
+  administrators cannot silently overwrite each other and a browser cannot preview one value and
+  submit another under the old approval.
+- Captured one immutable policy snapshot per request and stored it with the Ask turn, so a
+  historical verified answer stays traceable to the configuration that produced it.
+- Declined to let a configuration surface tighten the policy it exposes. A validation rule that
+  looked reasonable in isolation would have rejected an evidence budget that M6 explicitly permits
+  and tests; it was removed, while the two rules M5 genuinely declares were kept and documented as
+  M5's own.
+- Kept credentials out entirely: presence is shown, values never are, approved model pairs come
+  only from server startup configuration, and a change reason that contains a credential is
+  refused rather than written into audit history.
+
 ## M9 - 2026-09-07
 
 - Added the public Ask endpoint and page: the first surface in this system that may show a medical

@@ -15,7 +15,7 @@ from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.documents import Actor, Service, correlation, job
+from app.api.documents import Actor, ConfiguredService, Service, correlation, job
 from app.api.embeddings import page
 from app.core.errors import DomainError
 from app.models.chunking import Chunk
@@ -71,7 +71,9 @@ def _filters(
 
 
 @router.post("/retrieval/search", response_model=SearchResponse)
-def search(body: SearchRequest, request: Request, actor: Actor, service: Service) -> SearchResponse:
+def search(
+    body: SearchRequest, request: Request, actor: Actor, service: ConfiguredService
+) -> SearchResponse:
     """Return ranked evidence candidates. This endpoint never generates or summarises anything."""
     # Enforced here as well as in the service. The stage itself also runs for an ordinary reader
     # asking a question through /ask, so the scope that keeps this diagnostic view closed to them
@@ -81,7 +83,7 @@ def search(body: SearchRequest, request: Request, actor: Actor, service: Service
         actor,
         body.query,
         correlation(request),
-        mode=body.mode,
+        mode=body.mode if "mode" in body.model_fields_set else None,
         top_k=body.top_k,
         filters=_filters(body),
     )
@@ -168,7 +170,7 @@ def _lane(hit: Any) -> LaneHitView:
 
 
 @router.get("/retrieval/status", response_model=RetrievalStatusView)
-def status(actor: Actor, service: Service) -> RetrievalStatusView:
+def status(actor: Actor, service: ConfiguredService) -> RetrievalStatusView:
     """What this tenant could search, and under which versions, without running a query."""
     actor.require("retrieval:search")
     settings = service.settings
@@ -362,7 +364,9 @@ def reindex_sparse(
 
 
 @router.post("/retrieval/rerank", response_model=RerankResponse)
-def rerank(body: RerankRequest, request: Request, actor: Actor, service: Service) -> dict[str, Any]:
+def rerank(
+    body: RerankRequest, request: Request, actor: Actor, service: ConfiguredService
+) -> dict[str, Any]:
     actor.require("retrieval:search")
     if body.mode not in (None, "HYBRID_RRF"):
         raise DomainError("INVALID_REQUEST", "M6 requires hybrid retrieval.", 422)
@@ -371,7 +375,7 @@ def rerank(body: RerankRequest, request: Request, actor: Actor, service: Service
 
 @router.post("/retrieval/draft", response_model=DraftResponse)
 async def draft(
-    body: DraftRequest, request: Request, actor: Actor, service: Service
+    body: DraftRequest, request: Request, actor: Actor, service: ConfiguredService
 ) -> dict[str, Any]:
     """Retrieve, rerank, gate, and generate a grounded draft only if the gate permits it.
 
@@ -385,7 +389,7 @@ async def draft(
 
 @router.post("/retrieval/answer", response_model=AnswerResponse)
 async def answer(
-    body: AnswerRequest, request: Request, actor: Actor, service: Service
+    body: AnswerRequest, request: Request, actor: Actor, service: ConfiguredService
 ) -> dict[str, Any]:
     """Retrieve, gate, draft, then verify every material claim before anything is released.
 

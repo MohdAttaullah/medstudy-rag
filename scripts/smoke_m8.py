@@ -72,7 +72,11 @@ def main() -> None:
         outcome: dict[str, object]
         if response.status_code == 200:
             data = response.json()
-            assert data["answering_enabled"] is False and data["verified"] is False
+            # `answering_enabled` is the invariant: this diagnostic endpoint never answers.
+            # `verified` is an outcome, not an invariant -- whether this fixture's claims survive
+            # verification is the live verifier's decision. Its relationship to the released
+            # answer is asserted below, where it belongs.
+            assert data["answering_enabled"] is False
             decision = data["sufficiency"]
             assert decision["status"] in {"SUFFICIENT", "INSUFFICIENT", "CONFLICTING"}
             assert decision["policy_fingerprint"] and decision["evaluated_signals"]

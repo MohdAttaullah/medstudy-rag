@@ -9,6 +9,7 @@ import { DocumentDetails } from './features/documents/DocumentDetails';
 import { AccessGate, SessionProvider } from './features/library/Session';
 import { Jobs } from './features/operations/Jobs';
 import { ParseInspector } from './features/parsing/ParseInspector';
+import { SettingsPage } from './features/settings/Settings';
 import { Ask } from './features/ask/Ask';
 
 const navigation = [
@@ -47,7 +48,7 @@ function Workspace() {
         <NavLink key={path} to={`/${path}`}>{label}</NavLink>)}</nav>
       <div className="sidebar-note">Educational use<br /><span>Not for patient diagnosis or treatment.</span></div>
     </aside>
-    <div className="content"><header><span>Knowledge workspace</span><span className="badge">M6 / Evidence</span></header>
+    <div className="content"><header><span>Knowledge workspace</span><span className="badge">M10 / Configuration</span></header>
       <main id="main" tabIndex={-1}><Routes>
         <Route path="/" element={<Navigate to="/ask" replace />} />
         <Route path="/ask" element={<Ask />} />
@@ -56,7 +57,7 @@ function Workspace() {
         <Route path="/index-runs/:runId" element={<IndexInspector />} />
         <Route path="/documents/:id" element={<DocumentDetails />} />
         <Route path="/documents/:id/versions/:versionId/parse/:runId" element={<ParseInspector />} />
-        <Route path="/settings" element={<PlannedPage title="Settings" description="Versioned configuration for chunking, retrieval, models, and evidence policy." />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/evaluations" element={<PlannedPage title="Evaluations" description="Measure retrieval, citation support, and appropriate abstention independently." />} />
         <Route path="/retrieval" element={<RetrievalInspector />} />
         <Route path="/operations" element={<Operations />} />

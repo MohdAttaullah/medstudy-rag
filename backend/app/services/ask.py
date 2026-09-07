@@ -98,6 +98,7 @@ STAGE_LABELS = {
 class AskService:
     def __init__(self, verification: VerificationService, settings: Settings) -> None:
         self.verification, self.settings = verification, settings
+        self.configuration_snapshot: dict[str, Any] | None = None
 
     async def ask(
         self,
@@ -224,6 +225,7 @@ class AskService:
                 verifier_independent=verifier.get("independent_of_generator"),
                 durations=payload.get("durations_ms") or {"pipeline_total_ms": total},
                 citations=citations,
+                configuration_snapshot=self.configuration_snapshot,
             )
             stored = repository.citations(turn.id)
             claims = self._claims(answer, stored) if outcome == "VERIFIED" else []

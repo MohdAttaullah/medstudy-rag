@@ -214,3 +214,10 @@ constraints put the display rule in the schema: `answer_text` exists exactly whe
 VERIFIED, and `verified` agrees with the outcome. Prompts, provider responses, failed drafts,
 verifier reasoning and EvidenceSets are not persisted. Alembic head is `m9_conversations`; its
 downgrade refuses while history exists unless the loss is explicitly acknowledged.
+
+
+## M10 configuration
+
+M10 adds append-only `configuration_revisions` (tenant/revision uniqueness and an actor/tenant
+foreign key) and a nullable `conversation_turns.configuration_snapshot`. A PostgreSQL trigger
+rejects history mutation; a populated downgrade is guarded. See ADR-015.
