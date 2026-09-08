@@ -156,3 +156,41 @@ Redis (empty is correct) → API and worker.
    changes — history is immutable, so it cannot have been edited to hide activity.
 5. If a provider key leaked, revoke it at the provider; this system never persists provider
    responses, so no additional cleanup of stored data is required.
+
+## Start a clean local testing workspace (development only)
+
+**Problem.** The local development tenant accumulated ~183 synthetic fixtures during M0–M12
+("Browser fixture…", "Parse fixture…", "M8 synthetic verification smoke…"). They are useful
+engineering evidence and should not be mixed with a real testing corpus.
+
+**Solution — an additional tenant, not a deletion.** `MEDRAG_DEV_PRINCIPALS` is a list of
+credentials that each carry their own `tenant_id`, and `ensure_actor` creates the tenant and user
+rows idempotently on the first authenticated request. A clean Library therefore needs no migration,
+no deletion and no new endpoint — only two more credentials pointing at an unused tenant id.
+
+```bash
+uv run python scripts/create_clean_dev_workspace.py            # dry run; shows the plan
+uv run python scripts/create_clean_dev_workspace.py --apply
+docker compose --profile app --profile workers up -d --force-recreate api
+```
+
+Then sign in with the new **curator** key from `.local/dev-access.txt` (git-ignored).
+
+**Why this rather than deleting the fixtures.** Deletion is the one workflow this repository
+deliberately has not built: a verified answer is bound by database CHECK constraints to the
+citations it was verified against, so erasing a source while keeping the answer leaves verified text
+with no evidence behind it. See [retention](architecture/retention.md). Adding a tenant sidesteps
+that question entirely instead of answering it by accident, and it is instantly reversible — the old
+workspace is reachable again by pasting its original key.
+
+**Safety.** The script defaults to a dry run, refuses when `MEDRAG_ENVIRONMENT=production`, refuses
+when `MEDRAG_AUTH__MODE` is not `development`, backs `.env` up before writing, preserves every
+existing credential, prints only a four-character key fingerprint rather than a token, and deletes
+nothing — no document, object, vector, index or audit record is touched.
+
+**Switching back.** Sign out (or refresh the page) and paste the other workspace's key.
+`--list` shows every configured workspace with its document count and key fingerprints.
+
+**Expected on an empty workspace.** Asking a question before uploading anything returns
+`FAILED` with reason `RETRIEVAL_CORPUS_EMPTY`. That is the M5 fail-closed behaviour for a tenant
+with no indexed corpus, not a fault; it resolves once a document reaches `RETRIEVAL_READY`.
