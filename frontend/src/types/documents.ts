@@ -19,3 +19,4 @@ export interface Job {
 export interface Page<T> { items: T[]; total: number; offset: number; limit: number }
 export interface UploadResult { document_id: string; version_id: string; job_id: string; status: string; replayed: boolean }
 export interface Identity { user_id: string; display_name: string; role: string; permissions: string[]; auth_mode: string }
+export interface UploadLimits { max_upload_bytes: number; max_upload_mib: number; allowed_mime_types: string[]; files_per_request: number }

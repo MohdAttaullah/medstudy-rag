@@ -6,6 +6,12 @@ x-api-environment: &api-environment
   # HTTPS origins, offline-pinned models, and non-localhost backing services. See
   # docs/architecture/production-deployment.md; a real deployment sets this from its pipeline
   # rather than inheriting an image default.
+  # Upload ceiling. `MEDRAG_INGESTION__MAX_UPLOAD_BYTES` is what the application enforces;
+  # `MEDRAG_MAX_UPLOAD_MB` is what nginx renders into client_max_body_size. They are set from the
+  # same intent here and checked for agreement by scripts/production_preflight.py, because a
+  # proxy limit below the application limit turns an acceptable upload into an opaque 413.
+  MEDRAG_INGESTION__MAX_UPLOAD_BYTES: ${MEDRAG_INGESTION__MAX_UPLOAD_BYTES:-536870912}
+  MEDRAG_INGESTION__UPLOAD_TIMEOUT_SECONDS: ${MEDRAG_UPLOAD_TIMEOUT_SECONDS:-1800}
   MEDRAG_ENVIRONMENT: ${MEDRAG_ENVIRONMENT:-development}
   MEDRAG_AUTH__MODE: ${MEDRAG_AUTH__MODE:-development}
   MEDRAG_DEV_PRINCIPALS: ${MEDRAG_DEV_PRINCIPALS:-[]}
@@ -115,6 +121,11 @@ services:
     build:
       context: .
       dockerfile: infrastructure/docker/frontend.Dockerfile
+    environment:
+      # Rendered into client_max_body_size. Kept a little above the application's 512 MiB so the
+      # application, not the proxy, is what refuses an oversized upload.
+      MEDRAG_MAX_UPLOAD_MB: ${MEDRAG_MAX_UPLOAD_MB:-520}
+      MEDRAG_UPLOAD_TIMEOUT_SECONDS: ${MEDRAG_UPLOAD_TIMEOUT_SECONDS:-1800}
     ports: ["127.0.0.1:5173:8080"]
     depends_on:
       api: {condition: service_healthy}

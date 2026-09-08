@@ -17,6 +17,7 @@ Exit codes: 0 all checks passed, 1 a blocking check failed, 2 the configuration 
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -189,6 +190,83 @@ def check_limits(report: Report, settings: Any) -> None:
     )
 
 
+def check_upload_limits(report: Report, settings: Any) -> None:
+    """The application limit and the reverse-proxy limit must agree.
+
+    A proxy ceiling below the application's turns an acceptable upload into an opaque 413 that
+    never reaches the application, which is exactly how a 153 MiB textbook was rejected while the
+    configured limit said 128 MiB. Both are read from the environment the deployment supplies, so
+    a mismatch is caught before it reaches a user.
+    """
+    config = settings.ingestion
+    app_bytes = config.max_upload_bytes
+    report.add(
+        "upload.application_limit",
+        OK,
+        f"{app_bytes // (1024 * 1024)} MiB per file (and per request: one PDF per request)",
+    )
+
+    raw = os.environ.get("MEDRAG_MAX_UPLOAD_MB", "").strip()
+    if not raw:
+        report.add(
+            "upload.proxy_limit",
+            WARN,
+            "MEDRAG_MAX_UPLOAD_MB is unset; the proxy falls back to its image default. Set it "
+            "from the same value as the application limit.",
+        )
+        return
+    try:
+        proxy_bytes = int(raw) * 1024 * 1024
+    except ValueError:
+        report.add("upload.proxy_limit", FAIL, f"MEDRAG_MAX_UPLOAD_MB is not a number: {raw!r}")
+        return
+    if proxy_bytes < app_bytes:
+        report.add(
+            "upload.proxy_limit",
+            FAIL,
+            f"proxy allows {raw} MiB but the application accepts "
+            f"{app_bytes // (1024 * 1024)} MiB; the proxy would reject uploads the application "
+            "would have taken",
+        )
+    else:
+        headroom = (proxy_bytes - app_bytes) // (1024 * 1024)
+        report.add(
+            "upload.proxy_limit",
+            OK,
+            f"proxy allows {raw} MiB, {headroom} MiB above the application limit",
+        )
+
+    timeout = config.upload_timeout_seconds
+    proxy_timeout = os.environ.get("MEDRAG_UPLOAD_TIMEOUT_SECONDS", "").strip()
+    if proxy_timeout.isdigit() and int(proxy_timeout) < timeout:
+        report.add(
+            "upload.proxy_timeout",
+            FAIL,
+            f"proxy read timeout {proxy_timeout}s is below the application's {timeout}s; a slow "
+            "large upload would be cut off by the proxy",
+        )
+    else:
+        report.add("upload.proxy_timeout", OK, f"application allows {timeout}s per upload")
+
+
+def check_worker_bounds(report: Report, settings: Any) -> None:
+    """Accepting a large upload is not the same as being able to parse it."""
+    parsing = settings.parsing
+    report.add(
+        "worker.parse_timeout",
+        OK,
+        f"parser {parsing.timeout_seconds}s < soft task {parsing.task_soft_timeout_seconds}s "
+        f"< hard task {parsing.task_timeout_seconds}s",
+    )
+    report.add("worker.max_pages", OK, f"{parsing.max_pages} pages per document")
+    report.add(
+        "worker.concurrency",
+        OK if parsing.max_concurrency == 1 else WARN,
+        f"{parsing.max_concurrency} concurrent parse(s) per worker"
+        + ("" if parsing.max_concurrency == 1 else "; models are memory-heavy, prefer 1 per pod"),
+    )
+
+
 def check_models(report: Report, settings: Any) -> None:
     """Model identity and offline pinning. Never downloads and never loads weights."""
     for name, policy in (
@@ -292,6 +370,8 @@ def main() -> None:
         check_secrets(report, settings)
         check_network(report, settings)
         check_limits(report, settings)
+        check_upload_limits(report, settings)
+        check_worker_bounds(report, settings)
         check_models(report, settings)
         check_safety_invariants(report, settings)
         if args.check_provider:

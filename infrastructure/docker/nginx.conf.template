@@ -1,0 +1,33 @@
+# Rendered at container start by the nginx image's envsubst entrypoint, so the request ceiling
+# comes from the same MEDRAG_MAX_UPLOAD_MB the application reads. Two hardcoded numbers is how
+# the proxy ended up rejecting a 153 MiB textbook the application would have accepted.
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    access_log off;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy no-referrer always;
+
+    # Headroom over the application limit. The browser sends one PDF as the raw request body with
+    # no multipart envelope, so the overhead is only headers -- but a proxy that rejects at
+    # exactly the application limit turns an accepted upload into an opaque 413, and the
+    # application must be the component that decides.
+    client_max_body_size ${MEDRAG_MAX_UPLOAD_MB}m;
+    large_client_header_buffers 4 16k;
+
+    location /api/v1/ {
+        proxy_pass http://api:8000;
+        # Stream the body straight through. Buffering a 512 MiB upload to proxy disk first would
+        # double the write and delay every byte reaching the application's own size check.
+        proxy_request_buffering off;
+        proxy_read_timeout ${MEDRAG_UPLOAD_TIMEOUT_SECONDS}s;
+        proxy_send_timeout ${MEDRAG_UPLOAD_TIMEOUT_SECONDS}s;
+        proxy_set_header X-Request-ID $http_x_request_id;
+    }
+    location /api/ {
+        proxy_pass http://api:8000/;
+        proxy_set_header X-Request-ID $http_x_request_id;
+    }
+    location / { try_files $uri $uri/ /index.html; }
+}

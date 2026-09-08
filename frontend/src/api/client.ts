@@ -8,6 +8,19 @@ export function decodeError(body: unknown): ApiError {
   }
   return new ApiError('REQUEST_FAILED', 'The request could not be completed.');
 }
+export function nonJsonError(status: number): ApiError {
+  if (status === 413) {
+    return new ApiError(
+      'UPLOAD_FILE_TOO_LARGE',
+      'This PDF is larger than the server accepts. Check the maximum file size shown above the file picker.',
+    );
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return new ApiError('SERVICE_UNAVAILABLE', 'The service is not available right now. Try again shortly.');
+  }
+  if (status === 0) return new ApiError('NETWORK_ERROR', 'Connection interrupted before the server replied.');
+  return new ApiError('REQUEST_FAILED', 'The server returned an unexpected response.');
+}
 export async function api<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch('/api/v1' + path, { ...init, headers: {
     Authorization: 'Bearer ' + token, ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers,
@@ -32,7 +45,14 @@ export function uploadPdf<T>(token: string, file: File, metadata: object, key: s
     xhr.timeout = 360000;
     xhr.onload = () => {
       let body: unknown;
-      try { body = JSON.parse(xhr.responseText); } catch { reject(new ApiError('REQUEST_FAILED', 'Invalid server response.')); return; }
+      try { body = JSON.parse(xhr.responseText); }
+      catch {
+        // A reverse proxy rejects an oversized body itself and answers with its own HTML error
+        // page, so there is no JSON to decode. Reporting that as "Invalid server response" told
+        // the user nothing; the status code is the real message.
+        reject(nonJsonError(xhr.status));
+        return;
+      }
       if (xhr.status >= 200 && xhr.status < 300) resolve(body as T); else reject(decodeError(body));
     };
     xhr.send(file);

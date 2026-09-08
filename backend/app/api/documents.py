@@ -33,6 +33,7 @@ from app.schemas.documents import (
     JobView,
     Page,
     StageView,
+    UploadLimits,
     UploadMetadata,
     UploadResult,
     VersionMetadata,
@@ -110,6 +111,23 @@ def parse_metadata(encoded: str | None, schema: type[VersionMetadata]) -> Versio
             "Check the filename, title, source type, authority, and edition metadata.",
             422,
         ) from None
+
+
+@router.get("/uploads/limits", response_model=UploadLimits)
+def upload_limits(actor: Actor, service: Service) -> UploadLimits:
+    """The effective upload limits, for anyone entitled to upload.
+
+    Guarded by `document:upload` rather than `settings:read`: a curator must be able to see the
+    ceiling they are working against without holding administrative rights over configuration.
+    It reports a bound the caller is already subject to and discloses nothing else.
+    """
+    actor.require("document:upload")
+    config = service.settings.ingestion
+    return UploadLimits(
+        max_upload_bytes=config.max_upload_bytes,
+        max_upload_mib=config.max_upload_bytes // (1024 * 1024),
+        allowed_mime_types=list(config.allowed_mime_types),
+    )
 
 
 async def upload(

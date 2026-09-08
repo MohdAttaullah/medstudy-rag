@@ -51,7 +51,7 @@ def validate_pdf(path: Path, config: IngestionConfig) -> None:
         result = subprocess.run(
             [sys.executable, "-m", "app.ingestion.validation.pdf_check", str(path)],
             capture_output=True,
-            timeout=config.validation_timeout_seconds,
+            timeout=config.validation_timeout_for(path.stat().st_size),
             check=False,
         )
     except subprocess.TimeoutExpired:

@@ -194,3 +194,57 @@ nothing — no document, object, vector, index or audit record is touched.
 **Expected on an empty workspace.** Asking a question before uploading anything returns
 `FAILED` with reason `RETRIEVAL_CORPUS_EMPTY`. That is the M5 fail-closed behaviour for a tenant
 with no indexed corpus, not a fault; it resolves once a document reaches `RETRIEVAL_READY`.
+
+## Large PDF uploads
+
+**Limits.** One PDF per HTTP request; selecting several uploads them one after another. The
+application accepts **512 MiB per file** (`MEDRAG_INGESTION__MAX_UPLOAD_BYTES`) and the proxy
+allows **520 MiB** (`MEDRAG_MAX_UPLOAD_MB`), so the application is what refuses an oversized file
+and the user gets a typed error rather than the proxy's HTML page.
+
+Both come from `compose.yaml`, and `scripts/production_preflight.py` fails when they disagree —
+a proxy ceiling below the application's is what rejected a 153 MiB textbook with an opaque 413.
+
+```bash
+uv run python scripts/production_preflight.py   # upload.application_limit / upload.proxy_limit
+docker compose exec frontend grep client_max_body_size /etc/nginx/conf.d/default.conf
+```
+
+**Raising the limit** means changing both, then rebuilding the frontend image and recreating the
+API:
+
+```bash
+MEDRAG_INGESTION__MAX_UPLOAD_BYTES=805306368 MEDRAG_MAX_UPLOAD_MB=784 \
+  docker compose --profile app --profile workers up -d --build
+```
+
+The application ceiling is 1 GiB by design. Uploading is bounded-memory, but *parsing* is not: a
+document large enough to exhaust the worker must be refused at the door rather than accepted and
+killed halfway through ingestion.
+
+**After recreating the API container, restart the frontend.** nginx resolves `api` once at startup
+and caches the address; a recreated API container gets a new IP and every proxied request returns
+502 until the proxy re-resolves.
+
+```bash
+docker compose restart frontend
+```
+
+**Timeouts that matter for a large book**, in the order they apply:
+
+| Bound | Setting | Default |
+|---|---|---|
+| Receiving the body | `MEDRAG_INGESTION__UPLOAD_TIMEOUT_SECONDS` | 1800 s |
+| Proxy read/send | `MEDRAG_UPLOAD_TIMEOUT_SECONDS` | 1800 s |
+| Structural validation | base + per-MiB, capped | 30 s + 0.6 s/MiB, max 600 s |
+| Docling parse | `MEDRAG_PARSING__TIMEOUT_SECONDS` | 900 s |
+| Celery soft / hard | `MEDRAG_PARSING__TASK_SOFT_TIMEOUT_SECONDS` / `__TASK_TIMEOUT_SECONDS` | 1500 s / 1800 s |
+
+Validation scales with size because a flat 20 s budget timed out on a real 153 MiB book while
+still being the right budget for a 1 MiB leaflet. Parser timeout must stay below the soft task
+limit, which must stay below the hard limit — enforced by a validator, so a document fails with a
+diagnosable parse error rather than being killed by the worker with the reason lost.
+
+**One large book cannot starve the queue indefinitely**, but it does occupy the single worker slot
+while it parses: `MEDRAG_PARSING__MAX_CONCURRENCY` is 1 because the models are memory-heavy. Scale
+by adding workers, never by raising concurrency.

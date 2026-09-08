@@ -46,6 +46,12 @@ def create_celery(settings: Settings | None = None) -> Any:
         task_publish_retry=False,
         broker_transport_options={"socket_timeout": 5, "socket_connect_timeout": 5},
         worker_prefetch_multiplier=1,
+        # A large textbook must not be able to hold the single worker slot indefinitely. The
+        # soft limit raises an exception the task can catch to record a failure; the hard limit
+        # kills the process if it does not. Both come from configuration rather than constants,
+        # because the right ceiling depends on the size of the documents a deployment ingests.
+        task_soft_time_limit=config.parsing.task_soft_timeout_seconds,
+        task_time_limit=config.parsing.task_timeout_seconds,
     )
     # The parser holds warm model weights, so it is created once per worker process and only
     # when a task first needs it. Importing this module must never load a parser or a model.

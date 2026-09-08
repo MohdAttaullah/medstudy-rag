@@ -27,6 +27,8 @@ beforeEach(() => {
     const body = url.includes('/auth/me') ? { user_id: 'user-1', display_name: 'Local tester', role: reader ? 'reader' : 'admin',
       permissions: reader ? ['document:read', 'ingestion:read'] : ['document:read', 'document:upload', 'document:manage', 'ingestion:read', 'ingestion:retry', 'ingestion:cancel'] } :
       url.includes('/health/ready') ? { status: 'ready', dependencies: { postgres: true } } :
+      url.includes('/uploads/limits') ? { max_upload_bytes: 512 * 1024 * 1024, max_upload_mib: 512,
+        allowed_mime_types: ['application/pdf'], files_per_request: 1 } :
       url.includes('/ingestion/jobs/job-1') ? job :
       url.includes('/ingestion/jobs') ? page([job]) :
       url.includes('/versions') ? page([version]) :

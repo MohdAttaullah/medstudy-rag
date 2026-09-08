@@ -1,9 +1,9 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { ApiError, uploadPdf } from '../../api/client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ApiError, api, uploadPdf } from '../../api/client';
 import { StatusBadge } from '../../components/DocumentWidgets';
-import type { Authority, Metadata, SourceType, UploadResult } from '../../types/documents';
+import type { Authority, Metadata, SourceType, UploadLimits, UploadResult } from '../../types/documents';
 import { useSession } from './Session';
 export const sources: SourceType[] = ['GUIDELINE', 'REFERENCE_BOOK', 'TEXTBOOK', 'COURSE_MATERIAL', 'QUESTION_BANK', 'QUESTION_PAPER', 'ANSWER_KEY', 'OTHER'];
 export const authorities: Authority[] = ['UNREVIEWED', 'ASSESSMENT', 'REFERENCE', 'HIGH'];
@@ -36,6 +36,17 @@ export function UploadForm({ documentId }: { documentId?: string }) {
   const [error, setError] = useState<ApiError | null>(null);
   const [completed, setCompleted] = useState<UploadResult[]>([]);
   const keys = useRef(new Map<string, string>());
+  // The server owns the limit. Fetching it keeps one source of truth: a hardcoded copy drifts the
+  // moment an operator raises the ceiling, and the drift surfaces as a completed transfer that
+  // then fails. Until it loads, client-side checking is simply skipped and the server enforces.
+  const limits = useQuery({
+    queryKey: ['upload-limits'],
+    queryFn: () => api<UploadLimits>(token, '/uploads/limits'),
+    enabled: !!identity?.permissions.includes('document:upload'),
+    staleTime: 300000,
+  });
+  const maxBytes = limits.data?.max_upload_bytes;
+  const maxLabel = limits.data ? `${limits.data.max_upload_mib} MiB` : null;
   if (!identity?.permissions.includes('document:upload')) return null;
   function choose(selected: FileList | File[]) {
     setFiles(Array.from(selected)); setError(null); setMessage(''); setCompleted([]); keys.current.clear();
@@ -44,6 +55,14 @@ export function UploadForm({ documentId }: { documentId?: string }) {
     event.preventDefault(); setError(null);
     if (!files.length || (!documentId && !meta.title.trim())) { setError(new ApiError('INVALID_METADATA', 'Choose at least one PDF and enter a title.')); return; }
     if (files.some(file => !file.name.toLowerCase().endsWith('.pdf') || file.size === 0)) { setError(new ApiError('INVALID_FILE', 'Choose nonempty PDF files only.')); return; }
+    // Convenience only; the server enforces the same limit twice regardless. Checking here means
+    // the user is told immediately instead of after transferring a file that cannot be accepted.
+    const tooLarge = maxBytes ? files.find(file => file.size > maxBytes) : undefined;
+    if (tooLarge && maxLabel) {
+      setError(new ApiError('UPLOAD_FILE_TOO_LARGE',
+        `"${tooLarge.name}" is ${Math.round(tooLarge.size / 1048576)} MiB. This PDF exceeds the maximum supported file size of ${maxLabel}.`));
+      return;
+    }
     setBusy(true); setCompleted([]);
     let activeSignature: string | undefined;
     try {
@@ -68,7 +87,12 @@ export function UploadForm({ documentId }: { documentId?: string }) {
     finally { setBusy(false); setProgress(null); }
   }
   return <section className="panel upload-panel"><h2>{documentId ? 'Add a new file version' : 'Upload source documents'}</h2>
-    <p>PDF originals only. Shared metadata applies to all selected files.</p><form onSubmit={submit}><fieldset disabled={busy}>
+    <p>PDF originals only. Shared metadata applies to all selected files.</p>
+    <p className="muted">
+      {maxLabel
+        ? `PDF files only · Maximum file size: ${maxLabel} · Files upload one at a time`
+        : 'PDF files only · Files upload one at a time'}
+    </p><form onSubmit={submit}><fieldset disabled={busy}>
       <div className="drop-zone" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (!busy) choose(e.dataTransfer.files); }}>
         <label htmlFor={documentId ? 'version-files' : 'upload-files'}>Choose PDF files or drag them here</label>
         <input id={documentId ? 'version-files' : 'upload-files'} type="file" accept=".pdf,application/pdf" multiple onChange={e => choose(e.target.files ?? [])} />

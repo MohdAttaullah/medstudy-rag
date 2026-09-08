@@ -117,6 +117,25 @@ class UploadResult(BaseModel):
     replayed: bool = False
 
 
+class UploadLimits(BaseModel):
+    """What the browser needs to reject an oversized file before transferring it.
+
+    Served rather than compiled into the bundle so there is exactly one source of truth. A
+    hardcoded frontend copy drifts the moment an operator raises the server limit, and the way
+    that drift shows up is a user watching a 500 MiB upload run to completion and then fail.
+
+    Client-side checking is a convenience only; the server enforces the same limit twice — once
+    from Content-Length and again against the running byte count while streaming.
+    """
+
+    max_upload_bytes: int
+    max_upload_mib: int
+    allowed_mime_types: list[str]
+    #: One PDF per HTTP request. Selecting several uploads them one after another, so the
+    #: per-file limit is also the per-request limit.
+    files_per_request: int = 1
+
+
 class Page[T](BaseModel):
     items: list[T]
     total: int
