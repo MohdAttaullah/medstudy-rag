@@ -162,6 +162,30 @@ class Settings(BaseSettings):
     )
 
     @model_validator(mode="after")
+    def chunking_fits_the_encoder(self) -> Self:
+        """A retrieval-eligible chunk must be embeddable by construction.
+
+        The encoder's input is the context field and the chunk body together, under its own
+        512-token limit, and it refuses to truncate. Without this check a chunking policy can be
+        configured to emit bodies that no valid input can carry, and the contradiction surfaces
+        only when a real document happens to contain a large enough table — two stages later, as
+        an opaque embedding failure. Checked at startup, for the same reason the encoders' vector
+        spaces are.
+
+        TEXT_PARENT is deliberately absent: a parent is a context container that is never
+        embedded, so its much larger target is not bound by this contract.
+        """
+        budget = self.chunking.retrieval_budget_tokens
+        reserve = self.embedding.context_token_reserve
+        if budget + reserve > self.embedding.max_input_tokens:
+            raise ValueError(
+                "Chunking targets cannot fit the embedding input: "
+                f"{budget} chunk tokens + {reserve} reserved for context exceed the encoder's "
+                f"{self.embedding.max_input_tokens}-token limit"
+            )
+        return self
+
+    @model_validator(mode="after")
     def retrieval_vector_spaces_agree(self) -> Self:
         """The query encoder and the article encoder must describe one vector space.
 

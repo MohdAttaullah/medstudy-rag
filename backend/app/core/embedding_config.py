@@ -62,6 +62,12 @@ class EmbeddingConfig(BaseModel):
     input_builder_version: Literal["medcpt-two-field-v1"] = "medcpt-two-field-v1"
     context_separator: Literal["\n\n"] = "\n\n"
     max_context_characters: int = Field(default=300, ge=0, le=2000)
+    #: Tokens reserved for the context field and the encoder's own special tokens, so a
+    #: chunk body that fits the chunking budget is guaranteed to fit the encoder input.
+    #: Measured across 3,635 real inputs from a 932-page textbook, that overhead was 10
+    #: tokens at the median and 104 at the worst; 128 keeps headroom above the worst case.
+    #: `Settings` refuses a chunking policy whose targets do not fit inside what is left.
+    context_token_reserve: int = Field(default=128, ge=0, le=256)
     eligible_chunk_types: tuple[str, ...] = (
         "TEXT_CHILD",
         "LIST",

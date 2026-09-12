@@ -154,7 +154,23 @@ def validate(
             limit = config.table_max_tokens
         if chunk.kind == "QUESTION_EXPLANATION":
             limit = config.explanation_max_tokens
-        if chunk.token_count > limit:
+        # A retrieval-eligible chunk over the retrieval budget can never be embedded: the encoder
+        # refuses to truncate, so the whole run would fail later with the cause two stages away.
+        # Failing here names the chunk while rechunking under a different policy is still the
+        # obvious remedy. TEXT_PARENT is exempt by design — a parent is a context container that
+        # is never an embedding input, so its larger target is not a contradiction.
+        unembeddable = (
+            chunk.kind != "TEXT_PARENT" and chunk.token_count > config.retrieval_budget_tokens
+        )
+        if unembeddable:
+            oversized += 1
+            add(
+                "CHUNK_OVERSIZED",
+                "A retrieval unit is too large to be embedded without truncation.",
+                chunk.key,
+                "ERROR",
+            )
+        elif chunk.token_count > limit:
             oversized += 1
             add(
                 "CHUNK_OVERSIZED",

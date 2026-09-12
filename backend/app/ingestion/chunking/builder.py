@@ -349,13 +349,24 @@ class Builder:
                 end = extended
             groups.append([i for i in range(r, end) if i not in header_rows])
             r = end
+
+        def rendered(indexes: list[int]) -> str:
+            """Exactly what a part will contain, so the budget and the emit cannot diverge.
+
+            Previously the split budgeted `prefix + rows` while emitting `prefix + rows + suffix`,
+            so the linked footnotes were never counted. A real antifungal susceptibility table
+            stopped at 440 budgeted tokens and was emitted at 545 — over the 450 ceiling by
+            exactly the 105 tokens of its footnote legend, and over the encoder's 512-token input
+            limit, which failed the whole embedding run two stages later.
+            """
+            return prefix + "\n".join(row_text(i) for i in indexes) + suffix
+
         parts: list[list[int]] = []
         current: list[int] = []
         for group in groups:
             if (
                 current
-                and self.tokens.count(prefix + "\n".join(row_text(i) for i in current + group))
-                > self.config.table_max_tokens
+                and self.tokens.count(rendered(current + group)) > self.config.table_max_tokens
             ):
                 parts.append(current)
                 current = []
@@ -367,7 +378,7 @@ class Builder:
             self.emit(
                 "TABLE" if len(parts) == 1 else "TABLE_PART",
                 spans,
-                source_text=prefix + "\n".join(row_text(r) for r in part) + suffix,
+                source_text=rendered(part),
                 artifact_ids=(a.id,),
                 hierarchy=hierarchy,
                 metadata={

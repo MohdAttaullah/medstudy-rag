@@ -30,7 +30,9 @@ class ChunkingConfig(BaseModel):
     tokenizer_runtime: Literal["0.23.2"] = "0.23.2"
     child_target_tokens: int = Field(default=384, ge=32, le=2048)
     parent_target_tokens: int = Field(default=1280, ge=128, le=8000)
-    table_max_tokens: int = Field(default=450, ge=32, le=2048)
+    #: 384 rather than 450: a table part is a retrieval input, so it has to fit the encoder
+    #: once the context field is added. `Settings` enforces that relationship.
+    table_max_tokens: int = Field(default=384, ge=32, le=2048)
     explanation_max_tokens: int = Field(default=384, ge=32, le=2048)
     overlap_tokens: Literal[0] = 0
     include_hierarchy_context: bool = True
@@ -46,6 +48,17 @@ class ChunkingConfig(BaseModel):
     timeout_seconds: int = Field(default=300, ge=10, le=3600)
     lease_seconds: int = Field(default=360, ge=30, le=7200)
     thresholds: ChunkThresholds = ChunkThresholds()
+
+    @property
+    def retrieval_budget_tokens(self) -> int:
+        """The largest a retrieval-eligible chunk body may be under this policy.
+
+        Derived rather than configured, so it cannot drift from the targets it summarises.
+        `Settings` guarantees this plus the embedding context reserve fits the encoder, which
+        is what lets chunk validation decide — without importing the embedding layer — that a
+        chunk this size could never be embedded.
+        """
+        return max(self.table_max_tokens, self.child_target_tokens, self.explanation_max_tokens)
 
     @model_validator(mode="after")
     def bounds(self) -> Self:
