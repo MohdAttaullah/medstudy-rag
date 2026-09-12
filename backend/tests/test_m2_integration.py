@@ -56,7 +56,7 @@ class Recorded:
     def __init__(self, result, version="test-parser"):
         self.result, self.version, self.calls = result, version, 0
 
-    def parse(self, source, config):
+    def parse(self, source, config, on_progress=None):
         self.calls += 1
         if isinstance(self.result, Exception):
             raise self.result
@@ -178,6 +178,15 @@ def system_module(database):  # noqa: F811
         for job in session.scalars(select(IngestionJob).where(IngestionJob.status.in_(completed))):
             version = session.get(DocumentVersion, job.document_version_id)
             transition(session, job, version, Status.CANCELLED, None, service="test-teardown")
+    # A reviewed acceptance cannot be represented before its own revision, so that downgrade
+    # refuses while one exists. Releasing the acceptance is the operator action it prescribes;
+    # the decision row itself is append-only and is removed only with the table.
+    with control.sessions.begin() as session:
+        for run in session.scalars(
+            select(ParseRun).where(ParseRun.status == ParseRunStatus.REVIEWED_ACCEPTED)
+        ):
+            run.is_active = False
+            run.status = ParseRunStatus.CANCELLED
     with control.sessions() as session:
         keys = [
             key
@@ -700,7 +709,7 @@ def test_cancelled_job_releases_the_parse_run(system_module):
     body, _ = queue_job(client, control, credentials, "basic-text.pdf")
 
     class CancellingParser(Recorded):
-        def parse(self, source, config):
+        def parse(self, source, config, on_progress=None):
             client.post(
                 f"/api/v1/ingestion/jobs/{body['job_id']}/cancel", headers=auth(credentials)
             )
@@ -721,7 +730,9 @@ def test_cancelled_job_releases_the_parse_run(system_module):
 def test_expired_lease_is_released_so_a_crashed_parse_can_be_retried(system_module):
     client, control, credentials = system_module
     body, _ = queue_job(client, control, credentials, "basic-text.pdf")
-    config = ParsingConfig(lease_seconds=60)
+    # A short lease is only coherent alongside a short conversion budget: nothing renews the
+    # lease during a conversion call, so it has to outlive one.
+    config = ParsingConfig(timeout_seconds=30, lease_seconds=60)
     service = make_service(control, config=config)
     claim = service._claim(uuid_of(body["job_id"]), None)  # simulate a worker that then dies
     assert claim.status is Status.PARSING

@@ -255,10 +255,21 @@ def check_worker_bounds(report: Report, settings: Any) -> None:
     report.add(
         "worker.parse_timeout",
         OK,
-        f"parser {parsing.timeout_seconds}s < soft task {parsing.task_soft_timeout_seconds}s "
-        f"< hard task {parsing.task_timeout_seconds}s",
+        f"one call {parsing.timeout_seconds}s < document "
+        f"{parsing.document_timeout_for(parsing.max_pages)}s < soft task "
+        f"{parsing.task_soft_timeout_seconds}s < hard task {parsing.task_timeout_seconds}s",
     )
     report.add("worker.max_pages", OK, f"{parsing.max_pages} pages per document")
+    windowed = parsing.page_window_size > 0
+    report.add(
+        "worker.page_windows",
+        OK if windowed else WARN,
+        f"{parsing.page_window_size} pages per conversion call above "
+        f"{parsing.page_window_threshold} pages"
+        if windowed
+        else "windowing disabled; a long document converts in one call and peak memory grows "
+        "linearly with page count",
+    )
     report.add(
         "worker.concurrency",
         OK if parsing.max_concurrency == 1 else WARN,

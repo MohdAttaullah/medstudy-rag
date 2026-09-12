@@ -66,8 +66,9 @@ with a citation that looks valid. Thresholds are typed, frozen and snapshotted p
 carry codes, counts and page numbers, never document text, and no rule reports an accuracy figure.
 
 *Cost.* Thresholds are judgement calls that need re-tuning on a real corpus, and a `NEEDS_REVIEW`
-document needs an operator. There is no review-approval workflow yet — the operator path is
-reparse or cancel.
+document needs an operator. At the time of this decision there was no review-approval workflow and
+the operator path was reparse or cancel; ADR-018 later added reviewed acceptance, which admits a
+flagged parse without rewriting this verdict or removing any finding.
 
 *Rejected.* Trusting the parser's exit status, and asking a language model whether the text "looks
 right" (which would make an unverifiable model judgement the gate on evidence quality).

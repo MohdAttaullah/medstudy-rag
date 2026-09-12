@@ -237,14 +237,101 @@ docker compose restart frontend
 | Receiving the body | `MEDRAG_INGESTION__UPLOAD_TIMEOUT_SECONDS` | 1800 s |
 | Proxy read/send | `MEDRAG_UPLOAD_TIMEOUT_SECONDS` | 1800 s |
 | Structural validation | base + per-MiB, capped | 30 s + 0.6 s/MiB, max 600 s |
-| Docling parse | `MEDRAG_PARSING__TIMEOUT_SECONDS` | 900 s |
-| Celery soft / hard | `MEDRAG_PARSING__TASK_SOFT_TIMEOUT_SECONDS` / `__TASK_TIMEOUT_SECONDS` | 1500 s / 1800 s |
+| One Docling call (a window, or a short whole document) | `MEDRAG_PARSING__TIMEOUT_SECONDS` | 900 s |
+| Whole document, every window together | base + per-page, capped | 900 s + 12 s/page, max 14400 s |
+| Celery soft / hard | `MEDRAG_PARSING__TASK_SOFT_TIMEOUT_SECONDS` / `__TASK_TIMEOUT_SECONDS` | 15600 s / 15900 s |
 
 Validation scales with size because a flat 20 s budget timed out on a real 153 MiB book while
-still being the right budget for a 1 MiB leaflet. Parser timeout must stay below the soft task
-limit, which must stay below the hard limit — enforced by a validator, so a document fails with a
-diagnosable parse error rather than being killed by the worker with the reason lost.
+still being the right budget for a 1 MiB leaflet. The parse budget scales with **pages** for the
+same reason: a 932-page textbook measured ~5 s/page, so it is over an hour of work, and no
+constant serves both it and a one-page leaflet. One call < whole document < soft task limit <
+hard task limit — enforced by a validator, so a document fails with a diagnosable parse error
+rather than being killed by the worker with the reason lost. The soft limit clears the document
+budget *plus* one call, because the budget is checked between windows and a parse already over
+budget still finishes the window it is in.
+
+These ceilings are large on purpose. A worker slot genuinely held for hours by one book is the
+cost of ingesting one; if that is unacceptable for a deployment, lower
+`MEDRAG_PARSING__MAX_PAGES` so oversized books are refused at the door rather than lowering the
+budget so they fail halfway through.
 
 **One large book cannot starve the queue indefinitely**, but it does occupy the single worker slot
 while it parses: `MEDRAG_PARSING__MAX_CONCURRENCY` is 1 because the models are memory-heavy. Scale
 by adding workers, never by raising concurrency.
+
+## Qualifying a larger book than the one already run
+
+The largest document actually taken end to end is **153 MiB / 932 pages**: 932 pages parsed,
+18,888 elements, peak worker memory 4.74 GiB, 4042 s of parsing. Nothing larger has been run, and
+the application's 512 MiB upload ceiling is **not** a statement that a 512 MiB book will parse.
+
+Qualify one size at a time, and never by raising RAM first:
+
+1. **Predict from the measurements.** Parsing cost scales with pages, not megabytes. Take the page
+   count, not the file size: 25-page windows cost ~5 s and ~1.3 GiB settled each on this hardware,
+   so pages x 5 s is the parse time to expect and peak memory should *not* move with page count.
+2. **Check the budgets fit.** `document_timeout_for(pages)` must exceed the predicted time, and
+   `MEDRAG_PARSING__MAX_PAGES` must not refuse the document. Both are reported by
+   `scripts/production_preflight.py`.
+3. **Record the baseline** before starting, so the peak is attributable:
+
+   ```bash
+   docker compose up -d --force-recreate worker   # resets the cgroup high-water mark
+   docker compose exec worker cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+   ```
+
+4. **Watch it, do not just wait.** Peak memory must stay flat across windows; if it climbs with
+   page count, stop and investigate rather than adding RAM.
+
+   ```bash
+   docker compose logs -f worker | grep PARSE_WINDOW_COMPLETED
+   watch -n 30 'docker compose exec -T worker grep "^rss " /sys/fs/cgroup/memory/memory.stat'
+   ```
+
+5. **One size at a time.** Qualify ~300 MB before ~500 MB, and record pages, elements, duration and
+   peak memory for each. A size is supported when a real book of that size has completed, not when
+   a host with more memory has been provisioned.
+
+Downstream of parsing is not qualified by this procedure. Chunking and embedding a document with
+tens of thousands of elements has its own cost and has not been measured at that scale.
+
+## A large book is killed while parsing (SIGKILL / WorkerLostError)
+
+**Symptom.** `ForkPoolWorker-N exited with signal 9 (SIGKILL)` and `WorkerLostError` in the worker
+log, the container itself reporting `OOMKilled=false`, and the document sitting in `PARSING` in
+the Library. The kernel killed the *child* process, so the container survived and nothing in the
+application layer observed a failure.
+
+**Confirm it was memory**, from the host:
+
+```bash
+docker compose exec worker cat /sys/fs/cgroup/memory.peak       # or memory.max_usage_in_bytes
+docker compose exec worker grep oom_kill /sys/fs/cgroup/memory.events
+docker stats --no-stream worker
+```
+
+**Cause.** Docling retains per-page state for the life of one `convert()` call, so a
+single-call conversion grows linearly with page count — measured at **44 MiB per page on real
+textbook content**. A 932-page medical textbook reached 6.2 GB before the OOM killer intervened.
+
+**Fix.** Long documents are converted in page windows
+(`MEDRAG_PARSING__PAGE_WINDOW_SIZE`, default 25), which holds peak RSS flat regardless of book
+length. If a book still dies, lower the window size before adding RAM:
+
+```bash
+MEDRAG_PARSING__PAGE_WINDOW_SIZE=10 docker compose --profile app --profile workers up -d worker
+```
+
+Windowing is on by default. `0` disables it and restores whole-document conversion, which is only
+appropriate for a corpus of short documents.
+
+**Recovery of a stuck job.** The dispatcher's reaper moves a run whose lease has expired to
+`FAILED` with `PARSER_LEASE_EXPIRED`, and the job becomes retryable — no manual database edit is
+needed. During a windowed parse the lease is renewed between windows
+(`PARSE_WINDOW_COMPLETED` in the worker log), so the lease reflects liveness rather than document
+length, and a genuinely dead worker is detected within `MEDRAG_PARSING__LEASE_SECONDS` however
+long the book was. Watch progress live:
+
+```bash
+docker compose logs -f worker | grep PARSE_WINDOW_COMPLETED
+```

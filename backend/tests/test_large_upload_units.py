@@ -172,16 +172,25 @@ def test_streamed_hashing_matches_a_whole_file_hash():
 
 def test_the_worker_task_is_time_bounded_so_one_book_cannot_hold_the_slot():
     parsing = ParsingConfig()
-    assert parsing.timeout_seconds < parsing.task_soft_timeout_seconds
+    assert parsing.timeout_seconds <= parsing.max_document_timeout_seconds
+    assert (
+        parsing.max_document_timeout_seconds + parsing.timeout_seconds
+        < parsing.task_soft_timeout_seconds
+    ), "the soft limit must clear the document budget plus the window still in flight"
     assert parsing.task_soft_timeout_seconds < parsing.task_timeout_seconds
 
 
 @pytest.mark.parametrize(
     "override",
     [
-        {"timeout_seconds": 1600},  # parser would outlive the soft task limit
-        {"task_timeout_seconds": 1000},  # hard limit below the soft limit
-        {"task_soft_timeout_seconds": 400},  # soft limit below the parser timeout
+        # A document given less time than one conversion call is allowed to take.
+        {"max_document_timeout_seconds": 600},
+        # Soft limit inside the document budget: the worker would fire before the parser can.
+        {"task_soft_timeout_seconds": 15000},
+        # Hard limit below the soft limit: no grace period to record a failure.
+        {"task_timeout_seconds": 15000},
+        # A lease shorter than one conversion call, which nothing can renew from inside.
+        {"lease_seconds": 600},
     ],
 )
 def test_out_of_order_timeouts_are_refused(override):

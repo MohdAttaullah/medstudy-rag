@@ -27,6 +27,11 @@ PERMISSIONS = frozenset(
         "ingestion:reembed",
         "ingestion:reindex",
         "ingestion:cancel",
+        # Accepting a parse the quality layer flagged. It sits with the operate-the-pipeline
+        # capabilities because a curator already holds reparse and cancel, which discard and
+        # regenerate the evidence dataset outright; withholding "accept this parse" while
+        # granting "destroy and redo this parse" would not be a coherent authority boundary.
+        "ingestion:accept",
         # --- Diagnostics. Retrieval exposes lane scores and internal run identifiers and is not an
         # answering path; drafts are unverified; verifier verdicts are internal. Each stays
         # separate from the reading capability so a reader never acquires an inspector's view.
@@ -61,6 +66,7 @@ _CURATOR = _READER | frozenset(
         "ingestion:reembed",
         "ingestion:reindex",
         "ingestion:cancel",
+        "ingestion:accept",
         "retrieval:search",
         "generation:draft",
         "generation:verify",

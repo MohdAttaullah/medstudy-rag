@@ -276,6 +276,27 @@ class ParseService:
         if local.stat().st_size != 0 and local.stat().st_size < 8:
             raise ParserError(PARSER_SOURCE_CORRUPT)
 
+        def renew(done: int, total: int) -> None:
+            """Renew the parse lease between page windows.
+
+            Without this the lease is only renewed at stage boundaries, so a worker killed
+            during a long conversion leaves the job showing PARSING for the whole lease period
+            before the dispatcher's reaper can move it to a recoverable failure. Beating between
+            windows makes the lease reflect liveness rather than a worst-case duration.
+            """
+            with self.sessions.begin() as beat_session:
+                beating = beat_session.get(ParseRun, run_id)
+                if beating is not None:
+                    self._beat(beating)
+            logger.info(
+                "parse_progress",
+                extra={
+                    "event": "PARSE_WINDOW_COMPLETED",
+                    "resource_id": str(run_id),
+                    "status": f"{done}/{total}",
+                },
+            )
+
         parsed: ParsedDocument = self.parser.parse(
             ParseSource(path=local, sha256=checksum, filename=filename),
             ParserConfig(
@@ -291,7 +312,12 @@ class ParseService:
                 figure_format=self.config.figure_format,
                 threads=self.config.parser_threads,
                 temp_dir=workspace,
+                page_window_size=self.config.page_window_size,
+                page_window_threshold=self.config.page_window_threshold,
+                document_seconds_per_page=self.config.document_seconds_per_page,
+                max_document_timeout_seconds=self.config.max_document_timeout_seconds,
             ),
+            on_progress=renew,
         )
         if len(parsed.raw_artifact) > self.config.max_artifact_bytes:
             raise ParserError(RAW_ARTIFACT_STORAGE_FAILED, "artifact_too_large")

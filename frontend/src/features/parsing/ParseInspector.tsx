@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { AccessGate, useSession } from '../library/Session';
 import { date, StatusBadge } from '../../components/DocumentWidgets';
 import type {
-  ParseElement, ParseFigure, ParseFinding, ParseFormula, ParsePage, ParseRun, ParseTable,
+  ParseElement, ParseFigure, ParseFinding, ParseFormula, ParsePage, ParseReviewDecision, ParseRun,
+  ParseTable,
 } from '../../types/parsing';
 import type { Page } from '../../types/documents';
-import { RESULT_LABEL, SEVERITY_ORDER, findingSummary, label } from './labels';
+import { RESULT_LABEL, RUN_STATUS_LABEL, SEVERITY_ORDER, findingSummary, label } from './labels';
 
 /**
  * Development and curation view over one parse run.
@@ -46,6 +47,7 @@ function Inspector({ documentId, versionId, runId }: { documentId: string; versi
   const run = useParse<ParseRun>('run', '', base);
   const pages = useParse<Page<ParsePage>>('pages', '/pages?limit=200', base);
   const findings = useParse<Page<ParseFinding>>('findings', '/findings?limit=200', base);
+  const decision = useParse<ParseReviewDecision | null>('review', '/review', base);
 
   useEffect(() => {
     if (!pageId && pages.data?.items.length) setPageId((pages.data.items.find(p => p.page_number === requestedPage) ?? pages.data.items[0]).id);
@@ -95,6 +97,7 @@ function Inspector({ documentId, versionId, runId }: { documentId: string; versi
       <dl className="detail-grid">
         <div><dt>Parser</dt><dd>{value.parser_name} {value.parser_version}</dd></div>
         <div><dt>Configuration</dt><dd>{value.configuration_version}</dd></div>
+        <div><dt>Run status</dt><dd>{RUN_STATUS_LABEL[value.status]}</dd></div>
         <div><dt>Validation</dt><dd>{value.validation_result ? RESULT_LABEL[value.validation_result] : 'Not completed'}</dd></div>
         <div><dt>Active dataset</dt><dd>{value.is_active ? 'Yes' : 'No — superseded or not accepted'}</dd></div>
         <div><dt>Pages / elements</dt><dd>{value.page_count ?? '—'} / {value.element_count ?? '—'}</dd></div>
@@ -106,6 +109,16 @@ function Inspector({ documentId, versionId, runId }: { documentId: string; versi
       {value.error_code && <p role="alert" className="error">{value.error_code}: {value.error_message}</p>}
       <Link className="button-link secondary" to={`/documents/${documentId}`}>Back to document</Link>
     </section>
+
+    <Review
+      base={base}
+      run={value}
+      findings={findings.data?.items ?? []}
+      decision={decision.data ?? null}
+      pending={decision.isPending}
+      onSelectPage={setPageId}
+      pages={pages.data?.items ?? []}
+    />
 
     <section className="panel">
       <div className="section-heading">
@@ -269,4 +282,124 @@ function FigureCard({ base, figure }: { base: string; figure: ParseFigure }) {
     </p>
     <p className="muted">The original page remains the source of truth; this crop is provenance, not interpretation.</p>
   </article>;
+}
+
+
+/**
+ * Curator review of a flagged parse.
+ *
+ * The decision is deliberately effortful: the flagged pages are listed and linked so they can be
+ * looked at, a rationale has to be written, and the consequence is stated in full next to a
+ * confirmation the curator has to tick. Accepting a parse admits evidence that automated
+ * validation objected to, so a single unguarded click would be the wrong shape for it.
+ *
+ * After acceptance this becomes the permanent record of who decided what, and the findings above
+ * stay exactly where they were: nothing is hidden because it was accepted.
+ */
+function Review({ base, run, findings, decision, pending, pages, onSelectPage }: {
+  base: string; run: ParseRun; findings: ParseFinding[]; decision: ParseReviewDecision | null;
+  pending: boolean; pages: ParsePage[]; onSelectPage: (id: string) => void;
+}) {
+  const { token, identity } = useSession();
+  const client = useQueryClient();
+  const [rationale, setRationale] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+  const [failure, setFailure] = useState('');
+
+  const accept = useMutation({
+    mutationFn: () => api<ParseReviewDecision>(token, base + '/review', {
+      method: 'POST',
+      body: JSON.stringify({ decision: 'ACCEPT', rationale: rationale.trim() }),
+    }),
+    onSuccess: () => {
+      setFailure('');
+      void client.invalidateQueries({ queryKey: ['parse-inspect'] });
+    },
+    onError: (error: unknown) => setFailure(
+      error instanceof Error ? error.message : 'The decision could not be recorded.'),
+  });
+
+  if (run.validation_result !== 'NEEDS_REVIEW') return null;
+  if (pending) return null;
+
+  if (decision) {
+    return <section className="panel">
+      <h2>Review decision</h2>
+      <p>
+        This parse was flagged by automated validation and accepted for further processing by a
+        curator. Its validation result and findings are unchanged.
+      </p>
+      <dl className="detail-grid">
+        <div><dt>Decision</dt><dd>{label(decision.decision)}</dd></div>
+        <div><dt>Reviewer</dt><dd className="mono">{decision.reviewer_user_id}</dd></div>
+        <div><dt>Recorded</dt><dd>{date(decision.created_at)}</dd></div>
+        <div><dt>Validation at decision</dt><dd>{label(decision.validation_result_at_decision)}</dd></div>
+        <div><dt>Findings covered</dt><dd>{decision.finding_count}</dd></div>
+        <div><dt>Findings digest</dt><dd className="mono">{decision.findings_digest.slice(0, 16)}…</dd></div>
+        <div><dt>Correlation ID</dt><dd className="mono">{decision.correlation_id}</dd></div>
+      </dl>
+      <h3>Rationale</h3>
+      <p>{decision.rationale}</p>
+    </section>;
+  }
+
+  if (!identity?.permissions.includes('ingestion:accept')) {
+    return <section className="panel">
+      <h2>Review required</h2>
+      <p>
+        Automated validation flagged this parse. A curator has to review it before it can be
+        processed further; your role cannot record that decision.
+      </p>
+    </section>;
+  }
+
+  const errors = findings.filter(finding => finding.severity === 'ERROR' || finding.severity === 'CRITICAL');
+  const ready = rationale.trim().length >= 10 && confirmed && !accept.isPending;
+
+  return <section className="panel">
+    <h2>Review required</h2>
+    <p>
+      Automated validation flagged this parse. Look at each flagged page before deciding;
+      accepting does not change the validation result or remove any finding.
+    </p>
+    {!errors.length ? <p className="muted">No error-level findings were recorded.</p> : <>
+      <h3>Pages with error-level findings</h3>
+      <ul>
+        {errors.map(finding => <li key={finding.id}>
+          <span className="muted mono">{finding.code}</span>{' '}
+          {finding.page_number
+            ? <button type="button" className="link" onClick={() => {
+                const match = pages.find(item => item.page_number === finding.page_number);
+                if (match) onSelectPage(match.id);
+              }}>Inspect page {finding.page_number}</button>
+            : 'Document scope'}
+          <p>{finding.message}</p>
+        </li>)}
+      </ul>
+    </>}
+
+    <label htmlFor="review-rationale">
+      Rationale (recorded permanently, minimum 10 characters)
+      <textarea
+        id="review-rationale"
+        rows={4}
+        value={rationale}
+        onChange={event => setRationale(event.target.value)}
+      />
+    </label>
+    <label htmlFor="review-confirm" className="checkbox">
+      <input
+        id="review-confirm"
+        type="checkbox"
+        checked={confirmed}
+        onChange={event => setConfirmed(event.target.checked)}
+      />
+      I have reviewed the flagged pages. This parse will enter chunking with its validation
+      result and findings unchanged.
+    </label>
+    {failure && <p role="alert" className="error">{failure}</p>}
+    <button type="button" disabled={!ready} onClick={() => accept.mutate()}>
+      {accept.isPending ? 'Recording decision…' : 'Accept this parse'}
+    </button>
+  </section>;
 }

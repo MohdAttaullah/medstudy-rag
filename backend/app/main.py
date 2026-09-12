@@ -20,6 +20,7 @@ from app.api.embeddings import router as embedding_router
 from app.api.operations import router as operations_router
 from app.api.parsing import router as parsing_router
 from app.api.retrieval import router as retrieval_router
+from app.api.review import router as review_router
 from app.core.config import Settings
 from app.core.errors import DomainError
 from app.db.session import make_engine, make_sessions
@@ -553,6 +554,7 @@ def create_app(
 
     app.include_router(router)
     app.include_router(parsing_router)
+    app.include_router(review_router)
     app.include_router(chunking_router)
     app.include_router(embedding_router)
     app.include_router(retrieval_router)

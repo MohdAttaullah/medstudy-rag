@@ -144,6 +144,11 @@ services:
     environment:
       <<: *api-environment
       MEDRAG_PARSING__MAX_CONCURRENCY: "1"
+      # Parsing allocates and frees hundreds of megabytes per page window across many
+      # threads. Left to its default arena-per-thread growth, glibc keeps that space instead
+      # of reusing it and worker RSS ratchets with book length. Capping the arenas, together
+      # with the trim the parser performs between windows, is what keeps peak memory flat.
+      MALLOC_ARENA_MAX: "2"
       # Provisioned by scripts/provision_embedding_model.py into the embedding-models volume, so
       # the worker never downloads a model while a user is waiting.
       MEDRAG_EMBEDDING__MODEL_CACHE_DIR: /home/medrag/models/embeddings

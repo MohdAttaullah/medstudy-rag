@@ -82,6 +82,14 @@ REEMBED_ORIGINS = frozenset(
 REINDEX_SPARSE_ORIGINS = frozenset({Status.RETRIEVAL_READY, Status.NEEDS_REVIEW, Status.FAILED})
 
 
+# Curator acceptance of a parse the quality layer flagged. Unlike every reprocessing path above
+# this consumes no retry budget and creates no new run: it admits the *existing* parse dataset,
+# which an authorized curator has examined, and is fenced instead by a single immutable decision
+# per parse run. It is a separate origin set precisely so it cannot be reached by accident from
+# the ordinary graph, which still offers NEEDS_REVIEW nothing but CANCELLED.
+ACCEPT_ORIGINS = frozenset({Status.NEEDS_REVIEW})
+
+
 def require_transition(
     current: Status,
     target: Status,
@@ -91,7 +99,16 @@ def require_transition(
     rechunk: bool = False,
     reembed: bool = False,
     resparse: bool = False,
+    accept: bool = False,
 ) -> None:
+    if accept:
+        if current in ACCEPT_ORIGINS and target == Status.READY_FOR_CHUNKING:
+            return
+        raise DomainError(
+            "INGESTION_INVALID_TRANSITION",
+            "Only a parse flagged for review can be accepted into chunking.",
+            409,
+        )
     if resparse:
         if current in REINDEX_SPARSE_ORIGINS and target == Status.READY_FOR_RETRIEVAL:
             return
@@ -193,6 +210,7 @@ def transition(
     rechunk: bool = False,
     reembed: bool = False,
     resparse: bool = False,
+    accept: bool = False,
     error_code: str | None = None,
     error_message: str | None = None,
 ) -> None:
@@ -204,7 +222,11 @@ def transition(
         rechunk=rechunk,
         reembed=reembed,
         resparse=resparse,
+        accept=accept,
     )
+    # `accept` is deliberately absent: admitting a parse a curator has already examined is not
+    # reprocessing, so it must not spend a unit of the bounded retry budget that exists to stop
+    # reprocessing loops.
     if retry or reparse or rechunk or reembed or resparse:
         if job.retry_count >= job.max_retries:
             raise DomainError("INGESTION_RETRY_EXHAUSTED", "The retry limit has been reached.", 409)

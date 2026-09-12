@@ -18,6 +18,18 @@ export function JobHistory({ jobId }: { jobId: string }) {
       <p className="muted">Indexing ends at READY_FOR_RETRIEVAL, which means the vectors verified. Query retrieval, reranking and answering are not implemented.</p>
     </>}</section>;
 }
+/**
+ * Whether a stage-level reprocessing action can actually succeed for this job.
+ *
+ * NEEDS_REVIEW is reached from three different stages and only the error code says which. A
+ * parse-stage review has no active parse dataset, so rechunking or re-embedding it fails with
+ * CHUNK_SOURCE_PARSE_NOT_READY — after spending one unit of the bounded retry budget. Offering
+ * the action was worse than useless: it looked like a way forward and quietly cost a retry.
+ * The way forward for a flagged parse is the review workflow in the parse inspector.
+ */
+const awaitingParseReview = (job: Job) =>
+  job.status === 'NEEDS_REVIEW' && job.last_error_code === 'PARSE_NEEDS_REVIEW';
+
 export function Jobs({ documentId }: { documentId?: string }) {
   const { token, identity } = useSession();
   const queries = useQueryClient();
@@ -45,11 +57,12 @@ export function Jobs({ documentId }: { documentId?: string }) {
             <div><dt>Created</dt><dd>{date(job.created_at)}</dd></div><div><dt>Started</dt><dd>{date(job.started_at)}</dd></div>
             <div><dt>Retries</dt><dd>{job.retry_count} / {job.max_retries}</dd></div><div><dt>Correlation ID</dt><dd className="mono">{job.correlation_id}</dd></div></dl>
           {job.last_error_message && <p className="error">{job.last_error_code}: {job.last_error_message}</p>}
+          {awaitingParseReview(job) && <p className="muted">Automated validation flagged this parse. Open the document's parse inspector to review the findings and decide.</p>}
           <div className="actions"><button className="secondary" onClick={() => setSelected(selected === job.id ? '' : job.id)}>Inspect history</button>
             {identity?.permissions.includes('ingestion:retry') && <button className="secondary" disabled={busy === job.id || job.status !== 'FAILED' || job.retry_count >= job.max_retries} onClick={() => void action(job, 'retry')}>Retry</button>}
             {identity?.permissions.includes('ingestion:reparse') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_CHUNKING', 'READY_FOR_EMBEDDING', 'READY_FOR_RETRIEVAL', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'reparse')}>Reparse</button>}
-            {identity?.permissions.includes('ingestion:rechunk') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_EMBEDDING', 'READY_FOR_RETRIEVAL', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'rechunk')}>Rechunk</button>}
-            {identity?.permissions.includes('ingestion:reembed') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_EMBEDDING', 'READY_FOR_RETRIEVAL', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'reembed')}>Re-embed</button>}
+            {identity?.permissions.includes('ingestion:rechunk') && <button className="secondary" disabled={busy === job.id || awaitingParseReview(job) || !['READY_FOR_EMBEDDING', 'READY_FOR_RETRIEVAL', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'rechunk')}>Rechunk</button>}
+            {identity?.permissions.includes('ingestion:reembed') && <button className="secondary" disabled={busy === job.id || awaitingParseReview(job) || !['READY_FOR_EMBEDDING', 'READY_FOR_RETRIEVAL', 'NEEDS_REVIEW', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'reembed')}>Re-embed</button>}
             {identity?.permissions.includes('ingestion:reindex') && <button className="secondary" disabled={busy === job.id || !['READY_FOR_RETRIEVAL', 'RETRIEVAL_READY', 'FAILED'].includes(job.status) || job.retry_count >= job.max_retries} onClick={() => void action(job, 'reindex-sparse')}>Rebuild lexical index</button>}
             {identity?.permissions.includes('ingestion:cancel') && <button className="secondary" disabled={busy === job.id || job.status === 'CANCELLED'} onClick={() => void action(job, 'cancel')}>Cancel job</button>}
           </div>{selected === job.id && <JobHistory jobId={job.id} />}</article>)}</div>}

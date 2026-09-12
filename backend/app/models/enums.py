@@ -91,10 +91,21 @@ class RetrievalMode(StrEnum):
 
 
 class ParseRunStatus(StrEnum):
-    """Lifecycle of one durable parse attempt, independent of the owning job status."""
+    """Lifecycle of one durable parse attempt, independent of the owning job status.
+
+    `REVIEWED_ACCEPTED` is a parse the deterministic quality layer flagged and an authorized
+    curator then accepted for downstream ingestion. It is deliberately *not* `SUCCEEDED`: the
+    distinction between automatic success and human judgement has to survive in the record.
+    Such a run keeps `validation_result = NEEDS_REVIEW` forever and keeps every finding.
+
+    Downstream eligibility therefore cannot be decided from `validation_result` alone. Anything
+    gating on "is this parse usable" must consult this status as well, in the database guards as
+    much as in Python.
+    """
 
     RUNNING = "RUNNING"
     SUCCEEDED = "SUCCEEDED"
+    REVIEWED_ACCEPTED = "REVIEWED_ACCEPTED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
 

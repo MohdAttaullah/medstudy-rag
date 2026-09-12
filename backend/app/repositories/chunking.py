@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any, TypeGuard, cast
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -37,19 +37,32 @@ def get_chunk(session: Session, tenant_id: UUID, chunk_id: UUID) -> Chunk:
     return chunk
 
 
+def usable_parse(parsed: ParseRun | None) -> TypeGuard[ParseRun]:
+    """Whether a parse dataset may be chunked.
+
+    Two ways in, and they must stay distinguishable. The first is the automatic path, unchanged:
+    the quality layer passed the parse outright. The second is a parse the quality layer flagged
+    and an authorized curator then accepted, which keeps `validation_result = NEEDS_REVIEW` and
+    every finding, and carries its judgement in `status` instead.
+
+    REVIEWED_ACCEPTED needs no `validation_result` test of its own: the database guarantees that
+    status implies a flagged result plus an immutable ACCEPT decision for that exact run.
+    """
+    if parsed is None or not parsed.is_active:
+        return False
+    if parsed.status == "REVIEWED_ACCEPTED":
+        return True
+    return parsed.status == "SUCCEEDED" and parsed.validation_result in {
+        "PASS",
+        "PASS_WITH_WARNINGS",
+    }
+
+
 def load_source(session: Session, run: ChunkRun, config: ChunkingConfig) -> ChunkInput:
     parsed = session.get(ParseRun, run.parse_run_id)
     version = session.get(DocumentVersion, run.document_version_id)
     document = session.get(Document, run.document_id)
-    if (
-        parsed is None
-        or not parsed.is_active
-        or parsed.status != "SUCCEEDED"
-        or parsed.validation_result not in {"PASS", "PASS_WITH_WARNINGS"}
-        or version is None
-        or document is None
-        or document.archived_at
-    ):
+    if not usable_parse(parsed) or version is None or document is None or document.archived_at:
         raise ChunkError("CHUNK_SOURCE_PARSE_NOT_READY")
     count, characters = session.execute(
         select(

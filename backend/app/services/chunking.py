@@ -33,7 +33,7 @@ from app.models.documents import Document, DocumentVersion, IngestionJob, Outbox
 from app.models.enums import Status
 from app.models.parsing import ParseRun
 from app.observability.ingestion import audit, phase_event
-from app.repositories.chunking import load_source
+from app.repositories.chunking import load_source, usable_parse
 from app.security.auth import Principal
 
 
@@ -89,11 +89,7 @@ class ChunkService:
                 )
                 .with_for_update()
             )
-            if (
-                parsed is None
-                or parsed.status != "SUCCEEDED"
-                or parsed.validation_result not in {"PASS", "PASS_WITH_WARNINGS"}
-            ):
+            if not usable_parse(parsed):
                 transition(
                     session,
                     job,

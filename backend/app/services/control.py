@@ -17,6 +17,7 @@ from app.services.evidence import EvidenceService
 from app.services.generation import GenerationService
 from app.services.jobs import JobService
 from app.services.retrieval import RetrievalService
+from app.services.review import ReviewService
 from app.services.sparse_index import SparseIndexService
 from app.services.storage import ObjectStorage
 from app.services.uploads import UploadService
@@ -75,6 +76,7 @@ class ControlPlane:
         self.verification = VerificationService(self.generation, settings)
         self.ask = AskService(self.verification, settings)
         self.jobs = JobService(sessions, storage)
+        self.reviews = ReviewService(sessions)
         self.configuration = ConfigurationService(sessions, settings)
 
     def for_request(self, actor: Principal) -> "ControlPlane":

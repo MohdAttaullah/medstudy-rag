@@ -36,7 +36,7 @@ provenance. The executable graph is:
 | READY_FOR_RETRIEVAL | CANCELLED; explicit reparse, rechunk or re-embed |
 | FAILED | CANCELLED; explicit bounded retry, reparse, rechunk or re-embed |
 | QUARANTINED | CANCELLED |
-| NEEDS_REVIEW | CANCELLED; explicit reparse, rechunk or re-embed |
+| NEEDS_REVIEW | CANCELLED; explicit reparse; curator acceptance to READY_FOR_CHUNKING (parse-stage only, consumes no retry); rechunk or re-embed only when a later stage raised the review |
 | CANCELLED | None |
 
 READY exists in the enum for schema compatibility and is absent from both the application table and
@@ -112,6 +112,12 @@ TOPLEFT-origin point coordinates, parser-declared hierarchy and deterministic re
 headers and cells, formula expressions and question-bank cues are retained; nothing is inferred.
 A deterministic quality layer decides between READY_FOR_CHUNKING, NEEDS_REVIEW and FAILED.
 See [document parsing](document-parsing.md) for the full contract.
+
+A job reaches `NEEDS_REVIEW` from three different stages and only `last_error_code` says which.
+`PARSE_NEEDS_REVIEW` means there is no active parse dataset, so rechunk and re-embed cannot
+succeed for it — they fail with `CHUNK_SOURCE_PARSE_NOT_READY` after spending one unit of the
+bounded retry budget. The way forward for a flagged parse is curator review: see
+[document parsing](document-parsing.md) and ADR-018.
 
 ## Implemented chunking (M3)
 

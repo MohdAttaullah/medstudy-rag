@@ -1,4 +1,5 @@
-export type ParseRunStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
+export type ParseRunStatus =
+  | 'RUNNING' | 'SUCCEEDED' | 'REVIEWED_ACCEPTED' | 'FAILED' | 'CANCELLED';
 export type ParseResult = 'PASS' | 'PASS_WITH_WARNINGS' | 'NEEDS_REVIEW' | 'FAIL';
 export type Severity = 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
 export type ElementType =
@@ -21,6 +22,19 @@ export interface ParseRun {
   error_code: string | null; error_message: string | null; created_at: string;
   finding_counts: Record<string, number>;
 }
+/**
+ * A curator's recorded decision about one exact flagged parse run.
+ *
+ * Acceptance never rewrites the automated verdict: the run keeps `validation_result` of
+ * NEEDS_REVIEW and every finding, and carries `REVIEWED_ACCEPTED` instead.
+ */
+export interface ParseReviewDecision {
+  id: string; parse_run_id: string; decision: 'ACCEPT'; reviewer_user_id: string;
+  rationale: string; validation_result_at_decision: string; finding_count: number;
+  findings_digest: string; configuration_fingerprint: string; correlation_id: string;
+  created_at: string;
+}
+
 export interface ParseSummary {
   document_version_id: string; ingestion_status: string; parse_run: ParseRun | null; parse_runs: number;
 }

@@ -5,12 +5,30 @@ consumes only the frozen dataclasses declared here, so a different parser can be
 without touching persistence, validation, APIs or the UI.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from math import ceil
 from pathlib import Path
 from typing import Any, Protocol
 
 from app.models.enums import CoordinateOrigin, ElementType
+
+
+def document_budget_seconds(
+    pages: int, call_seconds: int, seconds_per_page: float, ceiling: int
+) -> int:
+    """Time budget for a whole document, or 0 when no whole-document budget applies.
+
+    One conversion call plus a share for every page, capped. A constant cannot be right for
+    a corpus holding both a one-page leaflet and a 932-page textbook: the value that lets
+    the book finish would let a stuck one-page parse hold the worker for hours.
+
+    Declared here, in the parser-independent layer, so the policy in `ParsingConfig` and the
+    enforcement in the adapter cannot drift apart into two different formulas.
+    """
+    if seconds_per_page <= 0 or ceiling <= 0:
+        return 0
+    return min(ceiling, call_seconds + ceil(pages * seconds_per_page))
 
 
 @dataclass(frozen=True)
@@ -160,12 +178,34 @@ class ParserConfig:
     # Pinned so the same document produces the same layout prediction on any host.
     threads: int = 4
     temp_dir: Path | None = None
+    #: Pages per conversion call for a long document; 0 converts the whole document at once.
+    page_window_size: int = 0
+    #: Documents at or below this page count always use the single-call path.
+    page_window_threshold: int = 25
+    #: Inputs to the whole-document budget, which bounds the parse across every window as
+    #: opposed to `timeout_seconds` which bounds one conversion call. The budget scales with
+    #: length because no constant fits both a leaflet and a 900-page textbook. Either value
+    #: at 0 leaves the document bounded per call only.
+    document_seconds_per_page: float = 0.0
+    max_document_timeout_seconds: int = 0
 
 
 class DocumentParser(Protocol):
     name: str
 
-    def parse(self, source: ParseSource, config: ParserConfig) -> ParsedDocument: ...
+    def parse(
+        self,
+        source: ParseSource,
+        config: ParserConfig,
+        on_progress: Callable[[int, int], None] | None = None,
+    ) -> ParsedDocument:
+        """Convert a source document.
+
+        `on_progress(pages_done, pages_total)` lets a long conversion report advancement so
+        the caller can renew its lease. An implementation that converts in one pass may
+        ignore it; one that converts incrementally should call it between units of work.
+        """
+        ...
 
 
 def page_index(pages: Sequence[ParsedPage]) -> dict[int, ParsedPage]:

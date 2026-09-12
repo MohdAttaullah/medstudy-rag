@@ -9,7 +9,7 @@ insufficient permission returns 403; cross-tenant resource lookups return 404.
 | Role | Permissions |
 |---|---|
 | reader | document:read, ingestion:read |
-| curator | Reader plus document:upload, document:manage, ingestion:retry, ingestion:reparse, ingestion:cancel |
+| curator | Reader plus document:upload, document:manage, ingestion:retry, ingestion:reparse, ingestion:rechunk, ingestion:reembed, ingestion:reindex, ingestion:cancel, ingestion:accept |
 | admin | Curator plus audit:read |
 
 Queries and service actions apply tenant constraints, backed by composite database foreign keys.
@@ -48,6 +48,8 @@ cannot call out of the worker. Parser exception text, file paths and model detai
 durable record or an API response; only fixed operator-safe messages and codes do. Document
 content is treated as data throughout: no parsed text is ever interpreted as an instruction, and
 no model is invoked during parsing.
+
+`ingestion:accept` records a curator's decision to admit a parse the deterministic quality layer flagged. It sits with the operate-the-pipeline capabilities because a curator already holds reparse and cancel, which discard and regenerate the evidence dataset outright. Accepting never rewrites the validation result or removes a finding; it writes an append-only decision bound to one exact parse run (ADR-018). Readers never hold it.
 
 M3 chunking inherits that posture and narrows it further. The builder reads only frozen in-memory
 contracts, so it can reach neither the database, the parser library nor object storage; the only

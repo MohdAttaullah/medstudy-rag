@@ -9,11 +9,16 @@ Pinned behaviour of the installed version is recorded in docs/architecture/docum
 
 from __future__ import annotations
 
+import ctypes
+import gc
 import importlib.metadata as metadata
 import io
 import json
 import logging
+import sys
 import time
+from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +45,7 @@ from app.ingestion.parser.model import (
     ParsedTableCell,
     ParserConfig,
     ParseSource,
+    document_budget_seconds,
 )
 from app.models.enums import CoordinateOrigin, ElementType
 
@@ -87,17 +93,43 @@ def _docling_version() -> str:
         return "unknown"
 
 
-def _source_text_chars(path: Path) -> dict[int, int]:
-    """Characters available from the PDF text layer alone, keyed by 1-based page number."""
+def _release_heap() -> None:
+    """Hand a finished window's freed pages back to the operating system.
+
+    Freeing the Python objects is not enough. glibc keeps the freed arenas for reuse, and with
+    the many allocator threads a conversion runs the freed space fragments across them instead of
+    being reused: measured across a 932-page textbook, worker RSS ratcheted ~6 MiB per page while
+    the parse output actually retained grew ~0.2 MiB per page. `malloc_trim` is what returns
+    those pages. It is a glibc facility, so this is a no-op anywhere it is not available — the
+    parse is correct either way, only its memory profile differs.
+    """
+    if not sys.platform.startswith("linux"):
+        return
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except (OSError, AttributeError):  # not glibc, or trimming unavailable
+        return
+
+
+def _source_text_chars(path: Path, window: tuple[int, int] | None = None) -> dict[int, int]:
+    """Characters available from the PDF text layer alone, keyed by 1-based page number.
+
+    `window` restricts extraction to a page range. Extracting a whole book at once is not
+    bounded-memory: pypdf caches every page's decompressed content stream as it goes, and on a
+    932-page textbook that transient cost measured ~1.3 GiB — paid before Docling had converted
+    a single page, and never returned to the OS by the allocator. Reading only the pages of the
+    window that needs them keeps this bounded by the same window size as conversion itself.
+    """
     from pypdf import PdfReader
 
     counts: dict[int, int] = {}
     logging.disable(logging.ERROR)
     try:
         reader = PdfReader(str(path))
-        for index, page in enumerate(reader.pages, start=1):
+        first, last = window if window is not None else (1, len(reader.pages))
+        for index in range(first, min(last, len(reader.pages)) + 1):
             try:
-                counts[index] = len((page.extract_text() or "").strip())
+                counts[index] = len((reader.pages[index - 1].extract_text() or "").strip())
             except Exception:
                 counts[index] = 0
     except Exception:
@@ -209,7 +241,19 @@ class DoclingDocumentParser:
 
     # ---------------------------------------------------------------- conversion
 
-    def parse(self, source: ParseSource, config: ParserConfig) -> ParsedDocument:
+    def parse(
+        self,
+        source: ParseSource,
+        config: ParserConfig,
+        on_progress: Callable[[int, int], None] | None = None,
+    ) -> ParsedDocument:
+        """Convert a PDF.
+
+        `on_progress(pages_done, pages_total)` is invoked between windows when windowing is
+        active. It exists so the caller can renew its lease during a long conversion: without it
+        the lease is only renewed at stage boundaries, so a worker killed mid-book leaves the job
+        showing PARSING until the full lease elapses.
+        """
         if not source.path.exists() or source.path.stat().st_size == 0:
             raise ParserError(PARSER_SOURCE_MISSING)
         try:
@@ -222,31 +266,29 @@ class DoclingDocumentParser:
             raise ParserError(PARSER_PAGE_LIMIT_EXCEEDED, f"pages={declared_pages}")
 
         converter, engine = self._converter(config)
+        windows = _windows(declared_pages, config)
         started = time.perf_counter()
-        try:
-            result = converter.convert(str(source.path), raises_on_error=False)
-        except MemoryError:
-            raise ParserError(PARSER_OOM) from None
-        except Exception as exc:  # Vendor exception types stay inside this adapter.
-            raise ParserError(self._classify(exc), type(exc).__name__) from None
+
+        if windows is None:
+            text_layer = _source_text_chars(source.path)
+            document, warnings = self._convert(converter, source, config, None)
+            pages = self._pages(document, config, text_layer)
+            elements = self._elements(document, config)
+            raw = self._raw_artifact(document, declared_pages, config)
+        else:
+            pages, elements, raw, warnings = self._convert_windowed(
+                converter,
+                source,
+                config,
+                windows,
+                declared_pages,
+                on_progress,
+                started,
+            )
         duration_ms = int((time.perf_counter() - started) * 1000)
-
-        from docling.datamodel.base_models import ConversionStatus
-
-        warnings: list[str] = []
-        if result.status == ConversionStatus.FAILURE:
-            raise ParserError(PARSER_SOURCE_CORRUPT, "conversion_failure")
-        if result.status == ConversionStatus.SKIPPED:
-            raise ParserError(PARSER_UNSUPPORTED_PDF, "conversion_skipped")
-        if result.status == ConversionStatus.PARTIAL_SUCCESS:
-            warnings.append("PARSER_PARTIAL_SUCCESS")
-        if duration_ms >= config.timeout_seconds * 1000 and not result.document.pages:
+        if duration_ms >= config.timeout_seconds * 1000 and not pages:
             raise ParserError(PARSER_TIMEOUT)
 
-        document = result.document
-        text_layer = _source_text_chars(source.path)
-        pages = self._pages(document, config, text_layer)
-        elements = self._elements(document, config)
         ocr_pages = (
             frozenset(
                 page.page_number
@@ -266,13 +308,151 @@ class DoclingDocumentParser:
             parser_version=self.version,
             pages=pages,
             elements=elements,
-            raw_artifact=self._raw_artifact(document, declared_pages, config),
+            raw_artifact=raw,
             source_page_count=declared_pages,
             ocr_engine=engine,
             ocr_pages=ocr_pages,
             warnings=tuple(warnings),
             duration_ms=duration_ms,
         )
+
+    # ---------------------------------------------------------------- windowed conversion
+
+    def _convert(
+        self,
+        converter: Any,
+        source: ParseSource,
+        config: ParserConfig,
+        page_range: tuple[int, int] | None,
+    ) -> tuple[Any, list[str]]:
+        """One Docling conversion, with vendor exception types kept inside this adapter."""
+        from docling.datamodel.base_models import ConversionStatus
+
+        try:
+            if page_range is None:
+                result = converter.convert(str(source.path), raises_on_error=False)
+            else:
+                result = converter.convert(
+                    str(source.path), raises_on_error=False, page_range=page_range
+                )
+        except MemoryError:
+            raise ParserError(PARSER_OOM) from None
+        except Exception as exc:  # Vendor exception types stay inside this adapter.
+            raise ParserError(self._classify(exc), type(exc).__name__) from None
+
+        warnings: list[str] = []
+        if result.status == ConversionStatus.FAILURE:
+            raise ParserError(PARSER_SOURCE_CORRUPT, "conversion_failure")
+        if result.status == ConversionStatus.SKIPPED:
+            raise ParserError(PARSER_UNSUPPORTED_PDF, "conversion_skipped")
+        if result.status == ConversionStatus.PARTIAL_SUCCESS:
+            warnings.append("PARSER_PARTIAL_SUCCESS")
+        return result.document, warnings
+
+    def _convert_windowed(
+        self,
+        converter: Any,
+        source: ParseSource,
+        config: ParserConfig,
+        windows: tuple[tuple[int, int], ...],
+        declared_pages: int,
+        on_progress: Callable[[int, int], None] | None,
+        started: float,
+    ) -> tuple[tuple[ParsedPage, ...], tuple[ParsedElement, ...], bytes, list[str]]:
+        """Convert page windows and join them into one document.
+
+        Docling reports absolute page numbers under `page_range`, so page provenance needs no
+        translation. What does need care is that every window restarts its own `#/texts/N`
+        reference space and its own reading order: joined naively, the second window's
+        `#/texts/0` would collide with the first window's and silently re-parent elements.
+        References are therefore qualified by window and reading order continues across the
+        join, so the result is addressed exactly as a single-pass parse would be."""
+        pages: list[ParsedPage] = []
+        elements: list[ParsedElement] = []
+        artifacts: list[dict[str, Any]] = []
+        warnings: list[str] = []
+        order = 0
+        seen: set[int] = set()
+
+        budget = document_budget_seconds(
+            declared_pages,
+            config.timeout_seconds,
+            config.document_seconds_per_page,
+            config.max_document_timeout_seconds,
+        )
+        for index, (first, last) in enumerate(windows):
+            if budget and time.perf_counter() - started >= budget:
+                # Checked between windows rather than inside one: the conversion call is
+                # opaque, so the whole-document budget can only be enforced at the seams.
+                # Each window is separately bounded by Docling's own per-call timeout.
+                raise ParserError(PARSER_TIMEOUT, f"pages={len(seen)}/{declared_pages}")
+            document, window_warnings = self._convert(converter, source, config, (first, last))
+            warnings.extend(w for w in window_warnings if w not in warnings)
+
+            # Only this window's text layer, so the comparison against the parser's output
+            # costs the same bounded amount of memory whatever the length of the book.
+            text_layer = _source_text_chars(source.path, (first, last))
+            for page in self._pages(document, config, text_layer):
+                if page.page_number in seen:
+                    # Docling honoured the range, so an overlap would mean the vendor returned
+                    # pages outside it. Dropping the duplicate keeps page identity single-valued.
+                    continue
+                seen.add(page.page_number)
+                pages.append(page)
+
+            for element in self._elements(document, config):
+                elements.append(_requalify(element, index, order))
+                order += 1
+
+            payload = json.loads(self._raw_artifact(document, declared_pages, config))
+            artifacts.append({"window": [first, last], "document": payload.get("document")})
+            # Release this window's Docling state before the next conversion allocates its own.
+            del document
+            del text_layer
+            gc.collect()
+            _release_heap()
+            if on_progress is not None:
+                on_progress(min(last, declared_pages), declared_pages)
+
+        pages.sort(key=lambda page: page.page_number)
+        if len(seen) < declared_pages:
+            warnings.append("PARSER_WINDOW_PAGES_MISSING")
+        raw = self._windowed_artifact(artifacts, declared_pages, config, windows)
+        return tuple(pages), tuple(elements), raw, warnings
+
+    def _windowed_artifact(
+        self,
+        artifacts: list[dict[str, Any]],
+        source_pages: int,
+        config: ParserConfig,
+        windows: tuple[tuple[int, int], ...],
+    ) -> bytes:
+        """The structural record of a windowed parse.
+
+        Each window's Docling export is kept whole and labelled with its page range rather than
+        being fused into one synthetic document. A fabricated single export would claim a
+        document Docling never produced, and the point of this artifact is to record exactly
+        what the parser emitted."""
+        envelope = {
+            "artifact_schema": "medrag.parse.raw/1",
+            "parser": {"name": self.name, "provider": self.provider, "version": self.version},
+            "parser_config": {
+                "ocr_mode": config.ocr_mode,
+                "extract_tables": config.extract_tables,
+                "extract_formulas": config.extract_formulas,
+                "extract_figures": config.extract_figures,
+                "generate_page_previews": config.generate_page_previews,
+                "preview_scale": config.preview_scale,
+            },
+            "source_page_count": source_pages,
+            "images_stored_separately": True,
+            "windowed": {
+                "page_window_size": config.page_window_size,
+                "windows": [list(window) for window in windows],
+            },
+            "documents": artifacts,
+        }
+        return json.dumps(envelope, ensure_ascii=False, separators=(",", ":")).encode()
 
     @staticmethod
     def _classify(exc: Exception) -> str:
@@ -495,3 +675,40 @@ class DoclingDocumentParser:
             "document": payload,
         }
         return json.dumps(envelope, ensure_ascii=False, separators=(",", ":")).encode()
+
+
+def _windows(declared_pages: int, config: ParserConfig) -> tuple[tuple[int, int], ...] | None:
+    """Page ranges to convert, or None to convert the whole document in one call.
+
+    Short documents keep the single-call path, so their output — and the determinism the M2
+    evaluation asserts over the fixture corpus — is unchanged. Windowing takes over only where
+    the single-call path is the thing that fails."""
+    size = config.page_window_size
+    if size <= 0 or declared_pages <= max(config.page_window_threshold, size):
+        return None
+    return tuple(
+        (start, min(start + size - 1, declared_pages))
+        for start in range(1, declared_pages + 1, size)
+    )
+
+
+def _requalify(element: ParsedElement, window: int, order: int) -> ParsedElement:
+    """Namespace one window's references and place it in the joined reading order.
+
+    Every window restarts Docling's `#/texts/N` numbering, so references are prefixed with the
+    window index. Parent and caption references take the same prefix, which keeps every
+    relationship inside the window where it was actually established while making the joined
+    document's reference space single-valued."""
+    tag = f"w{window}"
+
+    def qualify(reference: str | None) -> str | None:
+        return None if reference is None else f"{tag}{reference}"
+
+    return replace(
+        element,
+        reference=f"{tag}{element.reference}",
+        parent_reference=qualify(element.parent_reference),
+        caption_of=qualify(element.caption_of),
+        caption_references=tuple(f"{tag}{ref}" for ref in element.caption_references),
+        reading_order=order,
+    )

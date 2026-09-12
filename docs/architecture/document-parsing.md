@@ -49,6 +49,23 @@ Every `ParseRun` records `parser_name`, `parser_provider`, `parser_version`,
 `configuration_version` and a `configuration_fingerprint` (SHA-256 of the whole frozen policy),
 so a parse can always be attributed to an exact parser build and policy.
 
+**Known limit — a paragraph that spans a page break is anchored to its first page.** Docling
+emits such a paragraph as one element carrying the page number where it *starts*, so the portion
+physically printed on the following page is attributed to the preceding one. The text is not lost;
+its page provenance is the paragraph's first page rather than the page each sentence appears on.
+
+This was measured on the 932-page acceptance textbook. Page 517 carries nothing but the tail of a
+paragraph that begins on page 516, so page 517 itself yielded only its two running headers and
+parse validation raised `PAGE_CONTENT_LOST`. The paragraph's full 1378 characters are present in
+the parse, on page 516. The behaviour is not caused by page windowing: page 517 yields exactly the
+same two elements at a 3-page range, at the 25-page production window and at a 75-page range —
+every context that includes page 516. Only converting page 517 entirely on its own differs, and
+only because the page the paragraph belongs to is then absent.
+
+The consequence is a citation that can point one page earlier than the sentence it supports, for
+the spanning portion of such a paragraph. It is a provenance-precision limit, not content loss,
+and it is independent of the conversion strategy.
+
 **Known limit.** Layout classification is not bit-identical across CPU/BLAS environments. Cell
 contents, grid geometry, page counts, text and reading order were stable between the Windows host
 and the Linux container measured; *semantic labels* on borderline regions (page header/footer,
@@ -79,7 +96,8 @@ checksum, the job advances without a second parse and the reuse is audited.
 
 **Reparse** is explicit: `POST /api/v1/ingestion/jobs/{id}/reparse` (permission
 `ingestion:reparse`) moves a `READY_FOR_CHUNKING`, `NEEDS_REVIEW` or `FAILED` job back through
-`VALIDATING`, consuming one unit of the same bounded retry budget. The previous run stays active
+`VALIDATING`, consuming one unit of the same bounded retry budget. Curator acceptance is the other
+route out of `NEEDS_REVIEW` and consumes none, because it creates no run. The previous run stays active
 until the new one succeeds, and an unchanged parser/policy/source is a no-op.
 
 **Leases.** A run records `worker_identity`, `heartbeat_at` and `lease_expires_at`. The dispatcher
@@ -230,6 +248,142 @@ policy fingerprint, so a silently edited threshold cannot reuse a parse produced
 rules. No rule reports an "accuracy percentage"; findings carry codes, counts and page numbers,
 never document text.
 
+## Bounded memory: page-window conversion
+
+A whole-book conversion is not bounded-memory. Docling retains per-page state for the life of one
+`convert()` call, so peak RSS grows linearly with page count: measured on this host, a synthetic
+document cost ~18 MiB per page, and a **real 50-page textbook section cost 2442 MiB — 44 MiB per
+page**, because real pages carry tables, figures and page images. A 932-page medical textbook on
+that path reached 6.2 GB and the Celery child was `SIGKILL`ed by the kernel OOM killer
+(`oom_kill 1`, container itself not `OOMKilled`), which surfaced only as `WorkerLostError`.
+
+Long documents are therefore converted in **page windows**. Each window is a separate Docling
+call over `page_range=(first, last)`; the window's state is released before the next one is
+allocated, and measured peak RSS then **plateaus regardless of book length** — 200 pages 1389 MiB,
+400 pages 1571 MiB on synthetic content.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `MEDRAG_PARSING__PAGE_WINDOW_SIZE` | 25 | pages per conversion call; `0` disables windowing |
+| `MEDRAG_PARSING__PAGE_WINDOW_THRESHOLD` | 25 | documents at or below this convert in one call |
+
+The threshold equals the window size, so **no conversion call ever handles more pages than one
+window** and the memory bound is uniform. Every fixture in this repository is three pages or
+fewer, so fixtures keep the single-call path and existing parse output — including the
+determinism the M2 evaluation asserts over the fixture corpus — is unchanged. Windowing takes
+over only where the single-call path is the thing that fails.
+
+### What else grows with book length
+
+Windowing bounds Docling's own per-page state. Two other costs scale with the document and had to
+be bounded before a 932-page book could actually finish.
+
+**The source text layer.** Every page's parser output is compared against the characters the PDF's
+own text layer offers, which is how a scanned page is distinguished from a parsed-empty one. Read
+for the whole book at once, pypdf caches every page's decompressed content stream as it goes: on
+this textbook that measured ~1.3 GiB, paid before Docling had converted a single page. It is now
+read one window at a time, so it costs the same bounded amount whatever the length of the book.
+
+**Freed memory the allocator keeps.** With both of the above in place, worker RSS still ratcheted
+~6 MiB per page across the book while the parse output actually retained grew ~0.2 MiB per page
+(42 MiB of previews, figure crops and raw artifact per 200 pages). The objects were being freed;
+glibc was keeping the arenas. The parser therefore trims the heap between windows, and the worker
+caps `MALLOC_ARENA_MAX`. Measured over the same eight windows of real textbook content, settled
+RSS went from *climbing* 2267 → 2842 MiB to *flat* 1248 → 1321 MiB.
+
+The remaining peak is the working set of one window, not of the book: it is bounded by
+`page_window_size`, so a deployment that needs a lower ceiling lowers the window size.
+
+### Provenance across windows
+
+**Absolute page numbers are preserved.** Docling reports absolute page numbers under
+`page_range`, so page 101 parsed in the window 101–125 remains page 101; no page number is ever
+translated from a window-local index, and pages are joined by page number with duplicates
+dropped.
+
+What does need care is Docling's **reference space**, which restarts at `#/texts/0` in every
+window. Joined naively, the second window's `#/texts/0` would be the same key as the first's and
+a parent lookup would silently re-parent an element into a different part of the book. Every
+reference is therefore namespaced by window (`w3#/texts/4`), and `parent`, `caption_of` and
+caption references take the same prefix, so every relationship stays inside the window where the
+parser actually established it. `reading_order` is assigned by the join and is continuous across
+the whole document, not carried from each window's own counter. Nothing else about an element —
+text, type, bounding box, ordinal, depth, page — is altered by joining.
+
+The **raw artifact** keeps each window's Docling export whole, labelled with its page range, under
+an envelope carrying the window plan. A fabricated single export would claim a document Docling
+never produced, and the point of that artifact is to record exactly what the parser emitted.
+
+### Time budgets
+
+Windowing makes a long parse succeed, which makes it *long*: the 932-page book is hours of work,
+not minutes, so a constant timeout cannot serve both it and a one-page leaflet.
+
+| Bound | Setting | Default | Scope |
+|---|---|---|---|
+| One conversion call | `MEDRAG_PARSING__TIMEOUT_SECONDS` | 900 s | one window, or a short whole document |
+| Whole document | `document_timeout_for(pages)` | 900 s + 12 s/page, capped 14400 s | every window together |
+| Celery soft / hard | `MEDRAG_PARSING__TASK_SOFT_TIMEOUT_SECONDS` / `__TASK_TIMEOUT_SECONDS` | 15600 s / 15900 s | the whole task |
+
+The whole-document budget is checked **between** windows — a conversion call is opaque, so the
+seams are the only place it can be enforced — which means a parse already over budget still
+finishes the window it is in. The soft task limit must therefore clear the budget *plus* one
+conversion call, or the worker would kill the task before the parser could report a diagnosable
+`PARSER_TIMEOUT`. A validator enforces the whole chain rather than leaving it to defaults.
+
+### The lease during a long parse
+
+The parse lease is what makes a lost worker recoverable: `reap_expired_leases` moves an expired
+run to `FAILED` with `PARSER_LEASE_EXPIRED` and the job becomes retryable. Before windowing the
+lease was renewed only at stage boundaries, and a book took minutes; now a book takes hours, and a
+lease renewed only at stage boundaries would be reaped out from under a **healthy** parse.
+
+The parser therefore reports progress between windows (`on_progress(pages_done, pages_total)`) and
+`ParseService` renews the lease on each beat, logging `PARSE_WINDOW_COMPLETED`. The lease is sized
+for **liveness, not for document length**: it must outlive one conversion call, because nothing
+can renew it from inside one, and a validator refuses a lease shorter than that. It does not have
+to outlive the document — which is what keeps the detection window for a dead worker bounded no
+matter how long the book is.
+
+## Reviewed acceptance of a flagged parse
+
+`NEEDS_REVIEW` is a real verdict, not a soft warning, and it is never rewritten. An authorized
+curator can nonetheless admit the parse for further processing, and that judgement is recorded as
+a separate immutable fact.
+
+```
+ParseRun  status = FAILED, validation_result = NEEDS_REVIEW      flagged by the quality layer
+    +  POST .../parse-runs/{id}/review  {decision: ACCEPT, rationale}
+ParseRun  status = REVIEWED_ACCEPTED, validation_result = NEEDS_REVIEW, is_active = true
+IngestionJob  NEEDS_REVIEW -> READY_FOR_CHUNKING        no retry consumed, no new parse run
+```
+
+The parse run keeps `validation_result = NEEDS_REVIEW` permanently and keeps every
+`parse_validation_findings` row; `parse_review_decisions` records the reviewer, the rationale, the
+correlation id, the exact `configuration_fingerprint`, and a `findings_digest` over the finding set
+that was reviewed. The decision table is append-only at the database, like findings and audit
+events, and its foreign key binds it to one exact run — so acceptance cannot follow a reparse,
+which produces a new run with no decision of its own.
+
+| Concern | Where it is enforced |
+|---|---|
+| Only a flagged parse can be accepted | `parse_review_guard`: `REVIEWED_ACCEPTED` requires `FAILED` + `NEEDS_REVIEW` |
+| An accepted run really has a decision | `parse_review_guard`: an ACCEPT row for that run must exist |
+| The automated verdict is immutable | `parse_review_guard`: `validation_result` cannot change once written |
+| One decision per run | partial unique index `uq_parse_review_decisions_accept` |
+| Acceptance costs no retry | `m1_job_guard` admits the edge only with `retry_count` unchanged |
+| The edge needs a real acceptance | `m1_job_guard` requires an active `REVIEWED_ACCEPTED` run for the version |
+| A reviewed parse can be chunked | `m3_run_guard`, both clauses, plus `usable_parse` in Python |
+
+**Chunking eligibility** is therefore two clauses, not one: the unchanged automatic path
+(`SUCCEEDED` with `PASS`/`PASS_WITH_WARNINGS`), or `REVIEWED_ACCEPTED`. Because a reviewed parse
+keeps `NEEDS_REVIEW` forever, anything that gates on "is this parse usable" must consult the run
+**status**, never `validation_result` alone.
+
+Permission `ingestion:accept`, held by curator and admin, never reader. Acceptance is audited as
+`PARSE_REVIEW_ACCEPTED`; the rationale lives only in the decision row, because it is operator prose
+that may quote the document and audit metadata must stay safe to log.
+
 ## Failure and retry semantics
 
 Fail-closed. A run is complete only when the raw artifact exists, pages, elements and artifacts
@@ -255,7 +409,8 @@ the parse path releases its run as `CANCELLED` with no normalized rows.
 transactional outbox -> Celery receipt (claims the message under lock)
   -> _claim: QUEUED -> PARSING, ParseRun created RUNNING with a lease
   -> download original to a per-job temporary directory
-  -> Docling conversion
+  -> Docling conversion (one call, or page windows joined by absolute page number,
+     renewing the lease between windows)
   -> raw artifact written to object storage and pinned on the run
   -> NORMALIZING: pages, elements, tables, figures, formulas in one transaction
   -> ENRICHING: page text rollups, counters, table continuation candidates

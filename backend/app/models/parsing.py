@@ -16,6 +16,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -67,7 +68,12 @@ class ParseRun(UUIDTimestampMixin, Base):
             postgresql_where=text("is_active"),
         ),
         Index("ix_parse_runs_document_version_id", "document_version_id"),
-        CheckConstraint("NOT is_active OR status = 'SUCCEEDED'", name="active_run_succeeded"),
+        # A flagged parse can become the active dataset only through a recorded curator
+        # decision, which is what REVIEWED_ACCEPTED means; see ParseReviewDecision.
+        CheckConstraint(
+            "NOT is_active OR status IN ('SUCCEEDED', 'REVIEWED_ACCEPTED')",
+            name="active_run_usable",
+        ),
         CheckConstraint("attempt > 0", name="positive_attempt"),
     )
 
@@ -327,3 +333,56 @@ class ParseValidationFinding(UUIDTimestampMixin, Base):
     code: Mapped[str] = mapped_column(String(80), index=True)
     message: Mapped[str] = mapped_column(String(300))
     details: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+
+
+class ParseReviewDecision(UUIDTimestampMixin, Base):
+    """An authorized curator's explicit decision about one exact flagged parse run.
+
+    The automated verdict is never rewritten. `parse_runs.validation_result` stays NEEDS_REVIEW
+    and every `ParseValidationFinding` stays exactly as the quality layer wrote it; acceptance is
+    recorded here instead, as a separate append-only fact with its own reviewer, rationale and
+    correlation identity.
+
+    The decision is bound to one parse run by foreign key, so it cannot follow a reparse: a new
+    run is a new row with no decision of its own. `findings_digest` pins what was actually
+    reviewed — the append-only trigger blocks UPDATE and DELETE but not INSERT, so without a
+    digest a finding appended later would silently appear to have been covered by the decision.
+    """
+
+    __tablename__ = "parse_review_decisions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["parse_run_id", "tenant_id"],
+            ["parse_runs.id", "parse_runs.tenant_id"],
+            name="fk_parse_review_decisions_parse_run",
+            ondelete="CASCADE",
+        ),
+        # One acceptance per run, ever. This is the idempotency fence: a concurrent second
+        # ACCEPT cannot create a second decision even if two curators race.
+        Index(
+            "uq_parse_review_decisions_accept",
+            "parse_run_id",
+            unique=True,
+            postgresql_where=text("decision = 'ACCEPT'"),
+        ),
+        Index("ix_parse_review_decisions_parse_run_id", "parse_run_id"),
+        CheckConstraint("decision IN ('ACCEPT')", name="decision_vocabulary"),
+        CheckConstraint(
+            "validation_result_at_decision = 'NEEDS_REVIEW'", name="reviewed_result_recorded"
+        ),
+        CheckConstraint("finding_count >= 0", name="finding_count_not_negative"),
+    )
+
+    tenant_id: Mapped[UUID] = mapped_column(index=True)
+    parse_run_id: Mapped[UUID] = mapped_column()
+    decision: Mapped[str] = mapped_column(String(6))
+    reviewer_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    #: Curator-authored prose. Stored here and nowhere else: it may quote document content, so it
+    #: never reaches audit metadata or the structured log.
+    rationale: Mapped[str] = mapped_column(String(2000))
+    #: What was accepted, copied at decision time so the record stands alone.
+    validation_result_at_decision: Mapped[str] = mapped_column(String(18))
+    finding_count: Mapped[int] = mapped_column(Integer)
+    findings_digest: Mapped[str] = mapped_column(String(64))
+    configuration_fingerprint: Mapped[str] = mapped_column(String(64))
+    correlation_id: Mapped[UUID] = mapped_column()

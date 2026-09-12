@@ -69,7 +69,12 @@ existing runs keep their snapshot.
 |---|---|---|
 | version | parsing-m2-v1 | Human label; increment on a deliberate policy change |
 | parser_name | docling | Adapter selection |
-| timeout_seconds | 900 | Per-document parser limit |
+| timeout_seconds | 900 | Limit for one conversion call: one page window, or a whole short document |
+| document_seconds_per_page | 12.0 | Per-page share of the whole-document budget |
+| max_document_timeout_seconds | 14400 | Ceiling on the whole document however long the book is |
+| task_soft_timeout_seconds / task_timeout_seconds | 15600 / 15900 | Celery limits; must clear the document budget plus one call |
+| page_window_size | 25 | Pages per conversion call; 0 converts the whole document at once |
+| page_window_threshold | 25 | Documents at or below this convert in a single call |
 | max_pages | 2000 | Refused before conversion starts |
 | max_concurrency | 1 | Parser processes per worker |
 | parser_threads | 4 | Pinned so host core count cannot change layout prediction |
@@ -79,7 +84,7 @@ existing runs keep their snapshot.
 | preview_scale / preview_format | 1.5 / webp | Page preview rendering |
 | figure_format | png | Extracted figure crops |
 | max_artifact_bytes | 67108864 (64 MiB) | Raw parse artifact ceiling |
-| lease_seconds | 1800 | Parse lease; the dispatcher releases expired leases |
+| lease_seconds | 1800 | Parse lease, renewed between windows; must outlive one conversion call |
 | temp_dir | null | Parent for per-job temporary directories |
 | thresholds.* | see below | Typed quality bounds, part of the fingerprint |
 
