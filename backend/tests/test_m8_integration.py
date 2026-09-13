@@ -63,8 +63,6 @@ def pipeline(indexed, qdrant):  # noqa: F811 - pytest fixture imports
         ordinary=EvidenceRequirement(),
         table=EvidenceRequirement(),
         formula=EvidenceRequirement(),
-        budget_omission_is_insufficient=False,
-        incomplete_context_is_insufficient=False,
     )
     settings = control.settings.model_copy(
         update={

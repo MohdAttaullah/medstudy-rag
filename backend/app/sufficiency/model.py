@@ -31,6 +31,12 @@ ReasonCode = Literal[
     "EVIDENCE_BUDGET_OMISSION",
     "CONTEXT_INCOMPLETE",
     "RETRIEVAL_WARNING_PRESENT",
+    # A selected anchor is a mid-sentence fragment whose completing parent was not admitted.
+    "REQUIRED_CONTEXT_MISSING",
+    # Advisory
+    # Optional surrounding context the assembler declined. Reported so the omission stays
+    # visible; never a reason to refuse generation. See ADR-019.
+    "ADVISORY_CONTEXT_OMISSION",
     # Conflict
     "ASSESSMENT_KEY_UNSUPPORTED_BY_REFERENCE",
     "INDEPENDENT_SOURCE_VALUE_CONFLICT",

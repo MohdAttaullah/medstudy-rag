@@ -44,6 +44,7 @@ def block(
     artifacts=(),
     question=None,
     representation="m3-source-with-structural-labels-v1",
+    trimmed_covered=True,
     visual=False,
 ):
     element = uuid4()
@@ -76,6 +77,7 @@ def block(
         ],
         text=text,
         representation=representation,
+        trimmed_text_present_elsewhere=trimmed_covered,
         artifacts=list(artifacts),
         question=question,
         expansion_reason=reason,
@@ -143,12 +145,29 @@ def test_budget_omission_is_missing_evidence_not_absent_evidence():
     assert "EVIDENCE_BUDGET_OMISSION" in decision.reason_codes
 
 
-def test_partial_source_spans_count_as_incomplete_context():
+def test_a_materially_partial_anchor_counts_as_incomplete_context():
+    """Trimmed text that no other block in the set carries is missing source.
+
+    ADR-019 narrowed this from "any partial block" to "a selected anchor that actually lost
+    text": every expansion is `source-spans-v1` by construction, so the old form meant enabling
+    context expansion at all guaranteed insufficiency.
+    """
     decision = gate().evaluate(
-        "How is warfarin metabolised?", evidence(block(representation="source-spans-v1"))
+        "How is warfarin metabolised?",
+        evidence(block(representation="source-spans-v1", trimmed_covered=False)),
     )
     assert decision.status == "INSUFFICIENT"
     assert "CONTEXT_INCOMPLETE" in decision.reason_codes
+
+
+def test_a_deduplicated_partial_anchor_is_not_incomplete():
+    """Its trimmed regions are carried by another admitted block, so nothing was lost."""
+    decision = gate().evaluate(
+        "How is warfarin metabolised?",
+        evidence(block(representation="source-spans-v1", trimmed_covered=True)),
+    )
+    assert decision.status == "SUFFICIENT"
+    assert "CONTEXT_INCOMPLETE" not in decision.reason_codes
 
 
 def test_expansion_context_is_not_independent_support():

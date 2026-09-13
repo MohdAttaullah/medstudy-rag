@@ -47,6 +47,34 @@ class EvidenceSource(BaseModel):
     question: dict[str, Any] | None = None
 
 
+class EvidenceWarning(BaseModel):
+    """One thing that went wrong while assembling evidence, with enough structure to judge it.
+
+    The gate has to distinguish "the evidence I selected is incomplete" from "a candidate I did
+    not use did not fit". Parsed out of a `"CODE:uuid"` string those are indistinguishable, and
+    treating every warning alike made a 932-page textbook unanswerable while its defining passage
+    sat at rank one. See ADR-019.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    code: str
+    #: The candidate the warning is about, when it is about one at all. Retrieval-level integrity
+    #: warnings concern the whole query and name nothing.
+    chunk_id: UUID | None = None
+    #: ANCHOR for a reranker-selected candidate, EXPANSION for optional surrounding context,
+    #: RETRIEVAL for a first-stage condition that belongs to no tier.
+    tier: Literal["ANCHOR", "EXPANSION", "RETRIEVAL"] = "RETRIEVAL"
+    #: Whether the reranker chose this candidate as an anchor. True exactly when tier is ANCHOR.
+    selected_by_reranker: bool = False
+    #: Whether an admitted anchor actually needed this, as opposed to it being optional context.
+    required_dependency: bool = False
+
+    def render(self) -> str:
+        """The historical string form, kept so existing readers and the UI are unaffected."""
+        return f"{self.code}:{self.chunk_id}" if self.chunk_id else self.code
+
+
 class EvidenceBlock(BaseModel):
     evidence_id: UUID
     anchor_chunk_id: UUID
@@ -65,6 +93,15 @@ class EvidenceBlock(BaseModel):
     source_spans: list[SourceSpan]
     text: str
     representation: Literal["m3-source-with-structural-labels-v1", "source-spans-v1"]
+    #: For a block whose spans were trimmed: whether every trimmed region is carried by
+    #: another block in the same EvidenceSet. Trimming removes duplication rather than
+    #: truncating, so assembly normally proves this true — and when it is, a partial block is
+    #: missing nothing. The gate needs that distinction and cannot recompute it from the
+    #: retained spans alone, so assembly records it.
+    #:
+    #: Defaults to False: a block that does not say has not proved coverage, and an unproved
+    #: partial anchor must be treated as materially incomplete. See ADR-019.
+    trimmed_text_present_elsewhere: bool = False
     artifacts: list[ArtifactRef]
     question: dict[str, Any] | None = None
     expansion_reason: str
@@ -82,6 +119,10 @@ class EvidenceSet(BaseModel):
     evidence_blocks: list[EvidenceBlock]
     total_tokens: int
     requires_visual_evidence: bool
+    #: Human-readable form, unchanged, so diagnostics and the evidence inspector keep working.
     warnings: list[str]
+    #: The same warnings with the structure the sufficiency gate reasons over. Additive: the
+    #: string list above stays the display surface.
+    warning_details: list[EvidenceWarning] = Field(default_factory=list)
     duplicates_removed: int
     answering_enabled: Literal[False] = False

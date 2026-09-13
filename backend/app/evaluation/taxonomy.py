@@ -65,6 +65,9 @@ ATTRIBUTION: dict[str, Layer] = {
     # Declared by the gate, but it reports a warning the assembler raised. Attributed upstream,
     # to the layer that produced the condition rather than the one that noticed it.
     "RETRIEVAL_WARNING_PRESENT": "EVIDENCE",
+    # A selected anchor reads as a mid-sentence fragment and the parent that completes it was not
+    # admitted. The deficiency is in what assembly carried, so it is attributed there. See ADR-019.
+    "REQUIRED_CONTEXT_MISSING": "EVIDENCE",
     # --- Sufficiency: the evidence was assembled and the gate judged it inadequate or in conflict.
     "NO_EVIDENCE": "SUFFICIENCY",
     "INSUFFICIENT_SUPPORTING_BLOCKS": "SUFFICIENCY",
@@ -127,6 +130,9 @@ SUCCESS: frozenset[str] = frozenset(
         "SUPPORTED_BY_NON_ASSESSMENT_SOURCE",
         "SUPPORTED_BY_INDEPENDENT_SOURCES",
         "REQUIRED_ARTIFACT_PRESENT",
+        # Optional surrounding context the assembler declined to carry. Reported so the omission
+        # stays visible; it is not a failure of any layer and never blocks. See ADR-019.
+        "ADVISORY_CONTEXT_OMISSION",
     }
 )
 

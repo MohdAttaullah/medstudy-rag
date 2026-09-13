@@ -11,7 +11,7 @@ from app.core.chunking_config import ChunkingConfig
 from app.core.config import Settings
 from app.core.errors import DomainError
 from app.evidence.assembly import EvidenceAssembler
-from app.evidence.model import EvidenceSet
+from app.evidence.model import EvidenceSet, EvidenceWarning
 from app.ingestion.chunking.tokenizer import LocalTokenizer
 from app.repositories.evidence import EvidenceRepository
 from app.repositories.retrieval import resolve_corpus
@@ -177,7 +177,13 @@ class EvidenceService:
             evidence_blocks=blocks,
             total_tokens=sum(b.token_count for b in blocks),
             requires_visual_evidence=any(b.requires_visual_evidence for b in blocks),
-            warnings=[*candidates.warnings, *warnings],
+            # M5's own warnings concern the query rather than any one candidate, so they
+            # carry the RETRIEVAL tier and name no chunk.
+            warnings=[*candidates.warnings, *(w.render() for w in warnings)],
+            warning_details=[
+                *(EvidenceWarning(code=code) for code in candidates.warnings),
+                *warnings,
+            ],
             duplicates_removed=duplicates,
         )
         hits = {hit.chunk_id: hit for hit in candidates.candidates}

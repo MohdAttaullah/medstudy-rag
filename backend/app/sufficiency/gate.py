@@ -10,7 +10,7 @@ score. See ADR-012 for why a single number cannot stand in for any of this.
 from uuid import UUID
 
 from app.core.generation_config import EvidenceRequirement, SufficiencyConfig
-from app.evidence.model import EvidenceBlock, EvidenceSet
+from app.evidence.model import EvidenceBlock, EvidenceSet, EvidenceWarning
 from app.sufficiency import conflicts as conflict_detection
 from app.sufficiency.model import (
     ASSESSMENT_AUTHORITY,
@@ -24,6 +24,49 @@ from app.sufficiency.question import classify
 
 BUDGET_WARNING = "CONTEXT_BUDGET_EXCEEDED"
 ANCHOR = "RERANKED_ANCHOR"
+PARTIAL = "source-spans-v1"
+
+#: Warning codes that never block on their own, because of what they mean in this architecture.
+#:
+#: Everything here concerns a candidate that is **not** in the final EvidenceSet. A budget
+#: omission or a non-contiguous sibling in the expansion tier says the assembler declined some
+#: optional surrounding context; it says nothing about whether the evidence actually selected
+#: answers the question. Treating them as insufficiency made a real 932-page textbook
+#: unanswerable while its defining passage sat at rank one. See ADR-019.
+#:
+#: The same two codes are *not* advisory when they concern a selected anchor or a required
+#: dependency; that is decided per warning below, not by the code alone.
+TIER_SENSITIVE: frozenset[str] = frozenset({"CONTEXT_BUDGET_EXCEEDED", "CONTEXT_INVALID_NEIGHBOUR"})
+
+#: Query-level conditions that block whatever tier they name. A degraded lane or a candidate
+#: dropped for missing provenance is exactly the "corpus/index integrity is uncertain" and
+#: "provenance is invalid" case the safety contract requires an abstention for.
+ALWAYS_BLOCKING: frozenset[str] = frozenset(
+    {
+        "SPARSE_LANE_UNAVAILABLE_DEGRADED_TO_DENSE",
+        "CANDIDATE_WITHOUT_PROVENANCE_DROPPED",
+        "CONTEXT_REQUIRED_PARENT_MISSING",
+    }
+)
+
+
+def blocking(warning: EvidenceWarning) -> bool:
+    """Whether one warning is a reason to refuse generation.
+
+    Default-deny: a code this function has never heard of blocks. Adding a warning somewhere in
+    M5 or M6 must not be able to quietly widen what the gate lets through, so the safe direction
+    for an unknown is the restrictive one.
+    """
+    if warning.required_dependency:
+        return True
+    if warning.code in ALWAYS_BLOCKING:
+        return True
+    if warning.code in TIER_SENSITIVE:
+        # Advisory requires positive proof that this was optional context nobody selected. An
+        # untiered warning — a legacy string, or one from a caller that did not say — is not
+        # proof of anything, so it blocks.
+        return not (warning.tier == "EXPANSION" and not warning.selected_by_reranker)
+    return True
 
 
 class SufficiencyGate:
@@ -236,23 +279,48 @@ class SufficiencyGate:
         reasons: list[ReasonCode],
         missing: list[str],
     ) -> None:
-        omissions = [w for w in evidence.warnings if w.startswith(BUDGET_WARNING)]
+        details = self._warnings(evidence)
+        blockers = [w for w in details if blocking(w)]
+        advisory = [w for w in details if not blocking(w)]
+
+        omitted_selected = [w for w in blockers if w.code == BUDGET_WARNING]
         signals.append(
             EvaluatedSignal(
-                name="budget_omissions",
-                value=len(omissions),
+                name="budget_omissions_affecting_selected_evidence",
+                value=len(omitted_selected),
                 required=0,
-                satisfied=not omissions,
+                satisfied=not omitted_selected,
             )
         )
-        if omissions and self.config.budget_omission_is_insufficient:
+        # Reported either way, so a curator can see what was dropped even when it did not block.
+        signals.append(
+            EvaluatedSignal(
+                name="budget_omissions_unused_candidates",
+                value=len([w for w in advisory if w.code == BUDGET_WARNING]),
+                required=None,
+                satisfied=True,
+            )
+        )
+        if omitted_selected and self.config.budget_omission_is_insufficient:
             reasons.append("EVIDENCE_BUDGET_OMISSION")
             missing.append("omitted_evidence")
 
-        partial = [b for b in blocks if b.representation == "source-spans-v1"]
+        # Only a selected anchor can be materially partial. An expansion is a deliberately
+        # bounded extract of surrounding context and is `source-spans-v1` by construction, so
+        # its representation says nothing about whether the anchor it supports is complete.
+        # Materially partial: a selected anchor whose trimmed text is nowhere else in the set.
+        # A partial block whose trimmed regions are carried by another block has lost nothing —
+        # that is deduplication, and treating it as missing source refused whole documents.
+        partial = [
+            b
+            for b in blocks
+            if b.expansion_reason == ANCHOR
+            and b.representation == PARTIAL
+            and not b.trimmed_text_present_elsewhere
+        ]
         signals.append(
             EvaluatedSignal(
-                name="incomplete_context_blocks",
+                name="partial_anchor_blocks",
                 value=len(partial),
                 required=0,
                 satisfied=not partial,
@@ -262,15 +330,54 @@ class SufficiencyGate:
             reasons.append("CONTEXT_INCOMPLETE")
             missing.append("complete_source_records")
 
-        other = [w for w in evidence.warnings if not w.startswith(BUDGET_WARNING)]
+        required_missing = [w for w in blockers if w.required_dependency]
         signals.append(
             EvaluatedSignal(
-                name="retrieval_warnings", value=other, required=[], satisfied=not other
+                name="missing_required_context",
+                value=len(required_missing),
+                required=0,
+                satisfied=not required_missing,
             )
         )
-        if other:
+        if required_missing:
+            reasons.append("REQUIRED_CONTEXT_MISSING")
+            missing.append("required_context")
+
+        integrity = [w for w in blockers if w.code in ALWAYS_BLOCKING and not w.required_dependency]
+        other = [w for w in blockers if w not in omitted_selected and w not in required_missing]
+        signals.append(
+            EvaluatedSignal(
+                name="blocking_retrieval_warnings",
+                value=[w.code for w in other],
+                required=[],
+                satisfied=not other,
+            )
+        )
+        signals.append(
+            EvaluatedSignal(
+                name="advisory_warnings",
+                value=[w.code for w in advisory],
+                required=None,
+                satisfied=True,
+            )
+        )
+        if other or integrity:
             reasons.append("RETRIEVAL_WARNING_PRESENT")
             missing.append("clean_retrieval")
+        if advisory:
+            # Visible in the decision, never a reason to refuse.
+            reasons.append("ADVISORY_CONTEXT_OMISSION")
+
+    @staticmethod
+    def _warnings(evidence: EvidenceSet) -> list[EvidenceWarning]:
+        """Structured warnings, falling back to the string form for older callers.
+
+        A string carries no tier, and `blocking` treats an untiered warning as blocking, so an
+        older caller keeps the stricter behaviour it was written against.
+        """
+        if evidence.warning_details:
+            return list(evidence.warning_details)
+        return [EvidenceWarning(code=text.split(":", 1)[0]) for text in evidence.warnings]
 
     def _decide(
         self,

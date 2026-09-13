@@ -61,13 +61,14 @@ def pipeline(indexed, qdrant):  # noqa: F811 - pytest fixture imports
     retrieval = retrieval_service(control, StubQueryEncoder(control.settings.query_encoder), qdrant)
     control.evidence = EvidenceService(retrieval, control.settings, StubReranker())
     # Requirements are relaxed to what this single synthetic document can satisfy, so the tests
-    # exercise the ordering and the boundary rather than the tuning of the defaults.
+    # exercise the ordering and the boundary rather than the tuning of the defaults. The two
+    # completeness flags are deliberately left at their shipped values: before ADR-019 they had
+    # to be disabled here for any SUFFICIENT outcome to be reachable at all, which was the first
+    # sign that the shipped semantics could not survive real evidence.
     permissive = SufficiencyConfig(
         ordinary=EvidenceRequirement(),
         table=EvidenceRequirement(),
         formula=EvidenceRequirement(),
-        budget_omission_is_insufficient=False,
-        incomplete_context_is_insufficient=False,
     )
     settings = control.settings.model_copy(update={"sufficiency": permissive})
     provider = FakeProvider(grounded)
@@ -83,7 +84,7 @@ def test_authorized_draft_is_gated_grounded_and_explicitly_unverified(pipeline):
     assert result.status_code == 200, result.text
     data = result.json()
     assert data["answering_enabled"] is False and data["verified"] is False
-    assert data["sufficiency"]["status"] == "SUFFICIENT"
+    assert data["sufficiency"]["status"] == "SUFFICIENT", data["sufficiency"]["reason_codes"]
     assert data["sufficiency"]["policy_fingerprint"] and data["sufficiency"]["evaluated_signals"]
     assert data["abstention"] is None
     draft = data["draft"]

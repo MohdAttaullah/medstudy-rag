@@ -5,7 +5,7 @@ from collections.abc import Callable, Sequence
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from app.core.reranking_config import EvidenceBudgetConfig, ExpansionConfig
-from app.evidence.model import EvidenceBlock, EvidenceSource, SourceSpan
+from app.evidence.model import EvidenceBlock, EvidenceSource, EvidenceWarning, SourceSpan
 from app.reranking.model import RerankingError
 
 
@@ -17,15 +17,16 @@ class EvidenceAssembler:
 
     def assemble(
         self, anchors: Sequence[EvidenceSource], relatives: dict[UUID, list[EvidenceSource]]
-    ) -> tuple[list[EvidenceBlock], list[str], int]:
+    ) -> tuple[list[EvidenceBlock], list[EvidenceWarning], int]:
         blocks: list[EvidenceBlock] = []
-        warnings: list[str] = []
+        warnings: list[EvidenceWarning] = []
         intervals: dict[tuple[UUID, UUID], list[tuple[int, int]]] = {}
         chunks: set[UUID] = set()
         tables: set[tuple[UUID, UUID, tuple[int, ...]]] = set()
         seen_visual: set[tuple[UUID, UUID]] = set()
         duplicates = 0
         total = 0
+        needs_parent: set[UUID] = set()
 
         def remaining(source: EvidenceSource) -> list[SourceSpan]:
             result = []
@@ -52,7 +53,13 @@ class EvidenceAssembler:
                     )
             return result
 
-        def add(source: EvidenceSource, anchor: EvidenceSource, reason: str, limit: int) -> bool:
+        def add(
+            source: EvidenceSource,
+            anchor: EvidenceSource,
+            reason: str,
+            limit: int,
+            required: bool = False,
+        ) -> bool:
             nonlocal total, duplicates
             p = source.provenance
             if (
@@ -91,6 +98,16 @@ class EvidenceAssembler:
             partial = sum(s.end - s.start for s in spans) < sum(
                 s.end - s.start for s in source.spans
             )
+            # Whatever `remaining` trimmed was trimmed because an already-admitted block covers
+            # it. Verified rather than assumed, so that if the deduplication rule ever changes
+            # the gate stops treating a genuinely truncated anchor as complete.
+            covered = all(
+                any(
+                    lo <= start and end <= hi
+                    for lo, hi in intervals.get((p.document_version_id, element_id), [])
+                )
+                for element_id, start, end in _trimmed(source, spans)
+            )
             if is_anchor and (atomic or not partial):
                 # Atomic source records remain whole; labels and cell separators are structural.
                 text = source.evidence_text or source.retrieval_text
@@ -105,7 +122,17 @@ class EvidenceAssembler:
                 or total + n > self.budget.max_total_tokens
                 or len(blocks) >= self.budget.max_blocks
             ):
-                warnings.append("CONTEXT_BUDGET_EXCEEDED:" + str(source.chunk_id))
+                # Which tier this came from decides whether it is an incomplete answer or an
+                # unused candidate, and only this frame knows. See ADR-019.
+                warnings.append(
+                    EvidenceWarning(
+                        code="CONTEXT_BUDGET_EXCEEDED",
+                        chunk_id=source.chunk_id,
+                        tier="ANCHOR" if is_anchor else "EXPANSION",
+                        selected_by_reranker=is_anchor,
+                        required_dependency=required,
+                    )
+                )
                 return False
             if not is_anchor and atomic:
                 return False
@@ -132,6 +159,7 @@ class EvidenceAssembler:
                 representation="m3-source-with-structural-labels-v1"
                 if is_anchor and (atomic or not partial)
                 else "source-spans-v1",
+                trimmed_text_present_elsewhere=covered,
                 artifacts=source.artifacts if is_anchor else [],
                 question=source.question if is_anchor else None,
                 expansion_reason=reason,
@@ -186,6 +214,17 @@ class EvidenceAssembler:
                 selected.append(anchor)
         # Reserve space for all selected anchors before any optional context.
         for anchor in selected:
+            # An anchor whose text does not end a sentence is a fragment: the parent is what
+            # completes it, so its absence is a deficiency of selected evidence rather than a
+            # missing optional extra. Recorded before the loop so a parent that was never offered
+            # is caught as well as one that did not fit.
+            if (
+                self.expansion.parent_enabled
+                and anchor.provenance.chunk_type in {"TEXT_CHILD", "TEXT"}
+                and anchor.provenance.parent_chunk_id is not None
+                and not anchor.text.rstrip().endswith((".", "!", "?"))
+            ):
+                needs_parent.add(anchor.chunk_id)
             used = 0
             for relative in relatives.get(anchor.chunk_id, []):
                 if used >= self.expansion.max_expansions_per_anchor:
@@ -205,6 +244,12 @@ class EvidenceAssembler:
                     if anchor.text.rstrip().endswith((".", "!", "?")):
                         continue
                     reason, limit = "PARENT_EXPANSION", self.expansion.max_parent_tokens
+                    needs_parent.discard(anchor.chunk_id)
+                    if not add(relative, anchor, reason, limit, required=True):
+                        needs_parent.add(anchor.chunk_id)
+                    else:
+                        used += 1
+                    continue
                 else:
                     if (
                         anchor.provenance.parent_chunk_id is None
@@ -223,7 +268,13 @@ class EvidenceAssembler:
                         or max(s.reading_order for s in left.spans) + 1
                         < min(s.reading_order for s in right.spans)
                     ):
-                        warnings.append("CONTEXT_INVALID_NEIGHBOUR:" + str(relative.chunk_id))
+                        warnings.append(
+                            EvidenceWarning(
+                                code="CONTEXT_INVALID_NEIGHBOUR",
+                                chunk_id=relative.chunk_id,
+                                tier="EXPANSION",
+                            )
+                        )
                         continue
                     reason, limit = (
                         ("PREVIOUS_SIBLING" if before else "NEXT_SIBLING"),
@@ -239,4 +290,35 @@ class EvidenceAssembler:
                 min((s.reading_order for s in b.source_spans), default=0),
             )
         )
-        return blocks, list(dict.fromkeys(warnings)), duplicates
+        for chunk_id in sorted(needs_parent, key=str):
+            warnings.append(
+                EvidenceWarning(
+                    code="CONTEXT_REQUIRED_PARENT_MISSING",
+                    chunk_id=chunk_id,
+                    tier="ANCHOR",
+                    selected_by_reranker=True,
+                    required_dependency=True,
+                )
+            )
+        unique = list(dict.fromkeys((w.code, w.chunk_id) for w in warnings))
+        ordered = [next(w for w in warnings if (w.code, w.chunk_id) == key) for key in unique]
+        return blocks, ordered, duplicates
+
+
+def _trimmed(source: EvidenceSource, retained: list[SourceSpan]) -> list[tuple[UUID, int, int]]:
+    """The regions of a source that were dropped when its spans were deduplicated."""
+    kept: dict[UUID, list[tuple[int, int]]] = {}
+    for span in retained:
+        kept.setdefault(span.element_id, []).append((span.start, span.end))
+    removed: list[tuple[UUID, int, int]] = []
+    for span in source.spans:
+        pieces = [(span.start, span.end)]
+        for lo, hi in kept.get(span.element_id, []):
+            pieces = [
+                part
+                for a, b in pieces
+                for part in ((a, min(b, lo)), (max(a, hi), b))
+                if part[0] < part[1]
+            ]
+        removed.extend((span.element_id, a, b) for a, b in pieces)
+    return removed
