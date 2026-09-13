@@ -15,6 +15,18 @@ class EvidenceAssembler:
     ) -> None:
         self.expansion, self.budget, self.count = expansion, budget, count
 
+    def _needs_completion(self, anchor: EvidenceSource) -> bool:
+        return _needs_completion_of(anchor, self.expansion.parent_enabled)
+
+    @staticmethod
+    def _parent_of(
+        anchor: EvidenceSource, relatives: dict[UUID, list[EvidenceSource]]
+    ) -> EvidenceSource | None:
+        parent_id = anchor.provenance.parent_chunk_id
+        return next(
+            (r for r in relatives.get(anchor.chunk_id, []) if r.chunk_id == parent_id), None
+        )
+
     def assemble(
         self, anchors: Sequence[EvidenceSource], relatives: dict[UUID, list[EvidenceSource]]
     ) -> tuple[list[EvidenceBlock], list[EvidenceWarning], int]:
@@ -59,6 +71,7 @@ class EvidenceAssembler:
             reason: str,
             limit: int,
             required: bool = False,
+            fragment: list[SourceSpan] | None = None,
         ) -> bool:
             nonlocal total, duplicates
             p = source.provenance
@@ -78,7 +91,9 @@ class EvidenceAssembler:
             if source.chunk_id in chunks or (tablekeys and tablekeys <= tables):
                 duplicates += 1
                 return False
-            spans = remaining(source)
+            # A required parent is admitted as the bounded completion fragment chosen by
+            # `completion`, not as whatever happens to remain of a 1280-token parent.
+            spans = remaining(source) if fragment is None else list(fragment)
             atomic = bool(source.artifacts or source.question)
             visual_only = any(a.kind == "FIGURE" for a in source.artifacts) and all(
                 s.start == s.end for s in source.spans
@@ -108,7 +123,7 @@ class EvidenceAssembler:
                 )
                 for element_id, start, end in _trimmed(source, spans)
             )
-            if is_anchor and (atomic or not partial):
+            if fragment is None and is_anchor and (atomic or not partial):
                 # Atomic source records remain whole; labels and cell separators are structural.
                 text = source.evidence_text or source.retrieval_text
                 spans = source.spans
@@ -208,24 +223,87 @@ class EvidenceAssembler:
                 )
             return True
 
+        def completion(anchor: EvidenceSource, parent: EvidenceSource) -> list[SourceSpan] | None:
+            """The smallest uncovered part of the parent that finishes the anchor's sentence.
+
+            A parent is built to ~1280 tokens and a required expansion may admit 512, so
+            admitting "whatever remains of the parent" fails almost always — 45 of 46 real cases.
+            What the anchor actually needs is far smaller: it stops mid-sentence, so the thing
+            that completes it is the text immediately following, up to the first sentence end.
+
+            Everything before the anchor is deliberately excluded: it is surrounding context,
+            not completion, and including it is what made the fragment exceed the budget. Spans
+            already carried by another block are excluded too, so nothing is duplicated.
+
+            Returns None when the parent offers no following text at all.
+            """
+            uncovered = remaining(parent)
+            if not uncovered:
+                return None
+            after = max((s.reading_order, s.end) for s in anchor.spans)
+            following = [
+                span
+                for span in sorted(uncovered, key=lambda s: (s.reading_order, s.start))
+                if (span.reading_order, span.start) >= after
+            ]
+            if not following:
+                return None
+
+            chosen: list[SourceSpan] = []
+            for span in following:
+                cut = _sentence_end(span.text)
+                if cut is None:
+                    chosen.append(span)
+                    continue
+                # Keep exact offsets: a cut span is the same element, narrowed.
+                chosen.append(
+                    span.model_copy(
+                        update={
+                            "end": span.start + cut,
+                            "text": span.text[:cut],
+                        }
+                    )
+                    if cut < len(span.text)
+                    else span
+                )
+                break
+            return [span for span in chosen if span.text] or None
+
+        # Pass 1: every reranked anchor. Nothing optional may take budget before these.
         selected = []
         for anchor in anchors:
             if add(anchor, anchor, "RERANKED_ANCHOR", self.budget.max_tokens_per_block):
                 selected.append(anchor)
-        # Reserve space for all selected anchors before any optional context.
+
+        # Pass 2: the completion of every anchor that is a mid-sentence fragment. A parent is
+        # *required* context for such an anchor, so it is reserved before any optional sibling
+        # can spend the remaining budget on itself.
+        parents = {a.chunk_id: self._parent_of(a, relatives) for a in selected}
+        expansions_used: dict[UUID, int] = {a.chunk_id: 0 for a in selected}
         for anchor in selected:
-            # An anchor whose text does not end a sentence is a fragment: the parent is what
-            # completes it, so its absence is a deficiency of selected evidence rather than a
-            # missing optional extra. Recorded before the loop so a parent that was never offered
-            # is caught as well as one that did not fit.
-            if (
-                self.expansion.parent_enabled
-                and anchor.provenance.chunk_type in {"TEXT_CHILD", "TEXT"}
-                and anchor.provenance.parent_chunk_id is not None
-                and not anchor.text.rstrip().endswith((".", "!", "?"))
+            if not self._needs_completion(anchor):
+                continue
+            needs_parent.add(anchor.chunk_id)
+            parent = parents.get(anchor.chunk_id)
+            if parent is None:
+                continue
+            fragment = completion(anchor, parent)
+            if not fragment:
+                continue
+            if add(
+                parent,
+                anchor,
+                "PARENT_EXPANSION",
+                self.expansion.max_parent_tokens,
+                required=True,
+                fragment=fragment,
             ):
-                needs_parent.add(anchor.chunk_id)
-            used = 0
+                needs_parent.discard(anchor.chunk_id)
+                expansions_used[anchor.chunk_id] += 1
+
+        # Pass 3: optional surrounding context, with whatever budget is left.
+        for anchor in selected:
+            used = expansions_used[anchor.chunk_id]
             for relative in relatives.get(anchor.chunk_id, []):
                 if used >= self.expansion.max_expansions_per_anchor:
                     break
@@ -235,20 +313,8 @@ class EvidenceAssembler:
                 ):
                     raise RerankingError("CONTEXT_SOURCE_LINEAGE_MISMATCH")
                 if relative.chunk_id == anchor.provenance.parent_chunk_id:
-                    if not self.expansion.parent_enabled or anchor.provenance.chunk_type not in {
-                        "TEXT_CHILD",
-                        "TEXT",
-                    }:
-                        continue
-                    # Only short paragraph fragments need missing surrounding source context.
-                    if anchor.text.rstrip().endswith((".", "!", "?")):
-                        continue
-                    reason, limit = "PARENT_EXPANSION", self.expansion.max_parent_tokens
-                    needs_parent.discard(anchor.chunk_id)
-                    if not add(relative, anchor, reason, limit, required=True):
-                        needs_parent.add(anchor.chunk_id)
-                    else:
-                        used += 1
+                    # Settled in pass 2, where it was either admitted as a bounded completion or
+                    # recorded as missing. A parent is never optional context.
                     continue
                 else:
                     if (
@@ -322,3 +388,26 @@ def _trimmed(source: EvidenceSource, retained: list[SourceSpan]) -> list[tuple[U
             ]
         removed.extend((span.element_id, a, b) for a, b in pieces)
     return removed
+
+
+def _sentence_end(text: str) -> int | None:
+    """Offset just past the first sentence-final punctuation, or None if there is none.
+
+    Used to bound a required completion at a real sentence boundary rather than at a token
+    count. Nothing is truncated mid-sentence and no continuation text is invented: if the
+    sentence never ends inside the available text, the whole of it is offered and the budget
+    check decides.
+    """
+    positions = [text.find(mark) for mark in (".", "!", "?")]
+    found = [p for p in positions if p != -1]
+    return min(found) + 1 if found else None
+
+
+def _needs_completion_of(source: EvidenceSource, parent_enabled: bool) -> bool:
+    """Whether this anchor is a mid-sentence fragment that a parent has to complete."""
+    return (
+        parent_enabled
+        and source.provenance.chunk_type in {"TEXT_CHILD", "TEXT"}
+        and source.provenance.parent_chunk_id is not None
+        and not source.text.rstrip().endswith((".", "!", "?"))
+    )
