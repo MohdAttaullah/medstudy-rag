@@ -215,8 +215,11 @@ def test_question_wording_decides_the_required_evidence_structure():
 
 
 def test_structural_fallback_uses_the_retrieved_anchor_kind():
-    assert classify("What does it state?", [block(chunk_type="TABLE_PART")]) == "TABLE_DEPENDENT"
+    """Formula and assessment only. Figure (ADR-023) and table (ADR-024) fallbacks were removed:
+    both classified the question from what happened to rank rather than from what was asked."""
     assert classify("What does it state?", [block(chunk_type="FORMULA")]) == "FORMULA_DEPENDENT"
+    assert classify("What does it state?", [block(chunk_type="QUESTION")]) == "ASSESSMENT"
+    assert classify("What does it state?", [block(chunk_type="TABLE_PART")]) == "ORDINARY_FACTUAL"
 
 
 def test_table_question_without_header_rows_abstains():

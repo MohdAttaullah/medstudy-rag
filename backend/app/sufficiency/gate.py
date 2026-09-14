@@ -115,6 +115,19 @@ class SufficiencyGate:
                 satisfied=True,
             )
         )
+        # The same audit trail for tables, for the same reason: a table anchor no longer decides
+        # the question kind, so a table question that retrieved no table — or an ordinary question
+        # answered beside one — is visible in the record rather than only in the outcome.
+        signals.append(
+            EvaluatedSignal(
+                name="table_anchors_present",
+                value=len(
+                    [b for b in anchors if b.chunk_type in question_classification.TABLE_CHUNKS]
+                ),
+                required=None,
+                satisfied=True,
+            )
+        )
 
         supporting = [b for b in anchors if not self._assessment(b)] or anchors
         versions = {b.document_version_id for b in anchors}

@@ -12,7 +12,7 @@ from app.core.retrieval_config import SparseAnalyzerConfig
 from app.evidence.model import EvidenceBlock
 from app.retrieval.sparse.analyzer import terms
 
-CLASSIFIER_VERSION: Literal["question-kind-v2"] = "question-kind-v2"
+CLASSIFIER_VERSION: Literal["question-kind-v3"] = "question-kind-v3"
 
 # A fixed tokenization for matching words, deliberately not the tenant's active index analyzer:
 # M7 must not change its behaviour because a lexical index was rebuilt, and reading M5's policy
@@ -21,7 +21,14 @@ ANALYZER = SparseAnalyzerConfig()
 
 # Cues are matched against analyzer terms, so biomedical identifiers stay intact and the match is
 # whole-term rather than substring: "table" must not fire on "acceptable".
-TABLE_CUES = frozenset({"table", "tabulated", "row", "rows", "column", "columns", "cell", "grid"})
+TABLE_CUES = frozenset({"table", "tabulated", "row", "rows", "column", "columns", "grid"})
+
+#: Deliberately absent from the table cues: "cell". In a medical corpus it is ordinary subject
+#: vocabulary — cell wall, cell membrane, T cell, cell-mediated immunity, host cell — occurring in
+#: 920 of 3,939 indexed chunks (23.4%), where every other table cue occurs in at most 3. As a cue
+#: it refused five of six ordinary microbiology questions with TABLE_STRUCTURE_INCOMPLETE on
+#: evidence that contained no table at all. Genuine table questions are unaffected: a question
+#: about a table cell says "table". See ADR-024.
 FORMULA_CUES = frozenset(
     {
         "formula",
@@ -124,6 +131,13 @@ def classify(question: str, anchors: list[EvidenceBlock]) -> QuestionKind:
     The one structural case that remains is genuine unreadability: if every anchor is a figure and
     none carries text, there is nothing to answer from without reading pixels. M8 remains the
     claim-level guarantee — any claim citing a figure block still fails there, unchanged.
+
+    Table dependence is decided the same way, and for the same measured reason: 7 of the 8 real
+    TABLE_DEPENDENT classifications came from a ranked table rather than from the question. Tables
+    get no structural floor at all, because unlike a figure a table chunk is missing nothing — the
+    builder renders its caption, header rows and cells into the chunk's own text, so a table
+    without declared headers is a readable label/value layout rather than unreadable evidence.
+    M8 still refuses any claim citing a table whose artifact lacks header rows. See ADR-024.
     """
     asked = set(terms(question, ANALYZER))
     if asked & FIGURE_CUES:
@@ -135,8 +149,6 @@ def classify(question: str, anchors: list[EvidenceBlock]) -> QuestionKind:
     if anchors and all(visual(b) and not readable(b) for b in anchors):
         return "FIGURE_DEPENDENT"
     kinds = {block.chunk_type for block in anchors}
-    if kinds & TABLE_CHUNKS:
-        return "TABLE_DEPENDENT"
     if kinds & FORMULA_CHUNKS:
         return "FORMULA_DEPENDENT"
     if kinds and kinds <= QUESTION_CHUNKS:

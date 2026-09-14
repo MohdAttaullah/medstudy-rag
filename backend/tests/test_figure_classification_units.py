@@ -201,13 +201,12 @@ def test_an_empty_anchor_set_keeps_its_previous_behaviour():
     assert classify(ORDINARY, []) == "ORDINARY_FACTUAL"
 
 
-def test_table_and_formula_fallbacks_are_unchanged():
-    assert classify("What does it state?", [block(chunk_type="TABLE_PART")]) == "TABLE_DEPENDENT"
+def test_formula_and_assessment_fallbacks_are_unchanged():
+    """The table fallback was removed separately by ADR-024; these two remain."""
     assert classify("What does it state?", [block(chunk_type="FORMULA")]) == "FORMULA_DEPENDENT"
     assert classify("What does it state?", [block(chunk_type="QUESTION")]) == "ASSESSMENT"
-    # A figure alongside a table no longer hides the table requirement.
-    assert classify("What does it state?", [figure(), block(chunk_type="TABLE_PART")]) == (
-        "TABLE_DEPENDENT"
+    assert classify("What does it state?", [figure(), block(chunk_type="FORMULA")]) == (
+        "FORMULA_DEPENDENT"
     )
 
 
@@ -227,7 +226,7 @@ def test_classification_is_deterministic():
 
 
 def test_the_classifier_version_records_that_the_semantics_changed():
-    assert CLASSIFIER_VERSION == "question-kind-v2"
+    assert CLASSIFIER_VERSION == "question-kind-v3"
 
 
 # ------------------------------------------------------------------------------ the gate
