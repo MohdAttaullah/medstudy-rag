@@ -266,6 +266,37 @@ so "Describe prokaryotic cell structure." classifies TABLE_DEPENDENT (it did bef
 too); and the structural floor has no positive instance in this corpus, so its correctness rests on
 unit tests rather than observation.
 
+**Uncommitted: table dependence (ADR-024) and page-text-loss measurement (ADR-025).**
+
+*Tables.* `cell` was a `TABLE_CUES` member. In a medical corpus that is subject vocabulary — 920 of
+3,939 indexed chunks contain it, against at most 3 for every other cue — and it refused five of six
+ordinary microbiology questions with `TABLE_STRUCTURE_INCOMPLETE` on evidence holding no table at
+all. The structural fallback produced 7 of the 8 real TABLE_DEPENDENT verdicts. Both removed:
+`TABLE_DEPENDENT` is now exactly `asked & TABLE_CUES` over the seven remaining cues, and
+`CLASSIFIER_VERSION` is `question-kind-v3`. Tables get **no** structural floor (unlike figures)
+because the builder renders caption, headers and cells into the chunk's own text, so a headerless
+table is a readable label/value layout rather than unreadable evidence. M8 still refuses any claim
+citing a table whose artifact lacks header rows — unchanged, and what keeps this safe.
+`table_anchors_present` added as a diagnostic. On the gold set TABLE_DEPENDENT drops 8 → 1, and
+only A2 changes outcome. C1 stays blocked and is correctly classified: it names a table, and
+retrieval returned none — a retrieval miss, not a classification error.
+
+*Page text.* The char rule could not tell loss from cross-page anchoring, and on the real book both
+of its ERRORs were false. `ingestion/validation/text_recovery.py` now asks the direct question — is
+this page's source text in the parse? — comparing material words (two characters or more, as a
+set), against the page itself and against its immediate neighbours. Three outcomes replace two:
+`PAGE_TEXT_BELOW_FLOOR` (furniture), `PAGE_CONTENT_ANCHORED_ELSEWHERE` (cross-page), and
+`PAGE_CONTENT_LOST` (ERROR, unchanged). **Unmeasured fails closed.** Source text is re-read only
+for suspect pages — 2 of 932 — from the workspace file, so no reparse and no unbounded memory.
+Replayed read-only over the stored parse: page 44 own=1.000 → `PAGE_TEXT_BELOW_FLOOR`, page 517
+own=0.046 nbhd=1.000 → `PAGE_CONTENT_ANCHORED_ELSEWHERE`, **page-loss ERRORs 0**. Not exercised by
+a fresh ingestion of that book; see the ADR's limitations.
+
+*Operations.* compose now carries `restart: unless-stopped` on all nine services and memory limits
+on the four application services, derived from measurement rather than guessed: worker 6G against
+the measured 4967182336-byte (4.74 GiB) peak, retrieval 4G (two resident MedCPT models), API 2G,
+dispatcher 512M. This closes the "no container resource limits" item in Known risks below.
+
 The lease now heartbeats between windows (`PARSE_WINDOW_COMPLETED`), which is what lets a
 multi-hour parse keep a lease sized for liveness. Recovery was observed for real: a worker lost at
 13:10 was reaped at 13:40 to `FAILED` / `PARSER_LEASE_EXPIRED` and the job retried successfully.
@@ -275,6 +306,37 @@ Time budgets moved with it: one conversion call 900 s, whole document 900 s + 12
 
 **No claim of 300–500 MB support is made.** Only this 153 MiB / 932-page book has been run.
 
+## RAG v1 freeze (post-M12)
+
+Retrieval, reranking, sufficiency, generation and verification are **frozen**. The acceptance gates
+below passed; further changes to those five layers need a new decision, not a tuning pass.
+
+**Release gates, measured on the 26-question real-book set (8 VERIFIED):**
+
+| Gate | Result |
+|---|---|
+| Unsupported user-visible answers | **0** |
+| Answers released without VERIFIED | **0** |
+| VERIFIED answers with zero citations | **0** |
+| VERIFIED answers citing a figure block | **0** |
+| VERIFIED answers on unsupported-class questions | **0** |
+| VERIFIED answers on ambiguous/personal questions | **0** |
+| Assessment-only citations in a released answer | **0** |
+| Ingestion silently losing material body text | **0** (ADR-025) |
+
+**Repeatability, 10 trials each.** S1 7 VERIFIED / 3 UNVERIFIED · S9 8 / 2 · U2 10/10
+`INSUFFICIENT_EVIDENCE` + `EVIDENCE_DOES_NOT_ADDRESS_QUESTION` · A3 10/10 `OUT_OF_SCOPE` · S2 10/10
+`FAILED`. Across 15 released answers: **0** cited a figure and **0** lacked citations. Supported
+questions vary 20-30% between VERIFIED and UNVERIFIED, always in the safe direction — M8 refusing a
+draft, never releasing one. Generation temperature was **not** changed in response.
+
+**S2 is refused by the provider, not by this system.** `Provider rejected the request (400):
+bio_policy.` — deterministic, 10 of 10, and unique to that question among the 26. The provider's
+biosecurity filter refuses a question about culturing Legionella. No answer is released and the
+reader is told it is a technical failure rather than a statement about the evidence, which is
+accurate. **This is an operator decision** (model or policy tier), not a code defect, and no retry
+can help a deterministic 400.
+
 ## Known risks
 
 Security: no malware scanning; rate limiting is **per replica, not global**; base images pinned by
@@ -283,9 +345,10 @@ tag not digest; no token-revocation check; audit tamper-evidence stops at the da
 probabilistic (the structural guarantee is M8's deterministic checks).
 
 Operational: no backup scheduling, PITR or cross-region replication; no RPO/RTO; no complete
-deletion workflow (its central policy conflict is undecided); no container resource limits in
-compose (the worker's memory ceiling is the host's, so a parse that outgrows it is still killed by the kernel rather than refused); no CI config or Kubernetes manifests ship; no OTel exporter or alerting deployed; worker
-is one parse per pod — scale by adding workers, never by raising concurrency. Four
+deletion workflow (its central policy conflict is undecided); no CI config or Kubernetes manifests
+ship; no OTel exporter or alerting deployed; worker is one parse per pod — scale by adding workers,
+never by raising concurrency. Container memory limits and restart policies **are** now set from
+measured peaks (worker 6G against 4.74 GiB observed). Four
 `GENERATION_SCHEMA_VIOLATION` outcomes were observed under concurrent vague questions with no
 pre-M12 baseline for comparison.
 

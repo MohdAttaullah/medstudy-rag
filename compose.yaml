@@ -42,12 +42,14 @@ services:
       timeout: 3s
       retries: 20
 
+    restart: unless-stopped
   qdrant:
     image: ${QDRANT_IMAGE:-qdrant/qdrant:v1.15.4}
     ports: ["127.0.0.1:6333:6333", "127.0.0.1:6334:6334"]
     volumes: ["qdrant-data:/qdrant/storage"]
     # Readiness is checked through the API; do not assume curl exists in this image.
 
+    restart: unless-stopped
   redis:
     image: ${REDIS_IMAGE:-redis:7.4.5-alpine}
     command: ["redis-server", "--appendonly", "yes"]
@@ -59,6 +61,7 @@ services:
       timeout: 3s
       retries: 20
 
+    restart: unless-stopped
   minio:
     image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-04-22T22-12-26Z}
     command: ["server", "/data", "--console-address", ":9001"]
@@ -73,6 +76,7 @@ services:
       timeout: 3s
       retries: 20
 
+    restart: unless-stopped
   minio-init:
     image: ${MINIO_MC_IMAGE:-minio/mc:RELEASE.2025-04-16T18-13-26Z}
     depends_on:
@@ -115,6 +119,12 @@ services:
       interval: 20s
       timeout: 16s
       retries: 6
+    restart: unless-stopped
+    # No model is resident here; the API orchestrates and calls providers over HTTP.
+    deploy:
+      resources:
+        limits: {memory: 2G}
+        reservations: {memory: 512M}
 
   frontend:
     profiles: ["app"]
@@ -135,6 +145,7 @@ services:
       timeout: 3s
       retries: 5
 
+    restart: unless-stopped
   # Only the worker carries the parser and its models; the API and dispatcher stay lean.
   worker:
     profiles: ["app", "workers"]
@@ -161,6 +172,16 @@ services:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
       minio-init: {condition: service_completed_successfully}
+    restart: unless-stopped
+    # Measured, not guessed: the 932-page textbook peaked at 4967182336 bytes (4.74 GiB) once
+    # page-window conversion and arena trimming were in place, and peak is bounded by
+    # `page_window_size` rather than by book length. 6G is that measurement plus headroom. The
+    # limit exists so a document that outgrows the design is killed here, against a named
+    # container, instead of the kernel choosing a victim across the host.
+    deploy:
+      resources:
+        limits: {memory: 6G}
+        reservations: {memory: 2G}
 
   retrieval:
     profiles: ["app"]
@@ -182,6 +203,12 @@ services:
       timeout: 35s
       start_period: 60s
       retries: 10
+    restart: unless-stopped
+    # Holds the query encoder and the cross-encoder resident.
+    deploy:
+      resources:
+        limits: {memory: 4G}
+        reservations: {memory: 1G}
 
   dispatcher:
     profiles: ["app", "workers"]
@@ -194,6 +221,10 @@ services:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
       minio-init: {condition: service_completed_successfully}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: {memory: 512M}
 
 volumes:
   reranker-models:
