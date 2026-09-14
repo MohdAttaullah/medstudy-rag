@@ -13,6 +13,7 @@ from app.core.generation_config import EvidenceRequirement, SufficiencyConfig
 from app.evidence.model import EvidenceBlock, EvidenceSet, EvidenceWarning
 from app.sufficiency import conflicts as conflict_detection
 from app.sufficiency import intent as intent_classification
+from app.sufficiency import question as question_classification
 from app.sufficiency.model import (
     ASSESSMENT_AUTHORITY,
     ASSESSMENT_SOURCE_TYPES,
@@ -96,6 +97,20 @@ class SufficiencyGate:
             EvaluatedSignal(
                 name="question_intent",
                 value=intent_classification.classify(question),
+                required=None,
+                satisfied=True,
+            )
+        )
+
+        # Reported, never enforced. A figure anchor among readable prose no longer decides the
+        # question kind, so this is how a misclassification in either direction stays auditable:
+        # a FIGURE_DEPENDENT decision with no visual anchors, or an answered question carrying
+        # several, are both visible in the record rather than only in the outcome. See ADR-023.
+        visual_anchors = [b for b in anchors if question_classification.visual(b)]
+        signals.append(
+            EvaluatedSignal(
+                name="figure_anchors_present",
+                value=len(visual_anchors),
                 required=None,
                 satisfied=True,
             )

@@ -233,6 +233,39 @@ Gold set, 26 questions: exactly three changed. A3 → `OUT_OF_SCOPE` (0.0 s, no 
 (VERIFIED 3/3) places inside ordinary provider variance — generation temperature is deliberately
 the provider default, not pinned. No academic question was blocked by intent classification.
 
+**Uncommitted: figure dependence is a property of the question (ADR-023).** `classify` fell through
+to `if kinds & FIGURE_CHUNKS` over all anchors, so one `FIGURE_CONTEXT` among five made the whole
+question visual — and since `vision_analysis_available` is `Literal[False]`, permanently
+unanswerable. Measured: **11 of 26 questions classified FIGURE_DEPENDENT, 0 of them from the
+question's own words**, all 11 blocked *solely* by `visual_interpretation`, and 0 of the 19 figure
+blocks in those EvidenceSets were textless. ADR-012 says "a figure **question**"; the
+implementation had widened it to "a question near a figure chunk".
+
+The rule is now `asked & FIGURE_CUES` **or** every anchor visual *and* unreadable — no score, no
+threshold, no caption length, no count of figure anchors. `visual()` reuses M8's own disjunction so
+the two layers cannot disagree. Cues gained in-image deixis (`arrow`, `label`, `panel`, `inset`,
+`circled`, `indicated`, …); `imaging` was deliberately **not** added, because "presents on imaging"
+asks what the literature describes. `CLASSIFIER_VERSION` is `question-kind-v2`.
+
+**M8 is untouched and is what makes this safe.** A claim citing a figure block still fails
+`VISUAL_INTERPRETATION_REQUIRED`, and that was observed for real: S6 reached generation, the model
+cited the caption, and M8 refused it. No released answer in the 26-question run cites a figure.
+
+Gold set: FIGURE_DEPENDENT **11 → 0**, questions reaching generation 11 → 22, VERIFIED **4 → 7**
+(S3, S5, S9, C5 recovered). U1/U3/U4/M1 now reach the provider and abstain semantically via
+ADR-022 declination. S2 and S4 flip between runs at the provider layer; both have zero figure
+anchors and unchanged classification, so neither is attributable to this change.
+
+**Correction to an earlier note: S3 is not a retrieval miss.** Its anchors contain, verbatim,
+"The infection recruits the release of immature band forms from the bone marrow described as a
+'left shift'". The gold file's `expected_evidence` names a different passage stating the same fact,
+which is why earlier probes scored it absent.
+
+Two pre-existing defects were found and deliberately left alone: `"cell"` is a `TABLE_CUES` member,
+so "Describe prokaryotic cell structure." classifies TABLE_DEPENDENT (it did before this change
+too); and the structural floor has no positive instance in this corpus, so its correctness rests on
+unit tests rather than observation.
+
 The lease now heartbeats between windows (`PARSE_WINDOW_COMPLETED`), which is what lets a
 multi-hour parse keep a lease sized for liveness. Recovery was observed for real: a worker lost at
 13:10 was reaped at 13:40 to `FAILED` / `PARSER_LEASE_EXPIRED` and the job retried successfully.
