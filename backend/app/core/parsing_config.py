@@ -17,6 +17,11 @@ class ParseThresholds(BaseModel):
 
     min_non_empty_page_ratio: float = Field(default=0.6, ge=0, le=1)
     min_chars_per_page: int = Field(default=40, ge=0, le=10000)
+    # How much of a low-yield page's source text must be found in the parsed neighbourhood before
+    # the shortfall is read as cross-page anchoring rather than loss. Set high on purpose: the two
+    # real cases measured 1.000, and ordinary pages sit at 0.80-0.99, so this is "essentially all
+    # of it", not a tuned midpoint. See ADR-025.
+    min_page_text_recovery: float = Field(default=0.98, ge=0, le=1)
     min_elements_per_page: float = Field(default=0.5, ge=0, le=100)
     max_invalid_bbox_ratio: float = Field(default=0.02, ge=0, le=1)
     max_unlocated_element_ratio: float = Field(default=0.10, ge=0, le=1)

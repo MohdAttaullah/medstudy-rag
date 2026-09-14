@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.core.parsing_config import ParseThresholds
+from app.ingestion.validation.text_recovery import PageRecovery
 from app.models.enums import ElementType, ParseResult, Severity
 
 # --- Finding codes -----------------------------------------------------------------------
@@ -28,6 +29,8 @@ PARSER_PARTIAL_SUCCESS = "PARSER_PARTIAL_SUCCESS"
 
 PAGE_EMPTY = "PAGE_EMPTY"
 PAGE_CONTENT_LOST = "PAGE_CONTENT_LOST"
+PAGE_CONTENT_ANCHORED_ELSEWHERE = "PAGE_CONTENT_ANCHORED_ELSEWHERE"
+PAGE_TEXT_BELOW_FLOOR = "PAGE_TEXT_BELOW_FLOOR"
 PAGE_INVALID_DIMENSIONS = "PAGE_INVALID_DIMENSIONS"
 PAGE_PREVIEW_MISSING = "PAGE_PREVIEW_MISSING"
 PAGE_OCR_SUSPICIOUS = "PAGE_OCR_SUSPICIOUS"
@@ -60,6 +63,15 @@ MESSAGES: dict[str, str] = {
     PARSER_PARTIAL_SUCCESS: "The parser reported partial success for this document.",
     PAGE_EMPTY: "This page yielded almost no extracted text.",
     PAGE_CONTENT_LOST: "This page has a source text layer but produced no parsed content.",
+    PAGE_CONTENT_ANCHORED_ELSEWHERE: (
+        "This page produced little text of its own, but its source text is present in the parse "
+        "on an adjacent page. A cross-page paragraph is anchored to the page it begins on, so "
+        "nothing is missing."
+    ),
+    PAGE_TEXT_BELOW_FLOOR: (
+        "This page is below the character floor, but every material word of its source text is "
+        "on the page. The shortfall is page furniture or display lettering, not lost content."
+    ),
     PAGE_INVALID_DIMENSIONS: "This page reports invalid dimensions.",
     PAGE_PREVIEW_MISSING: "No preview image was generated for this page.",
     PAGE_OCR_SUSPICIOUS: "This page has no text layer and produced very little OCR text.",
@@ -99,6 +111,9 @@ class PageFacts:
     source_text_chars: int
     ocr_used: bool
     has_preview: bool
+    #: Fraction of this page's source text found in the parsed neighbourhood. Computed only for
+    #: pages the character rule already suspects, so None means "not in question". See ADR-025.
+    source_text_recovery: PageRecovery | None = None
 
 
 @dataclass(frozen=True)
@@ -191,24 +206,32 @@ def validate(facts: ParseFacts, thresholds: ParseThresholds) -> ValidationOutcom
                 Finding("page", Severity.ERROR, PAGE_INVALID_DIMENSIONS, page.page_number)
             )
         if page.text_chars < thresholds.min_chars_per_page:
-            severity = (
-                Severity.ERROR
-                if page.source_text_chars >= thresholds.min_chars_per_page
-                else Severity.WARNING
-            )
-            code = PAGE_CONTENT_LOST if severity is Severity.ERROR else PAGE_EMPTY
-            findings.append(
-                Finding(
-                    "page",
-                    severity,
-                    code,
-                    page.page_number,
-                    details={
-                        "parsed_chars": page.text_chars,
-                        "source_text_chars": page.source_text_chars,
-                    },
-                )
-            )
+            # A page that yielded little of its own is only *lost* if its source text is not in
+            # the parse at all. A cross-page paragraph is anchored to the page it begins on, which
+            # leaves the continuation page looking empty while nothing is missing. See ADR-025.
+            found = page.source_text_recovery
+            need = thresholds.min_page_text_recovery
+            details: dict[str, Any] = {
+                "parsed_chars": page.text_chars,
+                "source_text_chars": page.source_text_chars,
+            }
+            if page.source_text_chars < thresholds.min_chars_per_page:
+                severity, code = Severity.WARNING, PAGE_EMPTY
+            elif found is None:
+                # Nothing was measured, so nothing excuses the shortfall. Fail closed.
+                severity, code = Severity.ERROR, PAGE_CONTENT_LOST
+            else:
+                details["recovery_required"] = need
+                details["own_page_recovery"] = round(found.own, 4)
+                details["neighbourhood_recovery"] = round(found.neighbourhood, 4)
+                details["compared_pages"] = list(found.pages)
+                if found.own >= need:
+                    severity, code = Severity.WARNING, PAGE_TEXT_BELOW_FLOOR
+                elif found.neighbourhood >= need:
+                    severity, code = Severity.WARNING, PAGE_CONTENT_ANCHORED_ELSEWHERE
+                else:
+                    severity, code = Severity.ERROR, PAGE_CONTENT_LOST
+            findings.append(Finding("page", severity, code, page.page_number, details=details))
         if page.ocr_used and page.text_chars < thresholds.min_chars_per_page:
             findings.append(
                 Finding("page", Severity.WARNING, PAGE_OCR_SUSPICIOUS, page.page_number)

@@ -47,6 +47,7 @@ from app.ingestion.parser.model import (
     ParseSource,
 )
 from app.ingestion.state import transition
+from app.ingestion.validation import text_recovery
 from app.ingestion.validation.parse_quality import (
     ElementFacts,
     FigureFacts,
@@ -132,7 +133,7 @@ class ParseService:
             with self._workspace() as workspace:
                 parsed = self._parse(run_id, workspace)
                 self._persist(run_id, parsed)
-                outcome = self._enrich_and_validate(run_id, parsed)
+                outcome = self._enrich_and_validate(run_id, parsed, workspace / "source.pdf")
         except ParseCancelled:
             self._release_cancelled(run_id)
             self.metrics.cancelled.inc()
@@ -559,7 +560,9 @@ class ParseService:
 
     # ------------------------------------------------------------------ stage: ENRICHING
 
-    def _enrich_and_validate(self, run_id: UUID, parsed: ParsedDocument) -> ParseOutcome:
+    def _enrich_and_validate(
+        self, run_id: UUID, parsed: ParsedDocument, source: Path | None = None
+    ) -> ParseOutcome:
         with self.sessions.begin() as session:
             run = self._require_run(session, run_id)
             version = session.get(DocumentVersion, run.document_version_id)
@@ -635,7 +638,20 @@ class ParseService:
             self._beat(run)
             session.flush()
 
-            facts = self._facts(parsed, pages, elements, tables, figures, formulas)
+            # Only pages the character rule already suspects are re-read from the source, and
+            # only to answer one question: is this page's text somewhere in the parse? See ADR-025.
+            floor = self.config.thresholds.min_chars_per_page
+            suspect = {
+                page.page_number
+                for page in pages
+                if len(page.extracted_text or "") < floor and page.source_text_chars >= floor
+            }
+            recovered: dict[int, text_recovery.PageRecovery] = {}
+            if suspect and source is not None and source.exists():
+                recovered = text_recovery.recovery(
+                    source, suspect, {p.page_number: (p.extracted_text or "") for p in pages}
+                )
+            facts = self._facts(parsed, pages, elements, tables, figures, formulas, recovered)
             outcome = validate(facts, self.config.thresholds)
             page_by_number = {page.page_number: page for page in pages}
             element_by_reference = {
@@ -823,7 +839,9 @@ class ParseService:
         tables: list[TableArtifact],
         figures: list[FigureArtifact],
         formulas: list[FormulaArtifact],
+        recovered: dict[int, text_recovery.PageRecovery] | None = None,
     ) -> ParseFacts:
+        recovered = recovered or {}
         page_size = {page.id: (page.width, page.height) for page in pages}
         element_facts = []
         for element in elements:
@@ -884,6 +902,7 @@ class ParseService:
                     source_text_chars=page.source_text_chars,
                     ocr_used=page.ocr_used,
                     has_preview=page.preview_key is not None,
+                    source_text_recovery=recovered.get(page.page_number),
                 )
                 for page in pages
             ),
