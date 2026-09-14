@@ -95,7 +95,10 @@ class SufficiencyGate:
         self._artifact_checks(anchors, requirement, signals, reasons, missing)
         self._completeness_checks(evidence, blocks, signals, reasons, missing)
 
-        found = conflict_detection.detect(blocks)
+        # Conflict detection runs over the *full* assembled set, excluded anchors included: a
+        # disagreement must not disappear because one of its participants was filtered out for
+        # being incomplete. Everything else below judges the usable evidence only.
+        found = conflict_detection.detect(blocks + list(evidence.excluded_blocks))
         signals.append(
             EvaluatedSignal(
                 name="evidence_conflicts", value=len(found), required=0, satisfied=not found
@@ -279,9 +282,14 @@ class SufficiencyGate:
         reasons: list[ReasonCode],
         missing: list[str],
     ) -> None:
-        details = self._warnings(evidence)
+        excluded = set(evidence.excluded_anchors)
+        # A warning about an anchor that is no longer in the usable set describes something that
+        # was removed, not a deficiency of the evidence being judged. It stays reported. A warning
+        # about a *kept* anchor still blocks, so a filtering failure cannot open the gate.
+        details = [w for w in self._warnings(evidence) if not self._was_excluded(w, excluded)]
+        removed = [w for w in self._warnings(evidence) if self._was_excluded(w, excluded)]
         blockers = [w for w in details if blocking(w)]
-        advisory = [w for w in details if not blocking(w)]
+        advisory = [w for w in details if not blocking(w)] + removed
 
         omitted_selected = [w for w in blockers if w.code == BUDGET_WARNING]
         signals.append(
@@ -330,6 +338,14 @@ class SufficiencyGate:
             reasons.append("CONTEXT_INCOMPLETE")
             missing.append("complete_source_records")
 
+        signals.append(
+            EvaluatedSignal(
+                name="anchors_excluded_as_unusable",
+                value=len(excluded),
+                required=None,
+                satisfied=True,
+            )
+        )
         required_missing = [w for w in blockers if w.required_dependency]
         signals.append(
             EvaluatedSignal(
@@ -367,6 +383,15 @@ class SufficiencyGate:
         if advisory:
             # Visible in the decision, never a reason to refuse.
             reasons.append("ADVISORY_CONTEXT_OMISSION")
+
+    @staticmethod
+    def _was_excluded(warning: EvidenceWarning, excluded: set[UUID]) -> bool:
+        """Whether this warning concerns an anchor that was removed from the usable set."""
+        if not excluded:
+            return False
+        return warning.anchor_chunk_id in excluded or (
+            warning.tier == "ANCHOR" and warning.chunk_id in excluded
+        )
 
     @staticmethod
     def _warnings(evidence: EvidenceSet) -> list[EvidenceWarning]:

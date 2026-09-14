@@ -69,6 +69,9 @@ class EvidenceWarning(BaseModel):
     selected_by_reranker: bool = False
     #: Whether an admitted anchor actually needed this, as opposed to it being optional context.
     required_dependency: bool = False
+    #: The anchor this warning is about, when it is about one. A dropped parent names the parent
+    #: in `chunk_id`, so without this the anchor it was meant to complete could not be identified.
+    anchor_chunk_id: UUID | None = None
 
     def render(self) -> str:
         """The historical string form, kept so existing readers and the UI are unaffected."""
@@ -124,5 +127,13 @@ class EvidenceSet(BaseModel):
     #: The same warnings with the structure the sufficiency gate reasons over. Additive: the
     #: string list above stays the display surface.
     warning_details: list[EvidenceWarning] = Field(default_factory=list)
+    #: Reranker-selected anchors whose required context could not be satisfied. They are absent
+    #: from `evidence_blocks` and `anchors`, so they cannot be rendered, cited, claimed against or
+    #: counted — unusable evidence is removed rather than flagged. See ADR-020.
+    excluded_anchors: list[UUID] = Field(default_factory=list)
+    #: The blocks belonging to those anchors, kept only so conflict detection still sees the full
+    #: assembled set. Nothing downstream of the gate reads this: generation, citation binding and
+    #: verification all consume `evidence_blocks`.
+    excluded_blocks: list[EvidenceBlock] = Field(default_factory=list)
     duplicates_removed: int
     answering_enabled: Literal[False] = False

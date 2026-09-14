@@ -146,6 +146,7 @@ class EvidenceAssembler:
                         tier="ANCHOR" if is_anchor else "EXPANSION",
                         selected_by_reranker=is_anchor,
                         required_dependency=required,
+                        anchor_chunk_id=anchor.chunk_id,
                     )
                 )
                 return False
@@ -339,6 +340,7 @@ class EvidenceAssembler:
                                 code="CONTEXT_INVALID_NEIGHBOUR",
                                 chunk_id=relative.chunk_id,
                                 tier="EXPANSION",
+                                anchor_chunk_id=anchor.chunk_id,
                             )
                         )
                         continue
@@ -364,6 +366,7 @@ class EvidenceAssembler:
                     tier="ANCHOR",
                     selected_by_reranker=True,
                     required_dependency=True,
+                    anchor_chunk_id=chunk_id,
                 )
             )
         unique = list(dict.fromkeys((w.code, w.chunk_id) for w in warnings))

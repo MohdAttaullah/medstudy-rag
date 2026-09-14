@@ -152,7 +152,19 @@ class EvidenceService:
                 ("assembly", assembly_ms),
             ):
                 r.metrics.evidence_stage.labels(stage=stage).observe(value / 1000)
-        selected = {b.anchor_chunk_id for b in blocks}
+        # An anchor whose required context could not be satisfied is unusable evidence, and
+        # unusable evidence is removed rather than flagged: generation, citation binding and
+        # verification all read `evidence_blocks`, so leaving it there with a warning would put
+        # an incomplete fragment in the prompt and in the citable set. Its own expansions go with
+        # it — they are context for evidence that no longer exists. See ADR-020.
+        unusable = {
+            w.anchor_chunk_id
+            for w in warnings
+            if w.code == "CONTEXT_REQUIRED_PARENT_MISSING" and w.anchor_chunk_id
+        }
+        usable = [b for b in blocks if b.anchor_chunk_id not in unusable]
+        excluded = [b for b in blocks if b.anchor_chunk_id in unusable]
+        selected = {b.anchor_chunk_id for b in usable}
         trace = {
             "timestamp": datetime.now(UTC).isoformat(),
             "tenant_id": str(actor.tenant_id),
@@ -173,10 +185,12 @@ class EvidenceService:
             retrieval_trace=asdict(candidates.trace),
             reranking_trace=trace,
             anchors=[a.chunk_id for a in anchors if a.chunk_id in selected],
-            expansions=[b.evidence_id for b in blocks if b.expansion_reason != "RERANKED_ANCHOR"],
-            evidence_blocks=blocks,
-            total_tokens=sum(b.token_count for b in blocks),
-            requires_visual_evidence=any(b.requires_visual_evidence for b in blocks),
+            expansions=[b.evidence_id for b in usable if b.expansion_reason != "RERANKED_ANCHOR"],
+            evidence_blocks=usable,
+            total_tokens=sum(b.token_count for b in usable),
+            requires_visual_evidence=any(b.requires_visual_evidence for b in usable),
+            excluded_anchors=sorted(unusable, key=str),
+            excluded_blocks=excluded,
             # M5's own warnings concern the query rather than any one candidate, so they
             # carry the RETRIEVAL tier and name no chunk.
             warnings=[*candidates.warnings, *(w.render() for w in warnings)],

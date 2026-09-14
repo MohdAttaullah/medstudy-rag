@@ -148,13 +148,51 @@ The real book was accepted through this flow on 2026-09-11: run `3ebd8b90` is `R
 and active, `validation_result` still `NEEDS_REVIEW`, all 10 findings unchanged, `retry_count`
 still 2/3, chunking ran and produced 4,253 chunks.
 
-**New downstream blocker, not fixed and not caused by this work:** embedding failed with
-`EMBEDDING_INPUT_TOO_LONG`. **619 of 4,253 chunks exceed MedCPT's 512-token input limit** (618
-`TEXT_PARENT`, 1 `TABLE_PART`; worst 1,280 tokens). `max_input_tokens` is `Literal[512]` — pinned
-to the model, not tunable — and the embedder refuses to truncate by design, so nothing was
-silently dropped. This is a chunking-policy/embedding-limit mismatch that a 932-page textbook is
-the first document to expose; the job is `FAILED` with `retry_count` still 2/3. Nothing downstream of parsing has
-been exercised at this scale; chunking and embedding an 18,888-element document is untested.
+**Committed since: `40cb745` embedding contract.** Embedding first failed with
+`EMBEDDING_INPUT_TOO_LONG`. `max_input_tokens` is `Literal[512]` — pinned to the model, not tunable
+— and the embedder refuses to truncate by design, so nothing was silently dropped. The real defect
+was narrow: **1 chunk of 3,635 embedder inputs** exceeded the limit, a `TABLE_PART` whose splitter
+re-added a suffix after the budget was computed (440 + 105 = 545). `TEXT_PARENT` chunks are context
+containers and are never embedded, so the 618 oversized parents were never inputs — an earlier
+count of "619 of 4,253" measured dataset chunks rather than embedder inputs and was wrong. Fixes:
+the splitter now renders through one `rendered(indexes)` helper so budget and emit cannot diverge;
+`table_max_tokens` 450 → 384; and a `chunking_fits_the_encoder` cross-config validator pins
+384 + 128 reserve = 512. The book was rechunked through the supported path (retry 3 not consumed)
+and reached `RETRIEVAL_READY`.
+
+**Committed since: `a4ef769` sufficiency scope (ADR-019) and `b09b765` parent completion.**
+Sufficiency's completeness checks were global while every other check was scoped to the reranked
+anchors, which made a real corpus unanswerable — 0 of 26 questions, with the defining passage at
+rank 1 and **zero** deficiencies in the evidence actually selected. Warnings are now classified
+default-deny: advisory requires positive proof of EXPANSION tier and no reranker selection;
+anything untiered or unknown blocks. Separately, chunking builds parents to ~1280 tokens while a
+required expansion may admit 512, so 45 of 46 required parents were offered and lost to the budget.
+Assembly now computes the **minimum uncovered completion fragment** — the text after the anchor, cut
+at the first sentence end — in a three-pass order that reserves budget for required completions
+before optional context. Budget-dropped required parents: 45 → 0. Nothing is truncated mid-sentence
+and no continuation text is invented.
+
+**Uncommitted: unusable anchors are excluded, not flagged** (ADR-020). One anchor whose required
+completion could not be admitted still invalidated the whole question, so eleven questions abstained
+with complete, independently sufficient anchors in the set. Such an anchor — and every expansion
+belonging to it — is now removed from `evidence_blocks`, `anchors` and `expansions` and recorded in
+`excluded_anchors` / `excluded_blocks`. This is safer, not merely more permissive: generation,
+citation binding and verification all read `evidence_blocks`, so what used to be kept out of the
+prompt only by the refusal is now structurally absent. **Conflict detection still runs over the full
+assembled set**, and a required dependency on a *kept* anchor still blocks, so a filtering failure
+cannot open the gate.
+
+Measured on the real book, 26 questions: 12 questions had an exclusion, 16 anchors and 20 blocks
+removed, identical across two runs. Supported/context outcomes went 3 → **5 VERIFIED**, 2 → 4
+UNVERIFIED, 11 → 7 INSUFFICIENT. Every changed outcome had at least one excluded anchor; no
+question with zero exclusions changed. The remaining abstentions are
+`VISUAL_INTERPRETATION_UNAVAILABLE` and `TABLE_STRUCTURE_INCOMPLETE`, both untouched here.
+
+**Two findings this exposed, neither fixed:** the gate has no ambiguity or personal-advice check, so
+A3 ("What should I do about the infection?") now returns a grounded, cited, general answer instead
+of abstaining — its previous abstention was an accident of a required-parent warning, not a policy.
+And U2, an out-of-corpus question, now reaches the provider and returns
+`GENERATION_SCHEMA_VIOLATION` (fail-closed, no answer released) rather than abstaining at the gate.
 
 The lease now heartbeats between windows (`PARSE_WINDOW_COMPLETED`), which is what lets a
 multi-hour parse keep a lease sized for liveness. Recovery was observed for real: a worker lost at
