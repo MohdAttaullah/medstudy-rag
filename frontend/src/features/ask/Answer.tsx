@@ -58,7 +58,9 @@ function Citation({ citation }: {citation: AskCitation}) {
  */
 export function Answer({ result }: {result: AskResponse}) {
   if (result.outcome !== 'VERIFIED') {
-    const tone = result.outcome === 'FAILED' ? 'Service problem' : 'No answer shown';
+    const tone = result.outcome === 'FAILED' ? 'Service problem'
+      : result.outcome === 'OUT_OF_SCOPE' ? 'Outside what this workspace does'
+      : 'No answer shown';
     return <section className="panel" aria-labelledby="ask-outcome">
       <p className="eyebrow">{tone.toUpperCase()}</p>
       <h2 id="ask-outcome">{TITLES[result.outcome]}</h2>
@@ -70,6 +72,10 @@ export function Answer({ result }: {result: AskResponse}) {
       {result.outcome === 'INSUFFICIENT_EVIDENCE' && <p>
         Nothing was filled in from the model's own knowledge. If the corpus does not cover this,
         the workspace says so instead of guessing.
+      </p>}
+      {result.outcome === 'OUT_OF_SCOPE' && <p>
+        No sources were searched and no model was called. Rephrasing the question as what the
+        indexed sources say about a topic will be answered normally.
       </p>}
       {!!result.reason_codes.length && <details><summary>Why</summary>
         <ul className="service-list">{result.reason_codes.map(code =>
@@ -101,4 +107,5 @@ const TITLES: Record<string, string> = {
   CONFLICTING_EVIDENCE: 'Sources disagree',
   UNVERIFIED: 'Could not verify an answer',
   FAILED: 'The answering service failed',
+  OUT_OF_SCOPE: 'Not a question this workspace answers',
 };

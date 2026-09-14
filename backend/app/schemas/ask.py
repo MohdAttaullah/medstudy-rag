@@ -24,6 +24,10 @@ AskOutcome = Literal[
     "CONFLICTING_EVIDENCE",
     "UNVERIFIED",
     "FAILED",
+    # Refused on intent, before any index was searched or any provider called: the reader asked
+    # for individualized clinical advice, which this educational system does not give. Carries no
+    # answer and no citations, because none were ever produced. See ADR-021.
+    "OUT_OF_SCOPE",
 ]
 
 

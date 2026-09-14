@@ -40,6 +40,9 @@ OUTCOMES = (
     "CONFLICTING_EVIDENCE",
     "UNVERIFIED",
     "FAILED",
+    # Refused on intent before retrieval: an individualized clinical request. Distinct from
+    # INSUFFICIENT_EVIDENCE because the sources are not the reason. See ADR-021.
+    "OUT_OF_SCOPE",
 )
 
 

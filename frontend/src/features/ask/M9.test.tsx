@@ -48,6 +48,7 @@ const MESSAGES: Record<string, string> = {
   CONFLICTING_EVIDENCE: 'The indexed sources disagree with each other about this question.',
   UNVERIFIED: 'Evidence was found, but a supported answer could not be verified against it.',
   FAILED: 'The answering service could not complete this request.',
+  OUT_OF_SCOPE: 'This is an educational evidence workspace, not a clinical decision service, so it does not advise on your own treatment, medication or risk. If your situation is urgent, seek medical care now; otherwise a qualified clinician who can assess you is the right source.',
 };
 
 beforeEach(() => {
@@ -124,6 +125,7 @@ it.each([
   ['CONFLICTING_EVIDENCE', 'Sources disagree'],
   ['UNVERIFIED', 'Could not verify an answer'],
   ['FAILED', 'The answering service failed'],
+  ['OUT_OF_SCOPE', 'Not a question this workspace answers'],
 ])('renders %s as its own distinct state with no answer text', async (state, heading) => {
   outcome = state;
   await ask();
@@ -139,6 +141,16 @@ it('distinguishes a technical failure from missing evidence', async () => {
   await screen.findByRole('heading', { name: 'The answering service failed' });
   expect(screen.getByText('SERVICE PROBLEM')).toBeInTheDocument();
   expect(screen.queryByText(/do not support an answer/)).not.toBeInTheDocument();
+});
+
+it('presents an out-of-scope refusal as a policy decision, not a corpus gap', async () => {
+  outcome = 'OUT_OF_SCOPE';
+  await ask();
+  await screen.findByRole('heading', { name: 'Not a question this workspace answers' });
+  expect(screen.getByText('OUTSIDE WHAT THIS WORKSPACE DOES')).toBeInTheDocument();
+  // A reader told the sources were missing would reasonably try rephrasing or adding a document.
+  expect(screen.queryByText(/do not support an answer/)).not.toBeInTheDocument();
+  expect(screen.getByText(/No sources were searched and no model was called/)).toBeInTheDocument();
 });
 
 it('tells the user nothing was filled in from model knowledge', async () => {

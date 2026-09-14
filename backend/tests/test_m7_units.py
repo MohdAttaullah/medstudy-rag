@@ -18,7 +18,12 @@ from app.core.generation_config import (
 from app.evidence.model import ArtifactRef, EvidenceBlock, EvidenceSet, SourceSpan
 from app.generation.citations.validate import bind
 from app.generation.errors import RETRYABLE, GenerationError
-from app.generation.grounding.model import DraftClaim, GroundedDraft, ProviderDraft
+from app.generation.grounding.model import (
+    AnswerDraft,
+    DraftClaim,
+    GroundedDraft,
+    ProviderResult,
+)
 from app.generation.prompts.grounded import SYSTEM_POLICY, render_evidence
 from app.generation.providers.anthropic import AnthropicProvider
 from app.generation.providers.factory import build_provider
@@ -430,7 +435,7 @@ def test_assessment_blocks_are_marked_in_the_rendered_evidence():
 
 def test_every_citation_must_name_a_supplied_evidence_block():
     approved = [uuid4(), uuid4()]
-    draft = ProviderDraft(
+    draft = AnswerDraft(
         answer="Warfarin uses CYP2C9.",
         claims=[DraftClaim(text="Warfarin uses CYP2C9.", evidence_ids=[approved[0]])],
     )
@@ -440,7 +445,7 @@ def test_every_citation_must_name_a_supplied_evidence_block():
 
 def test_an_invented_evidence_id_is_rejected():
     approved = [uuid4()]
-    draft = ProviderDraft(
+    draft = AnswerDraft(
         answer="Warfarin uses CYP2C9.",
         claims=[DraftClaim(text="Warfarin uses CYP2C9.", evidence_ids=[uuid4()])],
     )
@@ -451,7 +456,7 @@ def test_an_invented_evidence_id_is_rejected():
 def test_a_real_id_from_another_request_is_still_unknown_here():
     """Existing somewhere is not the test; being in this EvidenceSet is."""
     other_request = uuid4()
-    draft = ProviderDraft(
+    draft = AnswerDraft(
         answer="Text.", claims=[DraftClaim(text="Text.", evidence_ids=[other_request])]
     )
     with pytest.raises(GenerationError, match="UNKNOWN_CITATION"):
@@ -460,7 +465,7 @@ def test_a_real_id_from_another_request_is_still_unknown_here():
 
 def test_a_draft_binding_nothing_is_rejected():
     with pytest.raises(ValidationError):
-        ProviderDraft(answer="Text.", claims=[DraftClaim(text="Text.", evidence_ids=[])])
+        AnswerDraft(answer="Text.", claims=[DraftClaim(text="Text.", evidence_ids=[])])
 
 
 def test_a_draft_is_typed_as_unverified():
@@ -580,7 +585,7 @@ def test_temperature_is_omitted_unless_configured_and_recorded_as_sent():
     assert default.specification.temperature is None
     asyncio.run(
         default.generate_structured(
-            system_policy="p", question="q", evidence="e", schema=ProviderDraft
+            system_policy="p", question="q", evidence="e", schema=ProviderResult
         )
     )
     assert "temperature" not in seen[0]
@@ -595,7 +600,7 @@ def test_temperature_is_omitted_unless_configured_and_recorded_as_sent():
     assert explicit.specification.temperature == 0.0
     asyncio.run(
         explicit.generate_structured(
-            system_policy="p", question="q", evidence="e", schema=ProviderDraft
+            system_policy="p", question="q", evidence="e", schema=ProviderResult
         )
     )
     assert seen[1]["temperature"] == 0.0
@@ -617,7 +622,7 @@ def test_a_rejected_request_is_not_reported_as_an_outage():
     with pytest.raises(GenerationError) as raised:
         asyncio.run(
             _openai(handler).generate_structured(
-                system_policy="p", question="q", evidence="e", schema=ProviderDraft
+                system_policy="p", question="q", evidence="e", schema=ProviderResult
             )
         )
     assert raised.value.code == "GENERATION_PROVIDER_REJECTED_REQUEST"
@@ -659,8 +664,11 @@ def _anthropic(handler):
 
 def _draft_payload(evidence_id):
     return {
-        "answer": "Warfarin uses CYP2C9.",
-        "claims": [{"text": "Warfarin uses CYP2C9.", "evidence_ids": [str(evidence_id)]}],
+        "result": {
+            "outcome": "ANSWER",
+            "answer": "Warfarin uses CYP2C9.",
+            "claims": [{"text": "Warfarin uses CYP2C9.", "evidence_ids": [str(evidence_id)]}],
+        }
     }
 
 
@@ -681,10 +689,10 @@ def test_openai_adapter_returns_the_structured_draft():
 
     draft = asyncio.run(
         _openai(handler).generate_structured(
-            system_policy="p", question="q", evidence="e", schema=ProviderDraft
+            system_policy="p", question="q", evidence="e", schema=ProviderResult
         )
     )
-    assert draft.claims[0].evidence_ids == [identifier]
+    assert draft.result.claims[0].evidence_ids == [identifier]
 
 
 def test_anthropic_adapter_forces_one_tool_for_structured_output():
@@ -710,10 +718,10 @@ def test_anthropic_adapter_forces_one_tool_for_structured_output():
 
     draft = asyncio.run(
         _anthropic(handler).generate_structured(
-            system_policy="p", question="q", evidence="e", schema=ProviderDraft
+            system_policy="p", question="q", evidence="e", schema=ProviderResult
         )
     )
-    assert draft.answer == "Warfarin uses CYP2C9."
+    assert draft.result.answer == "Warfarin uses CYP2C9."
 
 
 @pytest.mark.parametrize(
@@ -734,7 +742,7 @@ def test_provider_http_failures_are_typed_and_fail_closed(status, code, build):
     with pytest.raises(GenerationError) as raised:
         asyncio.run(
             provider.generate_structured(
-                system_policy="p", question="q", evidence="e", schema=ProviderDraft
+                system_policy="p", question="q", evidence="e", schema=ProviderResult
             )
         )
     assert raised.value.code == code
@@ -750,7 +758,7 @@ def test_provider_timeout_is_typed_and_retryable(build):
     with pytest.raises(GenerationError) as raised:
         asyncio.run(
             build(handler).generate_structured(
-                system_policy="p", question="q", evidence="e", schema=ProviderDraft
+                system_policy="p", question="q", evidence="e", schema=ProviderResult
             )
         )
     assert raised.value.code == "GENERATION_PROVIDER_TIMEOUT"
@@ -766,7 +774,7 @@ def test_malformed_provider_output_is_a_schema_violation_not_an_answer():
     with pytest.raises(GenerationError, match="SCHEMA_VIOLATION"):
         asyncio.run(
             _openai(handler).generate_structured(
-                system_policy="p", question="q", evidence="e", schema=ProviderDraft
+                system_policy="p", question="q", evidence="e", schema=ProviderResult
             )
         )
 
@@ -778,7 +786,7 @@ def test_empty_provider_output_is_rejected():
     with pytest.raises(GenerationError, match="EMPTY"):
         asyncio.run(
             _openai(handler).generate_structured(
-                system_policy="p", question="q", evidence="e", schema=ProviderDraft
+                system_policy="p", question="q", evidence="e", schema=ProviderResult
             )
         )
 

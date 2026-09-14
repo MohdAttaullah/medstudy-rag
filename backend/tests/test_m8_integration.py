@@ -27,7 +27,7 @@ from tests.test_m5_integration import (  # noqa: F401, F811
     retrieval_service,
 )
 from tests.test_m6_integration import StubReranker
-from tests.test_m7_integration import evidence_ids
+from tests.test_m7_integration import answering, evidence_ids
 
 pytestmark = [
     pytest.mark.integration,
@@ -45,10 +45,9 @@ def responder(answer=GOOD, claim=None):
 
     def respond(question, rendered):
         first = evidence_ids(rendered)[0]
-        return {
-            "answer": answer,
-            "claims": [{"text": claim or answer, "evidence_ids": [first]}],
-        }
+        return answering(
+            {"answer": answer, "claims": [{"text": claim or answer, "evidence_ids": [first]}]}
+        )
 
     return respond
 
@@ -175,10 +174,12 @@ def test_a_repaired_draft_citing_unknown_evidence_still_fails(pipeline):
         calls.append(1)
         if len(calls) == 1:
             return responder()(question, rendered)
-        return {
-            "answer": "Fabricated.",
-            "claims": [{"text": "Fabricated.", "evidence_ids": [str(uuid4())]}],
-        }
+        return answering(
+            {
+                "answer": "Fabricated.",
+                "claims": [{"text": "Fabricated.", "evidence_ids": [str(uuid4())]}],
+            }
+        )
 
     control.generation._provider = FakeProvider(respond)
     control.verification._provider = control.generation._provider

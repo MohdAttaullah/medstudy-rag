@@ -12,6 +12,7 @@ from uuid import UUID
 from app.core.generation_config import EvidenceRequirement, SufficiencyConfig
 from app.evidence.model import EvidenceBlock, EvidenceSet, EvidenceWarning
 from app.sufficiency import conflicts as conflict_detection
+from app.sufficiency import intent as intent_classification
 from app.sufficiency.model import (
     ASSESSMENT_AUTHORITY,
     ASSESSMENT_SOURCE_TYPES,
@@ -86,6 +87,19 @@ class SufficiencyGate:
         signals: list[EvaluatedSignal] = []
         reasons: list[ReasonCode] = []
         missing: list[str] = []
+
+        # Reported, never enforced here. Ask refuses a non-permitted intent before retrieval, so
+        # anything reaching this gate has already passed; recording the verdict on every decision
+        # is what makes a misclassification visible rather than silent. The classifier is a pure
+        # function of the question, so calling it again costs nothing and cannot disagree.
+        signals.append(
+            EvaluatedSignal(
+                name="question_intent",
+                value=intent_classification.classify(question),
+                required=None,
+                satisfied=True,
+            )
+        )
 
         supporting = [b for b in anchors if not self._assessment(b)] or anchors
         versions = {b.document_version_id for b in anchors}

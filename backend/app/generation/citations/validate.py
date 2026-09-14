@@ -9,10 +9,10 @@ verification; calling this "verified" would collapse a distinction the architect
 from uuid import UUID
 
 from app.generation.errors import GenerationError
-from app.generation.grounding.model import ProviderDraft
+from app.generation.grounding.model import AnswerDraft
 
 
-def bind(draft: ProviderDraft, approved: list[UUID]) -> tuple[list[UUID], list[UUID]]:
+def bind(draft: AnswerDraft, approved: list[UUID]) -> tuple[list[UUID], list[UUID]]:
     """Return the approved ids the draft cited and those it did not.
 
     Raises on any id outside the supplied set, including one belonging to a real block of another

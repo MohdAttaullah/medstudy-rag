@@ -18,7 +18,12 @@ from app.core.errors import DomainError
 from app.evidence.model import EvidenceSet
 from app.generation.citations.validate import bind
 from app.generation.errors import GenerationError
-from app.generation.grounding.model import Abstention, GroundedDraft, ProviderDraft
+from app.generation.grounding.model import (
+    Abstention,
+    DeclinedDraft,
+    GroundedDraft,
+    ProviderResult,
+)
 from app.generation.prompts.grounded import SYSTEM_POLICY, render_evidence
 from app.generation.providers.base import LLMProvider
 from app.generation.providers.factory import build_provider
@@ -124,9 +129,27 @@ class GenerationService:
             response["durations_ms"]["pipeline_total_ms"] = (perf_counter() - started) * 1000
             return response
 
-        draft = await self._generate(query, evidence, decision, correlation_id)
-        response["draft"] = draft.model_dump(mode="json")
-        response["durations_ms"]["generation_ms"] = draft.durations_ms["provider_ms"]
+        produced, provider_ms = await self._generate(query, evidence, decision, correlation_id)
+        if isinstance(produced, DeclinedDraft):
+            # The provider read the evidence and reported that it does not address the question.
+            # That is a statement about the corpus, so it abstains semantically rather than being
+            # recorded as a technical failure — and it carries no answer and no claims, so there
+            # is nothing for M8 to verify. The provider's only new power is refusal: it cannot
+            # reopen the gate, release anything, or bypass verification. See ADR-022.
+            response["abstention"] = Abstention(
+                reason="INSUFFICIENT_EVIDENCE",
+                reason_codes=[
+                    *decision.reason_codes,
+                    "EVIDENCE_DOES_NOT_ADDRESS_QUESTION",
+                ],
+                message=ABSTENTION_MESSAGE["INSUFFICIENT_EVIDENCE"],
+            ).model_dump(mode="json")
+            response["durations_ms"]["generation_ms"] = provider_ms
+            response["durations_ms"]["pipeline_total_ms"] = (perf_counter() - started) * 1000
+            return response
+
+        response["draft"] = produced.model_dump(mode="json")
+        response["durations_ms"]["generation_ms"] = produced.durations_ms["provider_ms"]
         response["durations_ms"]["pipeline_total_ms"] = (perf_counter() - started) * 1000
         return response
 
@@ -136,7 +159,7 @@ class GenerationService:
         evidence: EvidenceSet,
         decision: SufficiencyDecision,
         correlation_id: UUID,
-    ) -> GroundedDraft:
+    ) -> tuple[GroundedDraft | DeclinedDraft, float]:
         grounding = self.settings.grounding
         blocks = evidence.evidence_blocks[: grounding.max_evidence_blocks]
         approved = [b.evidence_id for b in blocks]
@@ -144,13 +167,18 @@ class GenerationService:
         provider = self._provider or build_provider(self.settings, self._usage)
 
         started = perf_counter()
-        produced = await provider.generate_structured(
+        result = await provider.generate_structured(
             system_policy=SYSTEM_POLICY,
             question=query,
             evidence=rendered,
-            schema=ProviderDraft,
+            schema=ProviderResult,
         )
         provider_ms = (perf_counter() - started) * 1000
+        produced = result.result
+        if isinstance(produced, DeclinedDraft):
+            spec = provider.specification
+            self._record(correlation_id, None, provider=spec.provider, model=spec.model_id)
+            return produced, provider_ms
         if len(produced.answer) > grounding.max_answer_chars:
             raise GenerationError(
                 "GENERATION_SCHEMA_VIOLATION", "The draft exceeds the answer limit."
@@ -176,7 +204,7 @@ class GenerationService:
             grounding_policy_fingerprint=grounding.fingerprint,
             sufficiency_policy_fingerprint=decision.policy_fingerprint,
             durations_ms={"provider_ms": provider_ms},
-        )
+        ), provider_ms
 
     def _log_decision(self, correlation_id: UUID, decision: SufficiencyDecision) -> None:
         metrics = self.evidence.retrieval.metrics

@@ -72,6 +72,33 @@ def response(**overrides):
     return AskResponse(**{**base, **overrides})
 
 
+# --- One outcome vocabulary, four places ---------------------------------------------------------
+
+
+def test_every_outcome_has_a_message_and_a_storable_value():
+    """The vocabulary spans a Literal, a message map and a database CHECK.
+
+    They are edited in different files, so an outcome added to one and missed in another fails at
+    request time -- a KeyError rendering the response, or an integrity error writing the turn.
+    """
+    from typing import get_args
+
+    from app.models.conversations import OUTCOMES
+    from app.schemas.ask import AskOutcome
+
+    declared = set(get_args(AskOutcome))
+    assert declared == set(MESSAGES), "every outcome needs a reader-facing message"
+    assert declared == set(OUTCOMES), "every outcome must satisfy the conversation_turns CHECK"
+
+
+def test_the_out_of_scope_message_refuses_without_giving_clinical_direction():
+    message = MESSAGES["OUT_OF_SCOPE"].lower()
+    assert "educational" in message and "clinician" in message
+    # It may send an urgent reader to care; it may not do the system's forbidden work.
+    for forbidden in ("you should take", "mg", "diagnos", "prescrib", "your dose"):
+        assert forbidden not in message
+
+
 # --- The display rule is unrepresentable to violate ----------------------------------------------
 
 

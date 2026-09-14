@@ -46,12 +46,30 @@ def evidence_ids(rendered: str) -> list[str]:
     ]
 
 
+def answering(payload: dict) -> dict:
+    """The provider contract is a discriminated union; an answer is one of its two branches."""
+    return {"result": {"outcome": "ANSWER", **payload}}
+
+
+def declining() -> dict:
+    return {
+        "result": {
+            "outcome": "DECLINED",
+            "declination": "EVIDENCE_DOES_NOT_ADDRESS_QUESTION",
+        }
+    }
+
+
 def grounded(question: str, rendered: str) -> dict:
     first = evidence_ids(rendered)[0]
-    return {
-        "answer": "The source states the parameter values.",
-        "claims": [{"text": "The source states the parameter values.", "evidence_ids": [first]}],
-    }
+    return answering(
+        {
+            "answer": "The source states the parameter values.",
+            "claims": [
+                {"text": "The source states the parameter values.", "evidence_ids": [first]}
+            ],
+        }
+    )
 
 
 @pytest.fixture
@@ -138,10 +156,12 @@ def test_insufficient_evidence_abstains_and_calls_no_provider(pipeline):
 def test_a_draft_citing_evidence_it_was_not_given_is_rejected(pipeline):
     client, control, credentials, _, _ = pipeline
     invented = FakeProvider(
-        lambda q, e: {
-            "answer": "Fabricated.",
-            "claims": [{"text": "Fabricated.", "evidence_ids": [str(uuid4())]}],
-        }
+        lambda q, e: answering(
+            {
+                "answer": "Fabricated.",
+                "claims": [{"text": "Fabricated.", "evidence_ids": [str(uuid4())]}],
+            }
+        )
     )
     control.generation._provider = invented
     result = client.post(

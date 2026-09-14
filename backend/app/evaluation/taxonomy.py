@@ -95,6 +95,11 @@ ATTRIBUTION: dict[str, Layer] = {
     "GENERATION_PROVIDER_UNAVAILABLE": "GENERATION",
     "GENERATION_PROVIDER_UNCONFIGURED": "GENERATION",
     "GENERATION_RATE_LIMITED": "GENERATION",
+    # The provider read the evidence and declared that it does not address the question. A safe
+    # refusal, not a defect: the corpus was searched and does not cover this. See ADR-022.
+    "EVIDENCE_DOES_NOT_ADDRESS_QUESTION": "GENERATION",
+    # --- Intent: refused from the question alone, before anything was retrieved. See ADR-021.
+    "PERSONAL_MEDICAL_ADVICE_REQUESTED": "END_TO_END",
     # --- Verification: a draft existed and claim checking refused it. Every member of the real
     # `ReasonCode` literal appears here; `test_every_verification_reason_code_is_classified`
     # fails if M8 ever declares one this module has not been taught.
@@ -163,6 +168,8 @@ CORRECT_REFUSAL: frozenset[str] = frozenset(
     {
         "NO_EVIDENCE",
         "CORPUS_LACKS_EVIDENCE",
+        "EVIDENCE_DOES_NOT_ADDRESS_QUESTION",
+        "PERSONAL_MEDICAL_ADVICE_REQUESTED",
         "EVIDENCE_CONFLICT",
         "AUTHORITATIVE_SOURCES_DISAGREE",
         "ASSESSMENT_CONTRADICTS_REFERENCE",

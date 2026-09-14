@@ -33,6 +33,7 @@ from app.schemas.ask import (
 )
 from app.security.auth import Principal
 from app.services.verification import VerificationService
+from app.sufficiency import intent
 
 # One sentence per outcome, chosen here rather than anywhere near a model. A reader must be able to
 # tell missing evidence from conflicting evidence from a failed check from a broken provider,
@@ -54,6 +55,14 @@ MESSAGES = {
     "FAILED": (
         "The answering service could not complete this request. This is a technical failure, not a "
         "statement about the evidence."
+    ),
+    # Product-controlled and fixed. It states what the system is, directs the reader to a clinician
+    # for the thing it will not do, and neither diagnoses, prescribes nor personalizes treatment.
+    "OUT_OF_SCOPE": (
+        "This is an educational evidence workspace, not a clinical decision service, so it does "
+        "not advise on your own treatment, medication or risk. If your situation is urgent, seek "
+        "medical care now; otherwise a qualified clinician who can assess you is the right source. "
+        "Questions about what the indexed sources say are welcome."
     ),
 }
 
@@ -128,6 +137,30 @@ class AskService:
             return stored
 
         started = perf_counter()
+        # Intent is read before retrieval, from the question alone. An individualized clinical
+        # request is not a question this educational system answers at any evidence level, so
+        # refusing here means no index is searched and no provider is called — and it means the
+        # refusal cannot be influenced by whatever the corpus happened to return. See ADR-021.
+        try:
+            wanted = intent.classify(question)
+        except intent.IntentError:
+            # Fail closed: an unclassifiable question is refused, never waved through.
+            wanted = "PERSONAL_ACTION_SEEKING"
+        self._log_intent(correlation_id, wanted)
+        if not intent.permitted(wanted):
+            return await run_in_threadpool(
+                self._commit,
+                actor,
+                key,
+                correlation_id,
+                conversation_id,
+                question,
+                "OUT_OF_SCOPE",
+                {},
+                "PERSONAL_MEDICAL_ADVICE_REQUESTED",
+                (perf_counter() - started) * 1000,
+            )
+
         outcome, payload, failure = "FAILED", {}, None
         try:
             payload = await self.verification.answer(actor, question, correlation_id, filters)
@@ -159,6 +192,12 @@ class AskService:
         """Read the outcome the pipeline already reached. Nothing is re-decided here."""
         if payload.get("verified") and payload.get("verified_answer"):
             return "VERIFIED"
+        abstention = payload.get("abstention") or {}
+        if "EVIDENCE_DOES_NOT_ADDRESS_QUESTION" in (abstention.get("reason_codes") or []):
+            # The gate passed and the provider then reported that the evidence does not address
+            # the question. No draft exists, so this is a statement about the corpus rather than
+            # the verification failure that a missing draft would otherwise imply.
+            return "INSUFFICIENT_EVIDENCE"
         sufficiency = (payload.get("sufficiency") or {}).get("status")
         if sufficiency == "CONFLICTING":
             return "CONFLICTING_EVIDENCE"
@@ -166,6 +205,24 @@ class AskService:
             return "INSUFFICIENT_EVIDENCE"
         # The gate allowed generation, so a draft existed and verification refused it.
         return "UNVERIFIED"
+
+    @staticmethod
+    def _log_intent(correlation_id: UUID, wanted: str) -> None:
+        """Report the verdict for every question, so misclassification is observable.
+
+        The verdict is a bounded declared vocabulary; the question itself is not logged, in line
+        with the M5 rule that medical queries stay out of telemetry.
+        """
+        logging.getLogger("medical_rag.ask").info(
+            "question_intent_classified",
+            extra={
+                "event": "question_intent_classified",
+                "request_id": str(correlation_id),
+                "question_intent": wanted,
+                "classifier_version": intent.CLASSIFIER_VERSION,
+                "permitted": intent.permitted(wanted),  # type: ignore[arg-type]
+            },
+        )
 
     def _require_conversation(self, actor: Principal, conversation_id: UUID) -> None:
         with self.verification.generation.evidence.retrieval.sessions() as session:
@@ -189,7 +246,7 @@ class AskService:
         question: str,
         outcome: str,
         payload: dict[str, Any],
-        failure: str | None,
+        declared_code: str | None,
         total: float,
     ) -> AskResponse:
         answer = (payload.get("verified_answer") or {}) if outcome == "VERIFIED" else {}
@@ -199,7 +256,7 @@ class AskService:
             for b in ((payload.get("evidence_set") or {}).get("evidence_blocks") or [])
         }
         citations = self._citations(answer, blocks) if outcome == "VERIFIED" else []
-        reasons = self._reasons(outcome, payload, report, failure)
+        reasons = self._reasons(outcome, payload, report, declared_code)
 
         with self.verification.generation.evidence.retrieval.sessions.begin() as session:
             repository = ConversationRepository(session, actor.tenant_id, actor.user_id)
@@ -297,13 +354,20 @@ class AskService:
 
     @staticmethod
     def _reasons(
-        outcome: str, payload: dict[str, Any], report: dict[str, Any], failure: str | None
+        outcome: str, payload: dict[str, Any], report: dict[str, Any], declared_code: str | None
     ) -> list[str]:
-        if failure:
-            return [failure]
+        """A code this service already decided: a caught provider failure, or the policy refusal
+        that stopped the request before retrieval. Either wins over anything the pipeline
+        reported, because in both cases the pipeline never reached a verdict."""
+        if declared_code:
+            return [declared_code]
         if outcome == "VERIFIED":
             return []
         codes = list(report.get("failed_reason_codes") or [])
+        if not codes:
+            # The abstention carries the gate's own codes plus anything the stage that abstained
+            # added, so reading it first keeps a provider declination's code from being dropped.
+            codes = list((payload.get("abstention") or {}).get("reason_codes") or [])
         if not codes:
             codes = list((payload.get("sufficiency") or {}).get("reason_codes") or [])
         return codes

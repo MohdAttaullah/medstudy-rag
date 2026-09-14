@@ -200,7 +200,7 @@ export interface AnswerResponse extends Omit<DraftResponse, 'verified'> {
   verification_abstention: VerificationAbstention | null;
 }
 
-export type AskOutcome = 'VERIFIED' | 'INSUFFICIENT_EVIDENCE' | 'CONFLICTING_EVIDENCE' | 'UNVERIFIED' | 'FAILED';
+export type AskOutcome = 'VERIFIED' | 'INSUFFICIENT_EVIDENCE' | 'CONFLICTING_EVIDENCE' | 'UNVERIFIED' | 'FAILED' | 'OUT_OF_SCOPE';
 export interface CitationSpan {
   element_id: string; page: number | null; start: number; end: number; role: string;
   bbox: [number | null, number | null, number | null, number | null] | null;

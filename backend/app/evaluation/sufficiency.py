@@ -16,7 +16,7 @@ from app.core.generation_config import GroundingConfig, SufficiencyConfig
 from app.evidence.model import ArtifactRef, EvidenceBlock, EvidenceSet, SourceSpan
 from app.generation.citations.validate import bind
 from app.generation.errors import GenerationError
-from app.generation.grounding.model import DraftClaim, ProviderDraft
+from app.generation.grounding.model import AnswerDraft, DraftClaim
 from app.generation.prompts.grounded import render_evidence
 from app.sufficiency.gate import SufficiencyGate
 
@@ -177,7 +177,7 @@ def evaluate_generation(root: Path, config: SufficiencyConfig | None = None) -> 
             ),
         }
         if permitted:
-            good = ProviderDraft(
+            good = AnswerDraft(
                 answer="The evidence states the following.",
                 claims=[
                     DraftClaim(
@@ -190,7 +190,7 @@ def evaluate_generation(root: Path, config: SufficiencyConfig | None = None) -> 
             row["citations_valid"] = True
             row["cited"] = len(cited)
             row["uncited"] = len(uncited)
-            invented = ProviderDraft(
+            invented = AnswerDraft(
                 answer="Fabricated.",
                 claims=[
                     DraftClaim(text="Fabricated.", evidence_ids=[_identity("evidence", "absent")])

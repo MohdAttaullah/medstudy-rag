@@ -33,6 +33,13 @@ ReasonCode = Literal[
     "RETRIEVAL_WARNING_PRESENT",
     # A selected anchor is a mid-sentence fragment whose completing parent was not admitted.
     "REQUIRED_CONTEXT_MISSING",
+    # The provider declared that the supplied evidence does not address the question. A semantic
+    # abstention, not a technical failure: the corpus was searched and does not cover this.
+    # See ADR-022.
+    "EVIDENCE_DOES_NOT_ADDRESS_QUESTION",
+    # Refused before retrieval: the reader asked for individualized clinical advice, which this
+    # educational system does not give at any evidence level. See ADR-021.
+    "PERSONAL_MEDICAL_ADVICE_REQUESTED",
     # Advisory
     # Optional surrounding context the assembler declined. Reported so the omission stays
     # visible; never a reason to refuse generation. See ADR-019.

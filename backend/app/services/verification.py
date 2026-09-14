@@ -15,7 +15,7 @@ from app.core.errors import DomainError
 from app.evidence.model import EvidenceSet
 from app.generation.citations.validate import bind
 from app.generation.errors import GenerationError
-from app.generation.grounding.model import GroundedDraft, ProviderDraft
+from app.generation.grounding.model import DeclinedDraft, GroundedDraft, ProviderResult
 from app.generation.prompts.grounded import render_evidence
 from app.generation.prompts.repair import REPAIR_POLICY, repair_message
 from app.generation.providers.base import LLMProvider
@@ -266,13 +266,21 @@ class VerificationService:
 
             provider = build_provider(self.settings, getattr(self, "_usage", None))
         failures = [v for v in verifications if v.failed]
-        produced = await provider.generate_structured(
+        result = await provider.generate_structured(
             system_policy=REPAIR_POLICY,
             question=repair_message(query, rendered, failures),
             # The same evidence, never more. A repair may only narrow the answer.
             evidence=rendered,
-            schema=ProviderDraft,
+            schema=ProviderResult,
         )
+        produced = result.result
+        if isinstance(produced, DeclinedDraft):
+            # A repair that declines has produced nothing releasable, which is exactly the
+            # repair-failed condition the caller already abstains on. Raising here reuses that
+            # path rather than adding a second way to end the loop.
+            raise GenerationError(
+                "GENERATION_EMPTY", "The repair declined to restate the answer from this evidence."
+            )
         cited, uncited = bind(produced, approved)
         spec = provider.specification
         return GroundedDraft(

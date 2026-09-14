@@ -22,6 +22,7 @@ from app.core.errors import DomainError
 from app.evaluation.end_to_end import GOLD
 from app.evaluation.sufficiency import build
 from app.evaluation.taxonomy import attribute
+from app.generation.grounding.model import DeclinedDraft
 
 #: Deliberately small. This is an integration probe, not a benchmark, and every case costs money.
 LIVE_CASE_IDS = (
@@ -84,8 +85,26 @@ def run_live(root: Path, settings: Settings) -> dict[str, Any]:
 
         started = time.perf_counter()
         try:
-            draft = asyncio.run(generator._generate(case["question"], evidence, decision, uuid4()))
+            produced, _ = asyncio.run(
+                generator._generate(case["question"], evidence, decision, uuid4())
+            )
             elapsed = (time.perf_counter() - started) * 1000
+            if isinstance(produced, DeclinedDraft):
+                # The provider declined: the evidence does not address the question. A measured
+                # outcome, not a failure, and there is no draft to inspect.
+                record.update(
+                    {
+                        "provider_called": True,
+                        "schema_valid": True,
+                        "latency_ms": round(elapsed, 1),
+                        "declined": True,
+                        "reason_codes": ["EVIDENCE_DOES_NOT_ADDRESS_QUESTION"],
+                        "attributed_layer": attribute(["EVIDENCE_DOES_NOT_ADDRESS_QUESTION"]),
+                    }
+                )
+                cases.append(record)
+                continue
+            draft = produced
             supplied = {b.evidence_id for b in evidence.evidence_blocks}
             cited = {eid for claim in draft.claims for eid in claim.evidence_ids}
             record.update(

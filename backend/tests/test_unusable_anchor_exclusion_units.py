@@ -18,7 +18,7 @@ from app.core.generation_config import EvidenceRequirement, GroundingConfig, Suf
 from app.evidence.model import EvidenceBlock, EvidenceSet, EvidenceWarning
 from app.generation.citations.validate import bind
 from app.generation.errors import GenerationError
-from app.generation.grounding.model import DraftClaim, ProviderDraft
+from app.generation.grounding.model import AnswerDraft, DraftClaim
 from app.generation.prompts.grounded import render_evidence
 from app.sufficiency.conflicts import detect
 from app.sufficiency.gate import SufficiencyGate
@@ -209,7 +209,7 @@ def test_the_excluded_anchor_never_enters_the_citable_set():
     removed_id = found.excluded_blocks[0].evidence_id
     assert removed_id not in approved
 
-    draft = ProviderDraft(
+    draft = AnswerDraft(
         answer="Warfarin is metabolised by CYP2C9.",
         claims=[DraftClaim(text="Warfarin is metabolised by CYP2C9.", evidence_ids=[removed_id])],
     )

@@ -61,8 +61,9 @@ dispatcher. Only frontend and API are externally reachable. **Health, readiness 
 proxied through the public origin** — they are internal surfaces.
 
 Run Alembic as a **pre-deploy job**, never from application startup; replicas would race. Never
-downgrade a production schema automatically. Alembic head is `m10_configuration`; **M12 added no
-migration**, which is correct for a hardening milestone.
+downgrade a production schema automatically. **M12 added no migration**, which is correct for a
+hardening milestone; the two post-M12 migrations are `parse_review_decisions` and
+`out_of_scope_outcome`, which is the current head.
 
 ## Model provisioning
 
@@ -193,6 +194,44 @@ A3 ("What should I do about the infection?") now returns a grounded, cited, gene
 of abstaining — its previous abstention was an accident of a required-parent warning, not a policy.
 And U2, an out-of-corpus question, now reaches the provider and returns
 `GENERATION_SCHEMA_VIOLATION` (fail-closed, no answer released) rather than abstaining at the gate.
+
+**Uncommitted: medical intent policy (ADR-021) and provider declination (ADR-022).** The
+acceptance run exposed two policy gaps, both of which had previously been covered by accident.
+
+*Intent.* "What should I do about the infection?" returned a grounded, cited answer. There was no
+grounding failure — the answer was general educational prose — but the only intent-aware artefact
+in the repository was rule 7 of the provider prompt, a probabilistic instruction on the untrusted
+side of the boundary. `app/sufficiency/intent.py` (`question-intent-v1`) now classifies seven
+categories from the question alone, before retrieval. A refusal requires a **conjunction** —
+personal framing *and* a clinical action or risk object — because "treatment", "dose" and
+"dangerous" are ordinary textbook vocabulary and a classifier firing on those would make the corpus
+unusable. An epistemic verb keeps a first-person question academic. Refused questions get the new
+`OUT_OF_SCOPE` outcome with `PERSONAL_MEDICAL_ADVICE_REQUESTED`: no index searched, no provider
+called, no answer, no citations. Migration `out_of_scope_outcome` widens the
+`ck_conversation_turns_turn_outcome` CHECK; its downgrade refuses while refused turns exist unless
+`MEDRAG_ALLOW_CONVERSATION_LOSS=1`.
+
+*Relevance.* An out-of-corpus cardiology question reached `SUFFICIENT` and ended as
+`GENERATION_SCHEMA_VIOLATION`. The cause was the contract, not the model: `ProviderDraft` required
+an answer *and* a claim bound to evidence, so a provider concluding "this is about something else"
+had to fabricate or break the schema. `ProviderResult` is now a discriminated union —
+`AnswerDraft | DeclinedDraft` — and a declination carries no answer and no claims, so answering and
+declining is unrepresentable. It maps to `INSUFFICIENT_EVIDENCE` +
+`EVIDENCE_DOES_NOT_ADDRESS_QUESTION`, and claim verification is not run because there is no draft.
+The union is a **one-way valve**: a provider may refuse and nothing else. M7 still gates entry, M8
+still gates exit unchanged.
+
+**A lexical relevance threshold was measured and rejected**, and the numbers are in ADR-022 because
+"we chose not to add one" is only defensible with the evidence written down. Overlap with selected
+evidence does not separate: U2 scores 0.692, above S7 (0.50), S10 (0.571) and S4 (0.625). Corpus
+term-absence does not separate either: U2 and X2 each have exactly **one** absent content term, and
+U2's other six are present in a microbiology corpus because they are ordinary words. Vocabulary
+presence is not topical coverage.
+
+Gold set, 26 questions: exactly three changed. A3 → `OUT_OF_SCOPE` (0.0 s, no provider call), U2 →
+`INSUFFICIENT_EVIDENCE`, and C3 moved VERIFIED → UNVERIFIED, which re-running C3 three times
+(VERIFIED 3/3) places inside ordinary provider variance — generation temperature is deliberately
+the provider default, not pinned. No academic question was blocked by intent classification.
 
 The lease now heartbeats between windows (`PARSE_WINDOW_COMPLETED`), which is what lets a
 multi-hour parse keep a lease sized for liveness. Recovery was observed for real: a worker lost at

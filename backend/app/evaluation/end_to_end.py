@@ -40,8 +40,18 @@ from app.verification.model import ClaimVerification, Outcome, ReasonCode, Verif
 GOLD = "backend/tests/fixtures/evaluation/heldout.json"
 INVENTED = "__INVENTED__"
 
-#: Outcomes the public Ask contract can return. Kept as data so the report cannot invent a sixth.
-OUTCOMES = ("VERIFIED", "INSUFFICIENT_EVIDENCE", "CONFLICTING_EVIDENCE", "UNVERIFIED", "FAILED")
+#: Outcomes the public Ask contract can return. Kept as data so the report cannot invent one.
+#: `OUT_OF_SCOPE` is refused on intent before retrieval, so this offline harness — which replays
+#: gate state over gold fixtures and never classifies intent — always reports zero of them. It is
+#: listed anyway so the distribution enumerates the real contract rather than a subset of it.
+OUTCOMES = (
+    "VERIFIED",
+    "INSUFFICIENT_EVIDENCE",
+    "CONFLICTING_EVIDENCE",
+    "UNVERIFIED",
+    "FAILED",
+    "OUT_OF_SCOPE",
+)
 
 
 def _id(*parts: str) -> UUID:
