@@ -306,6 +306,55 @@ Time budgets moved with it: one conversion call 900 s, whole document 900 s + 12
 
 **No claim of 300–500 MB support is made.** Only this 153 MiB / 932-page book has been run.
 
+**Uncommitted: FIGURE_CONTEXT is embeddable by construction.** The embedding contract committed as
+`40cb745` covered tables and prose but not figures. The figure branch of `Builder.artifact` emitted
+the figure element, its caption and its linked neighbours as **one chunk with no budget at all**,
+while tables split at `table_max_tokens` and prose packed at `child_target_tokens`. A real 22-page
+atlas chapter ("Cerebellum and Fourth Ventricle", 233 elements, 18 figures, 0 tables, parse clean)
+produced a single `FIGURE_CONTEXT` of **641 tokens against the 384-token retrieval budget** — the
+whole of it one 2,810-character figure legend, with **no neighbour prose involved**. Anatomy atlases
+carry legends that long, so this was never about one document.
+
+A second, latent half: chunk validation measured `token_count`, the source text, while the encoder's
+input body is `retrieval_text`. The hierarchy prefix and a figure's no-text placeholder are embedded
+but belong to no source text, so the check could call a body embeddable that was not. Both now
+measure the retrieval representation.
+
+Fix: a long legend is **split**, as a large table is, into several `FIGURE_CONTEXT` chunks carrying
+`part_number` / `part_count`; an unsplit figure gains no part metadata, so ordinary figures keep
+their exact chunk identity. Splitting rather than bounding is forced by ownership — the caption
+element is `consumed` by the figure chunk, so text outside a bounded representation would sit in no
+retrieval unit at all, whereas a linked *neighbour* stays retrievable as its own `TEXT_CHILD`. Every
+part keeps the figure element, the artifact id, the complete caption in metadata and exact source
+offsets; boundaries fall on sentence boundaries where they exist and tokenizer boundaries otherwise.
+`Builder.representation` is now the single renderer for retrieval text, so a budget and an emit
+cannot diverge — the same reason `table.rendered` exists. No configuration value changed, no encoder
+limit moved, and `CHUNK_OVERSIZED` remains an ERROR.
+
+`CHUNK_FIGURE_NO_TEXT` is unchanged and was **not** a defect: of the parse's 18 figures only 7 have
+a caption element, so 11 chunks are `visual_only` with `image_available` true. `visual_only` is
+decided for the figure as a whole, never per part.
+
+Live regression on the fresh document (tenant `ba3d8361`, one retry of three consumed): chunk run
+`82e14324` **PASS_WITH_WARNINGS**, 93 chunks, the 641-token figure now 345 + 296, **0
+CHUNK_OVERSIZED**, the same 11 warnings, caption reconstructing to 2,810 of 2,810 characters from
+the two parts' spans. It reached **RETRIEVAL_READY**: 77 embeddings, worst encoder input 477 of 512
+tokens, none truncated, dense index VERIFIED, sparse VERIFIED with 7,183 postings, 77 Qdrant points.
+
+**Remaining construction paths that are fail-closed but not yet provable by construction.** Neither
+is a regression and neither is touched here; both now surface at chunk validation, which names the
+chunk, rather than at embedding two stages away.
+
+* `FORMULA` budgets nothing either. Its neighbour context is not consumed, so bounding it would lose
+  nothing retrievable — unlike a caption — but splitting an expression across parts would make
+  `metadata["expression"]` mean something different. That choice deserves its own decision.
+* `generic` packs prose against the **source** budget, so a deep hierarchy can push a full-size
+  `TEXT_CHILD`'s retrieval body past 384. Measured across the whole local corpus the prefix costs at
+  most 11 tokens and **zero** existing chunks exceed the budget, but the guarantee is arithmetic
+  luck, not construction. Closing it means subtracting the prefix cost from the pack budget, which
+  moves every chunk boundary in every document with headings — an ADR and a full rechunk, not a
+  tuning pass.
+
 ## RAG v1 freeze (post-M12)
 
 Retrieval, reranking, sufficiency, generation and verification are **frozen**. The acceptance gates

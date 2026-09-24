@@ -72,6 +72,14 @@ neighbouring text, hierarchy and the `FigureArtifact` id. There is no visual rea
 stored crop remains the visual source, and a figure with no source text is labelled as such rather
 than described.
 
+A figure legend long enough to exceed the retrieval budget is **split**, as a large table is, into
+several `FIGURE_CONTEXT` chunks carrying `part_number` and `part_count`; an ordinary figure remains
+one chunk with no part metadata. The legend is split rather than shortened because the caption
+element is consumed by the figure chunk: text left outside a bounded representation would belong to
+no retrieval unit at all. Every part keeps the figure element, the artifact id, the complete caption
+in metadata and exact source offsets, and boundaries fall on sentence boundaries where they exist
+and on tokenizer boundaries otherwise, so nothing is invented and nothing is dropped.
+
 **Question banks** produce `QuestionArtifact` objects with options, page provenance and the
 document's authority metadata. Question and options are one atomic `QUESTION` chunk. An explanation
 stays with the question when it fits and otherwise becomes a linked `QUESTION_EXPLANATION` child.
@@ -89,6 +97,11 @@ Each chunk stores both. `normalized_text` is faithful source. `retrieval_text` m
 prepend declared hierarchy context (`Context: Chapter > Section`) and, for tables, the caption and
 repeated headers. There are no model-generated summaries and no invented content; the UI labels the
 added context as not being source evidence.
+
+`retrieval_text` is what the encoder receives as its input body, so it — not `normalized_text` — is
+what the retrieval budget bounds and what chunk validation measures when deciding whether a chunk
+could be embedded at all. The source text is only a lower bound on it: the hierarchy prefix, and a
+figure's no-text placeholder, are embedded but are part of no source text.
 
 ## Identity and reuse
 

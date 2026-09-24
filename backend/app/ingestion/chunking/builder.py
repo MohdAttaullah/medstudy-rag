@@ -104,14 +104,7 @@ class Builder:
     ) -> DraftChunk:
         self.checkpoint()
         text = self.text(spans) if source_text is None else source_text
-        context = []
-        if self.config.include_hierarchy_context:
-            context = [self.elements[e].text for e in hierarchy]
-        retrieval = ("Context: " + " > ".join(context) + "\n\n" if context else "") + text
-        if kind == "FIGURE_CONTEXT" and not text:
-            retrieval = (
-                retrieval + "\nSource figure; no source caption or explanatory text."
-            ).strip()
+        retrieval = self.representation(kind, text, hierarchy)
         pages = sorted(
             {n for s in spans if (n := self.elements[s.element_id].page_number) is not None}
         )
@@ -148,6 +141,26 @@ class Builder:
         )
         self.output.append(chunk)
         return chunk
+
+    def prefix(self, hierarchy: tuple[UUID, ...]) -> str:
+        if not self.config.include_hierarchy_context or not hierarchy:
+            return ""
+        return "Context: " + " > ".join(self.elements[e].text for e in hierarchy) + "\n\n"
+
+    def representation(self, kind: str, text: str, hierarchy: tuple[UUID, ...]) -> str:
+        """Exactly the retrieval text `emit` will store for this body.
+
+        The embedding input's body is this string and not the source text, so anything that
+        budgets a retrieval unit has to measure this rather than its own approximation of it.
+        `table.rendered` exists for the same reason one stage earlier: a split that measures
+        something other than what it emits holds only until a document disagrees.
+        """
+        retrieval = self.prefix(hierarchy) + text
+        if kind == "FIGURE_CONTEXT" and not text:
+            retrieval = (
+                retrieval + "\nSource figure; no source caption or explanatory text."
+            ).strip()
+        return retrieval
 
     def split_span(self, span: Span, budget: int) -> list[Span]:
         text = self.elements[span.element_id].text[span.start : span.end]
@@ -208,6 +221,45 @@ class Builder:
         if current:
             groups.append(tuple(current))
         return groups
+
+    def figure_parts(
+        self, spans: tuple[Span, ...], hierarchy: tuple[UUID, ...]
+    ) -> list[tuple[Span, ...]]:
+        """Group a figure's spans so that every part is embeddable by construction.
+
+        A long legend is split, never trimmed. The caption element is consumed here, so this is the
+        only chunk that carries it: a bounded representation would leave the sentences past the
+        bound in no retrieval unit at all, findable through nothing. Splitting keeps every sentence
+        in some part, and each part keeps the figure, the full caption metadata and exact source
+        offsets, so nothing is invented and nothing is quietly dropped.
+
+        The budget is measured on the retrieval representation, because that is what the encoder
+        receives. A real 22-page atlas chapter produced a 641-token legend against a 384-token
+        budget, and the previous construction emitted it whole: no valid embedding input could
+        carry it, and the contradiction only surfaced two stages later.
+        """
+        budget = self.config.retrieval_budget_tokens
+        # What is left for the body once the hierarchy prefix is paid for. That prefix ends at a
+        # whitespace boundary, so it cannot merge with the body into shared word pieces.
+        room = max(budget - self.tokens.count(self.prefix(hierarchy)), 1)
+        groups: list[tuple[Span, ...]] = []
+        current: list[Span] = []
+        for original in spans:
+            for span in self.split_span(original, room):
+                if current and self.measure(tuple(current + [span]), hierarchy) > budget:
+                    groups.append(tuple(current))
+                    current = []
+                current.append(span)
+        if current:
+            groups.append(tuple(current))
+        # A figure always contributes its own element span, so this holds at least one group. The
+        # fallback keeps an empty one legal: it emits the figure alone, which is the no-text case
+        # CHUNK_FIGURE_NO_TEXT already describes.
+        return groups or [()]
+
+    def measure(self, spans: tuple[Span, ...], hierarchy: tuple[UUID, ...]) -> int:
+        """What a figure part would cost as an embedding input body."""
+        return self.tokens.count(self.representation("FIGURE_CONTEXT", self.text(spans), hierarchy))
 
     def margins(self) -> set[UUID]:
         if self.config.include_repeated_margins:
@@ -278,17 +330,36 @@ class Builder:
         elif a.kind == "FIGURE":
             self.stage("CHUNK_FIGURES_STARTED")
             spans.extend(self.related(a, self.config.figure_neighbour_elements))
-            self.emit(
-                "FIGURE_CONTEXT",
-                tuple(spans),
-                artifact_ids=(a.id,),
-                hierarchy=hierarchy,
-                metadata={
-                    "caption": a.caption,
-                    "visual_only": not bool(self.text(tuple(spans))),
-                    "image_available": a.data.get("image_available", False),
-                },
-            )
+            anchor = self.whole(a.element_id)
+            whole = self.text(tuple(spans))
+            parts = self.figure_parts(tuple(spans), hierarchy)
+            for index, part in enumerate(parts):
+                # Every part stays mapped to the figure element itself, so no part is a piece of
+                # prose that has lost the picture it describes. The anchor carries no text, so it
+                # changes neither the body nor its measurement.
+                mapped = part if anchor in part else (anchor,) + part
+                self.emit(
+                    "FIGURE_CONTEXT",
+                    mapped,
+                    artifact_ids=(a.id,),
+                    hierarchy=hierarchy,
+                    metadata={
+                        # The complete legend, on every part: the exact source stays recoverable
+                        # from any one of them, alongside the spans that locate it.
+                        "caption": a.caption,
+                        # Decided for the figure as a whole and never per part, so splitting a long
+                        # legend cannot turn a readable figure into a visual-only one.
+                        "visual_only": not bool(whole),
+                        "image_available": a.data.get("image_available", False),
+                        # Absent unless the legend actually needed splitting, so an ordinary
+                        # figure's chunk identity is exactly what it was before this change.
+                        **(
+                            {"part_number": index + 1, "part_count": len(parts)}
+                            if len(parts) > 1
+                            else {}
+                        ),
+                    },
+                )
 
     def table(
         self, a: SourceArtifact, spans: tuple[Span, ...], hierarchy: tuple[UUID, ...]

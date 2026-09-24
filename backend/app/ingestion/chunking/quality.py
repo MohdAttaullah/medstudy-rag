@@ -159,8 +159,14 @@ def validate(
         # Failing here names the chunk while rechunking under a different policy is still the
         # obvious remedy. TEXT_PARENT is exempt by design — a parent is a context container that
         # is never an embedding input, so its larger target is not a contradiction.
+        #
+        # Measured on the retrieval representation, because that is the string the encoder receives
+        # as the input body. The source text is a lower bound on it: the hierarchy prefix, and a
+        # figure's no-text placeholder, are part of what gets embedded but part of no source text.
+        # Judging the source alone let a body over the budget be declared embeddable.
         unembeddable = (
-            chunk.kind != "TEXT_PARENT" and chunk.token_count > config.retrieval_budget_tokens
+            chunk.kind != "TEXT_PARENT"
+            and chunk.retrieval_token_count > config.retrieval_budget_tokens
         )
         if unembeddable:
             oversized += 1
