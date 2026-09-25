@@ -94,14 +94,22 @@ STAGE_LABELS = {
     "sparse_ms": "Searching sources",
     "fusion_ms": "Combining results",
     "hydration_ms": "Loading sources",
+    "evidence_hydration_ms": "Loading sources",
     "reranking_ms": "Reranking evidence",
     "expansion_ms": "Expanding context",
     "assembly_ms": "Assembling evidence",
     "sufficiency_ms": "Checking evidence sufficiency",
     "generation_ms": "Drafting from evidence",
-    "verification_total_ms": "Verifying claims",
-    "pipeline_total_ms": "Total",
+    "repair_generation_ms": "Redrafting from evidence",
+    "claim_extraction_ms": "Extracting claims",
+    "claim_verification_ms": "Verifying claims",
+    "contradiction_ms": "Checking for conflict",
 }
+#: Deliberately absent from the table above. `pipeline_total_ms` is the M5-M7 subtotal and
+#: `verification_total_ms` wraps the M8 rows, so showing either alongside its own parts would
+#: double-count them — and labelling the M7 subtotal "Total" hid the largest stage in the request:
+#: a 70-second answer reported 12 seconds, because verification ran after that subtotal was taken.
+SUBTOTALS = frozenset({"pipeline_total_ms", "verification_total_ms"})
 
 
 class AskService:
@@ -375,13 +383,22 @@ class AskService:
     @staticmethod
     def _stages(payload: dict[str, Any], total: float) -> list[StageTiming]:
         durations = payload.get("durations_ms") or {}
+        # Several measurements share one reader-facing stage — three retrieval lanes are all
+        # "Searching sources" — so they are summed into one row rather than repeated. Ordering
+        # follows STAGE_LABELS, which is pipeline order, not dict insertion order.
+        totals: dict[str, float] = {}
+        for name, value in durations.items():
+            if name in SUBTOTALS or name not in STAGE_LABELS:
+                continue
+            totals[STAGE_LABELS[name]] = totals.get(STAGE_LABELS[name], 0.0) + float(value)
         stages = [
-            StageTiming(stage=STAGE_LABELS[name], duration_ms=round(float(value), 2))
-            for name, value in durations.items()
-            if name in STAGE_LABELS
+            StageTiming(stage=label, duration_ms=round(totals[label], 2))
+            for label in dict.fromkeys(STAGE_LABELS.values())
+            if label in totals
         ]
-        if not any(s.stage == "Total" for s in stages):
-            stages.append(StageTiming(stage="Total", duration_ms=round(total, 2)))
+        # Measured at the boundary, so it is the time the caller actually waited and never the sum
+        # of the parts: whatever is not attributed to a stage stays visible as the difference.
+        stages.append(StageTiming(stage="Total", duration_ms=round(total, 2)))
         return stages
 
     def _response(

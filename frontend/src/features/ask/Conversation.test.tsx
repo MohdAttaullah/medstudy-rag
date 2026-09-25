@@ -143,6 +143,15 @@ it('drops the conversation on sign-out so the next principal starts clean', asyn
   expect(screen.queryByText('Answer to First question?')).not.toBeInTheDocument();
 });
 
+it('shows the stage waterfall to a principal holding retrieval diagnostics', async () => {
+  await workspace();
+  fireEvent.change(screen.getByLabelText('Your educational medical question'), { target: { value: 'How?' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Ask with evidence' }));
+  await screen.findByText('Answer to How?');
+  fireEvent.click(screen.getByText('Timing'));
+  expect(await screen.findByRole('row', { name: /Total/ })).toBeInTheDocument();
+});
+
 it('stores no conversation content in browser storage', async () => {
   await workspace('/ask?conversation=cv1');
   await screen.findByText('Answer to First question?');

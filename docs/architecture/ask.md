@@ -94,6 +94,17 @@ navigating away and back reopens it and a reload restores it, while **only the i
 side and the turns always come from the server. Signing out clears it, so the next principal starts
 with nothing selected. New conversation is the only way to leave one.
 
+## Stage timings
+
+`stages` reports one row per reader-facing stage, summing the measurements that share a label.
+Subtotals are excluded because they double-count their own parts, and `Total` is measured at the
+request boundary rather than summed from the rows — so whatever the stages do not account for stays
+visible as the difference instead of disappearing. The detailed breakdown is shown only to a
+principal holding `retrieval:search`; a reader sees the total.
+
+The downgrade refuses while conversations exist; `MEDRAG_ALLOW_CONVERSATION_LOSS=1` acknowledges the
+loss deliberately, which is what the test harness sets on its throwaway schema.
+
 ## Citations and the source viewer
 
 No new document routes. Citations deep-link into the existing M2 parse inspector, which streams page

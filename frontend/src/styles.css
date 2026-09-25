@@ -146,6 +146,15 @@ dd { font-size: 13px; margin: 6px 0 0; overflow-wrap: anywhere; }
 .outcome-error .eyebrow { color: #842c1e; }
 .outcome-neutral .eyebrow { color: #2f5580; }
 
+/* Timing waterfall. The bar repeats the percentage beside it; it never replaces it. */
+.timing-waterfall { inline-size: 100%; border-collapse: collapse; font-size: 13px; }
+.timing-waterfall caption { text-align: left; color: #627776; font-size: 12px; padding-block: 8px; }
+.timing-waterfall th, .timing-waterfall td { text-align: left; padding: 6px 10px 6px 0; border-block-end: 1px solid #eef2f0; vertical-align: top; }
+.timing-waterfall th[scope="row"] { font-weight: 600; }
+.timing-waterfall th[scope="row"] .mono { display: block; font-weight: 400; font-size: 11px; color: #7a8c8b; }
+.timing-waterfall .bar { display: inline-block; block-size: 8px; min-inline-size: 2px; margin-inline-end: 8px; background: #4d7771; border-radius: 2px; vertical-align: 1px; }
+.timing-waterfall tfoot th, .timing-waterfall tfoot td { border-block-end: none; padding-block-start: 10px; }
+
 /* A list entry that opens something, styled as text rather than as a control. */
 button.link { background: none; border: none; padding: 0; font: inherit; color: #19383e; text-decoration: underline; cursor: pointer; text-align: left; }
 button.link[aria-current="true"] { font-weight: 700; text-decoration: none; }

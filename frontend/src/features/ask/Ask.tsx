@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../../api/client';
 import { AccessGate, useSession } from '../library/Session';
 import { Answer } from './Answer';
+import { Timing } from './Timing';
 import type { AskResponse, ConversationSummary, ConversationView } from '../../types/retrieval';
 import type { Page } from '../../types/documents';
 
@@ -184,10 +185,7 @@ function Conversation() {
     </section>}
 
     {result && <Answer result={result} />}
-    {result && <details><summary>Timing</summary>
-      <dl className="detail-grid">{result.stages.map(stage =>
-        <div key={stage.stage}><dt>{stage.stage}</dt><dd>{stage.duration_ms.toFixed(0)} ms</dd></div>)}</dl>
-    </details>}
+    {result && <Timing stages={result.stages} />}
 
     {history.isPending && conversationId && <p>Loading this conversation…</p>}
     {!!earlier.length && <section className="panel" aria-labelledby="conversation-turns">
