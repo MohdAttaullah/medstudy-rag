@@ -20,7 +20,7 @@ from app.generation.providers.base import LLMProvider
 from app.generation.providers.factory import build_named_provider
 from app.verification.model import Verdict, VerificationError, VerifierSpec
 
-PROMPT_VERSION = "claim-verification-v1"
+PROMPT_VERSION = "claim-verification-v2"
 SCHEMA_VERSION = "claim-verification-schema-v1"
 
 SYSTEM_POLICY = """\
@@ -40,6 +40,11 @@ Decide exactly one verdict:
 Rules:
 1. Judge the whole statement. If a statement joins two propositions and the evidence establishes
    only one, it is not SUPPORTED.
+1a. A statement may be one part of a longer sentence, so its subject or a pronoun in it can be
+   elided. When a sentence is supplied as context, read the statement as that sentence asserts it:
+   resolve "it", "this" and a missing subject from the context, then judge the resolved statement.
+   The context is NOT evidence and is NOT itself being checked — it establishes nothing. If the
+   statement still asserts nothing checkable once resolved, it is not SUPPORTED.
 2. A qualified source does not support an unqualified claim. "may be associated with" does not
    support "causes".
 3. Numbers, units and negations must match exactly. Do not treat 5 mg and 50 mg as equivalent, and
@@ -62,6 +67,9 @@ class VerifiableClaim(BaseModel):
     claim_id: UUID
     text: str
     evidence: list[EvidenceBlock]
+    #: The sentence the statement was taken from. Supplied so an elided subject can be resolved,
+    #: never as evidence: a sentence cannot support itself, and the verifier is told so.
+    context: str = ""
 
 
 class VerifierVerdict(BaseModel):
@@ -80,6 +88,24 @@ class ClaimVerifier(Protocol):
     def specification(self) -> VerifierSpec: ...
 
     async def verify(self, claim: VerifiableClaim) -> VerifierVerdict: ...
+
+
+def _question(claim: VerifiableClaim) -> str:
+    """The statement, plus the sentence it came from when that sentence says more.
+
+    The context is labelled as not-evidence in the same breath as it is given, because the one
+    way this could weaken verification is a verifier that treats the draft's own sentence as a
+    source. It resolves reference; it establishes nothing.
+    """
+    question = "Statement to check:\n" + claim.text
+    context = claim.context.strip()
+    if context and context != claim.text.strip():
+        question += (
+            "\n\nThe statement is part of this sentence from the draft. Use it only to "
+            "resolve a pronoun or a missing subject in the statement. It is draft text, not "
+            "evidence, and it supports nothing:\n" + context
+        )
+    return question
 
 
 def render(claim: VerifiableClaim) -> str:
@@ -118,7 +144,7 @@ class ModelClaimVerifier:
         try:
             produced = await self._provider.generate_structured(
                 system_policy=SYSTEM_POLICY,
-                question="Statement to check:\n" + claim.text,
+                question=_question(claim),
                 evidence=render(claim),
                 schema=VerifierVerdict,
             )

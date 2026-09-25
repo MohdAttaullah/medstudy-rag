@@ -25,9 +25,30 @@ Sentences split on terminators, with decimals and common abbreviations protected
 coordinators when both halves independently carry content. Splitting is biased toward
 over-splitting: an extra fragment costs one verification, while a proposition welded to a supported
 one is how a half-supported statement passes whole. Connective fragments are non-material and never
-block an answer. Claim types — `NUMERIC`, `NEGATED`, `QUALIFIED`, `TABLE_DERIVED`,
-`FORMULA_DERIVED`, `VISUAL_DEPENDENT`, `ASSESSMENT_DERIVED`, `FACTUAL` — decide which extra checks
-a claim must survive.
+block an answer.
+
+A coordination is split **only when each half is a proposition the generator itself declared and
+bound to evidence**. A half that matches no declaration is not a clause the sentence contains; it
+is a fragment the splitter invented, and failing it for carrying no citation would blame the
+generator for the cut. Undeclared text is not thereby excused: it stays inside the sentence it was
+written in and is verified there, where the whole-statement rule refuses it unless the evidence
+establishes all of it. Three further constructions are never split — a coordination inside an
+unclosed relative clause ("the surface **that** faces and conforms to…"), one bound by
+"respectively" (which pairs two lists, so neither list stands alone), and one whose halves do not
+each carry enough distinct words to be a clause. Counting used the *index* term stream before,
+which emits a capitalised word twice for IDF, so "Midline anterior" counted three terms and passed
+for a clause.
+
+A citation marker written into the prose — a bracketed evidence_id, or "[2]" — carries no
+proposition and is never material. The generator is separately instructed not to write one.
+
+Each claim also records the sentence it came from, and the sentence before it. That context is
+passed to the semantic verifier to resolve a pronoun or an elided subject, is labelled as not
+evidence, and is never itself verified.
+
+Claim types — `NUMERIC`, `NEGATED`, `QUALIFIED`, `TABLE_DERIVED`, `FORMULA_DERIVED`,
+`VISUAL_DEPENDENT`, `ASSESSMENT_DERIVED`, `FACTUAL` — decide which extra checks a claim must
+survive.
 
 ## Deterministic checks, which bind
 

@@ -264,6 +264,6 @@ def test_the_trace_reconstructs_the_decision_and_its_producer(pipeline):
     assert data["evidence_set"]["query_hash"] == data["draft"]["query_hash"]
     assert data["sufficiency"]["policy_version"] == "sufficiency-m7-v1"
     assert data["draft"]["grounding_policy_version"] == "grounding-m7-v1"
-    assert data["draft"]["provider"]["prompt_version"] == "grounded-draft-v1"
+    assert data["draft"]["provider"]["prompt_version"] == "grounded-draft-v2"
     assert data["durations_ms"]["sufficiency_ms"] >= 0
     assert data["durations_ms"]["pipeline_total_ms"] > 0

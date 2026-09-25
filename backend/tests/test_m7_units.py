@@ -814,4 +814,4 @@ def test_both_adapters_satisfy_the_provider_protocol():
     ):
         for name in ("generate", "generate_structured", "analyze_image"):
             assert inspect.iscoroutinefunction(getattr(provider, name))
-        assert provider.specification.prompt_version == "grounded-draft-v1"
+        assert provider.specification.prompt_version == "grounded-draft-v2"

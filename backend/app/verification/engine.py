@@ -134,7 +134,12 @@ async def verify_claims(
             raise VerificationError("VERIFIER_FAILED", "No claim verifier is configured.")
 
         verdict = await verifier.verify(
-            VerifiableClaim(claim_id=claim.claim_id, text=claim.text, evidence=cited)
+            VerifiableClaim(
+                claim_id=claim.claim_id,
+                text=claim.text,
+                evidence=cited,
+                context=claim.context,
+            )
         )
         supported = verdict.verdict == "SUPPORTED"
         results.append(

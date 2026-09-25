@@ -116,7 +116,7 @@ def build_draft(case: dict[str, Any]) -> GroundedDraft:
             temperature=None,
             max_output_tokens=1024,
             schema_version="grounded-draft-schema-v1",
-            prompt_version="grounded-draft-v1",
+            prompt_version="grounded-draft-v2",
         ),
         grounding_policy_version="grounding-m7-v1",
         grounding_policy_fingerprint="eval",

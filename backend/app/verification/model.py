@@ -109,6 +109,9 @@ class Claim(BaseModel):
     # Inherited from the declared draft claim covering this proposition. Empty on a material claim
     # is itself a failure: the generator wrote something it never bound to evidence.
     cited_evidence_ids: list[UUID] = Field(default_factory=list)
+    # The sentence this proposition was taken from, verbatim. It exists so a verifier can resolve
+    # what "it" or an elided subject refers to; it is never evidence and is never verified itself.
+    context: str = ""
 
 
 class ClaimVerification(BaseModel):

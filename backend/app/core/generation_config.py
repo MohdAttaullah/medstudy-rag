@@ -72,7 +72,7 @@ class SufficiencyConfig(Policy):
 
 class GroundingConfig(Policy):
     version: Literal["grounding-m7-v1"] = "grounding-m7-v1"
-    prompt_version: Literal["grounded-draft-v1"] = "grounded-draft-v1"
+    prompt_version: Literal["grounded-draft-v2"] = "grounded-draft-v2"
     schema_version: Literal["grounded-draft-schema-v1"] = "grounded-draft-schema-v1"
     # All pinned by type: the provider sees the EvidenceSet and nothing else, and its own
     # pretrained knowledge is never a permitted source for a medical statement.
