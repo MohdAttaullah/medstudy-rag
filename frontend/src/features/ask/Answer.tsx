@@ -1,5 +1,17 @@
 import { Link } from 'react-router-dom';
-import type { AskCitation, AskResponse } from '../../types/retrieval';
+import type { AskCitation, AskResponse, ConversationTurnView } from '../../types/retrieval';
+
+/**
+ * What this surface needs, which both a live answer and a stored turn already satisfy.
+ *
+ * A reloaded turn renders through exactly the same component as the response that created it, so
+ * a conversation read back from the server cannot present an outcome differently from the way it
+ * was first shown — there is one renderer, not two that could drift.
+ */
+export type AnswerRecord = Pick<
+  AskResponse | ConversationTurnView,
+  'outcome' | 'verified' | 'answer' | 'message' | 'reason_codes' | 'citations' | 'sources'
+>;
 
 const ASSESSMENT = new Set(['QUESTION_BANK', 'QUESTION_PAPER', 'ANSWER_KEY']);
 
@@ -56,13 +68,11 @@ function Citation({ citation }: {citation: AskCitation}) {
  * responses from a reader. There is no confidence figure anywhere: an answer is verified against
  * its sources or it is not shown.
  */
-export function Answer({ result }: {result: AskResponse}) {
+export function Answer({ result }: {result: AnswerRecord}) {
   if (result.outcome !== 'VERIFIED') {
-    const tone = result.outcome === 'FAILED' ? 'Service problem'
-      : result.outcome === 'OUT_OF_SCOPE' ? 'Outside what this workspace does'
-      : 'No answer shown';
-    return <section className="panel" aria-labelledby="ask-outcome">
-      <p className="eyebrow">{tone.toUpperCase()}</p>
+    const { severity, mark, label } = OUTCOMES[result.outcome] ?? OUTCOMES.FAILED;
+    return <section className={`panel outcome outcome-${severity}`} aria-labelledby="ask-outcome">
+      <p className="eyebrow"><span className="outcome-mark" aria-hidden="true">{mark}</span> {label}</p>
       <h2 id="ask-outcome">{TITLES[result.outcome]}</h2>
       <p role="status">{result.message}</p>
       {result.outcome === 'CONFLICTING_EVIDENCE' && <p>
@@ -79,12 +89,16 @@ export function Answer({ result }: {result: AskResponse}) {
       </p>}
       {!!result.reason_codes.length && <details><summary>Why</summary>
         <ul className="service-list">{result.reason_codes.map(code =>
-          <li key={code}><span className="mono">{code}</span></li>)}</ul></details>}
+          <li key={code}>
+            <span>{REASONS[code] ?? 'A check recorded this code without a plain-language summary.'}</span>
+            <span className="mono">{code}</span>
+          </li>)}</ul></details>}
     </section>;
   }
 
-  return <section className="panel" aria-labelledby="ask-answer">
-    <p className="eyebrow">VERIFIED AGAINST RETRIEVED SOURCES</p>
+  return <section className="panel outcome outcome-verified" aria-labelledby="ask-answer">
+    <p className="eyebrow"><span className="outcome-mark" aria-hidden="true">✓</span>{' '}
+      VERIFIED AGAINST RETRIEVED SOURCES</p>
     <h2 id="ask-answer">Answer</h2>
     <p role="status">{result.message}</p>
     <div className="answer-text">{result.answer!.split('\n').map((line, index) =>
@@ -101,6 +115,38 @@ export function Answer({ result }: {result: AskResponse}) {
     {result.citations.map(citation => <Citation key={citation.citation_id} citation={citation} />)}
   </section>;
 }
+
+/**
+ * How each outcome is announced.
+ *
+ * Severity drives a colour, but never alone: every state also carries a distinct mark and its own
+ * words, so the difference survives greyscale, colour blindness and a screen reader. The marks are
+ * decorative — `aria-hidden` — because the label beside them already says it in text.
+ */
+const OUTCOMES: Record<string, {severity: string; mark: string; label: string}> = {
+  INSUFFICIENT_EVIDENCE: {severity: 'caution', mark: '◍', label: 'NO ANSWER SHOWN'},
+  CONFLICTING_EVIDENCE: {severity: 'caution', mark: '◍', label: 'SOURCES DISAGREE'},
+  UNVERIFIED: {severity: 'warning', mark: '!', label: 'NOT VERIFIED'},
+  FAILED: {severity: 'error', mark: '✕', label: 'SERVICE PROBLEM'},
+  OUT_OF_SCOPE: {severity: 'neutral', mark: 'i', label: 'OUTSIDE WHAT THIS WORKSPACE DOES'},
+};
+
+/** Reason codes in a reviewer's words. The code itself stays visible beside each one. */
+const REASONS: Record<string, string> = {
+  SEMANTICALLY_UNSUPPORTED: 'A statement in the proposed answer was not established by the evidence cited with it.',
+  CLAIM_NOT_CITED: 'A statement carried no citation, so nothing could check it.',
+  CLAIM_CONTRADICTED: 'The evidence stated something incompatible with a statement in the proposed answer.',
+  NUMERIC_MISMATCH: 'A number, dose or unit did not match the evidence.',
+  NEGATION_MISMATCH: 'A statement reversed a negation the evidence stated.',
+  CERTAINTY_OVERSTATED: 'A statement presented as settled what the evidence only suggested.',
+  VISUAL_CLAIM: 'A statement depended on reading a figure, which this system does not do.',
+  EVIDENCE_CONFLICT: 'Two sources disagreed and the disagreement was not resolved.',
+  REPAIR_FAILED: 'One corrected attempt was requested and it also failed verification.',
+  VERIFIER_FAILED: 'The verifier could not run, so nothing was approved.',
+  EVIDENCE_DOES_NOT_ADDRESS_QUESTION: 'The retrieved sources are about a different subject.',
+  RETRIEVAL_CORPUS_EMPTY: 'No indexed document was available to search.',
+  OUT_OF_SCOPE_PERSONAL_ADVICE: 'The question asked for advice about a specific person.',
+};
 
 const TITLES: Record<string, string> = {
   INSUFFICIENT_EVIDENCE: 'Insufficient evidence',

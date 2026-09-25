@@ -125,3 +125,27 @@ dd { font-size: 13px; margin: 6px 0 0; overflow-wrap: anywhere; }
   .parse-page { grid-template-columns: 1fr; }
 }
 .chunk-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32rem; overflow: auto; } .chunk-preview { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Ask outcome states.
+   Colour is never the only signal: each state also carries its own mark and its own wording, so
+   the difference survives greyscale, colour-blind vision and a screen reader reading the label. */
+.outcome { border-left: 4px solid #dfe7e4; }
+.outcome-verified { border-left-color: #2f7a52; }
+.outcome-caution { border-left-color: #b8801f; }
+.outcome-warning { border-left-color: #c26418; }
+.outcome-error { border-left-color: #a34131; }
+.outcome-neutral { border-left-color: #3f6ea8; }
+.outcome .outcome-mark {
+  display: inline-grid; place-items: center; inline-size: 18px; block-size: 18px;
+  border-radius: 50%; font-size: 11px; line-height: 1; vertical-align: -3px;
+  border: 1px solid currentColor;
+}
+.outcome-verified .eyebrow { color: #2f7a52; }
+.outcome-caution .eyebrow { color: #8a5e12; }
+.outcome-warning .eyebrow { color: #93490f; }
+.outcome-error .eyebrow { color: #842c1e; }
+.outcome-neutral .eyebrow { color: #2f5580; }
+
+/* A list entry that opens something, styled as text rather than as a control. */
+button.link { background: none; border: none; padding: 0; font: inherit; color: #19383e; text-decoration: underline; cursor: pointer; text-align: left; }
+button.link[aria-current="true"] { font-weight: 700; text-decoration: none; }

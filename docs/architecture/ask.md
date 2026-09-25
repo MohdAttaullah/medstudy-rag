@@ -86,8 +86,13 @@ and a later re-parse must not silently change what a stored answer appears to ci
 One submission is one turn. A retry reusing the idempotency key returns the stored turn instead of
 spending another provider call.
 
-The downgrade refuses while conversations exist; `MEDRAG_ALLOW_CONVERSATION_LOSS=1` acknowledges the
-loss deliberately, which is what the test harness sets on its throwaway schema.
+`GET /conversations` lists the signed-in principal's conversations and `GET /conversations/{id}`
+returns one with its turns, both scoped server-side to the authenticated tenant and user — a
+foreign id is *not found*, which is what an id that never existed returns too. The Ask page reads
+both: the open conversation is held for the life of the sign-in and mirrored into the address, so
+navigating away and back reopens it and a reload restores it, while **only the id** is held client
+side and the turns always come from the server. Signing out clears it, so the next principal starts
+with nothing selected. New conversation is the only way to leave one.
 
 ## Citations and the source viewer
 

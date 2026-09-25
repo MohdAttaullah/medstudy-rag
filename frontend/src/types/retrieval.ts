@@ -232,6 +232,10 @@ export interface ConversationTurnView {
   verified: boolean; answer: string | null; message: string; reason_codes: string[];
   citations: AskCitation[]; sources: AskSource[]; created_at: string;
 }
+export interface ConversationSummary {
+  conversation_id: string; title: string; turn_count: number; verified_turns: number;
+  created_at: string; updated_at: string;
+}
 export interface ConversationView {
   conversation_id: string; title: string; created_at: string; updated_at: string;
   turns: ConversationTurnView[];

@@ -1,16 +1,17 @@
-import { useRef, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../../api/client';
 import { AccessGate, useSession } from '../library/Session';
 import { Answer } from './Answer';
-import type { AskResponse, ConversationView } from '../../types/retrieval';
+import type { AskResponse, ConversationSummary, ConversationView } from '../../types/retrieval';
+import type { Page } from '../../types/documents';
 
 // Bounded stage names only. The user sees where the request is, never a lane score, a draft token
 // or anything that would let an unverified statement appear before verification finishes.
 const STAGES = [
   'Searching sources',
-  'Reranking evidence',
-  'Checking evidence sufficiency',
+  'Checking evidence',
   'Drafting from evidence',
   'Verifying claims',
 ];
@@ -33,12 +34,50 @@ export function Ask() {
 }
 
 function Conversation() {
-  const { token } = useSession();
+  const { token, conversation: held, setConversation } = useSession();
+  const queries = useQueryClient();
   const [question, setQuestion] = useState('');
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  // The open conversation is held in two places, and neither of them is this component.
+  //
+  // It used to be `useState` here, which the router discards the moment the page unmounts: going
+  // to Library and back started a new conversation over a history the server had been keeping all
+  // along, and the turns looked lost. The session holds it across navigation — the sidebar link
+  // goes to a bare /ask, so a search parameter alone would not survive the trip — and the address
+  // carries it too, so a reload or a pasted link reopens the same conversation. Only the id is
+  // held either way; the turns are read from the server.
+  const [params, setParams] = useSearchParams();
+  const named = params.get('conversation');
+  const conversationId = named ?? held;
   // One key per submission. A retry of the same submission returns the stored turn instead of
   // spending another provider call.
   const key = useRef<string>(crypto.randomUUID());
+
+  // Reconcile the address and the session once, on arrival at the page, and let `open` be
+  // authoritative from then on. An address that names a conversation wins — that is a reload or a
+  // pasted link. An address that names none adopts the held one rather than clearing it, because
+  // the sidebar link goes to a bare /ask and arriving there is navigation, not a decision to
+  // leave the conversation; New conversation is how you leave it. Reconciling on every render
+  // instead would race that button: the session clears, the address has not caught up yet, and
+  // the stale address puts the conversation straight back.
+  const reconciled = useRef(false);
+  useEffect(() => {
+    if (reconciled.current) return;
+    reconciled.current = true;
+    if (named && named !== held) {
+      setConversation(named);
+    } else if (!named && held) {
+      const next = new URLSearchParams(params);
+      next.set('conversation', held);
+      setParams(next, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function open(id: string | null) {
+    setConversation(id);
+    const next = new URLSearchParams(params);
+    if (id) next.set('conversation', id); else next.delete('conversation');
+    setParams(next, { replace: !id });
+  }
 
   const ask = useMutation({
     mutationFn: (text: string) => api<AskResponse>(token, '/ask', {
@@ -51,7 +90,20 @@ function Conversation() {
         idempotency_key: key.current,
       }),
     }),
-    onSuccess: result => setConversationId(result.conversation_id),
+    onSuccess: result => {
+      open(result.conversation_id);
+      setQuestion('');
+      void queries.invalidateQueries({ queryKey: ['conversations'] });
+      void queries.invalidateQueries({ queryKey: ['conversation', result.conversation_id] });
+    },
+  });
+
+  // Every conversation this principal owns. The server scopes the list to the authenticated
+  // tenant and user; the client sends no identifier of its own and could not widen it if it tried.
+  const conversations = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => api<Page<ConversationSummary>>(token, '/conversations?limit=25'),
+    enabled: Boolean(token),
   });
 
   const history = useQuery({
@@ -62,6 +114,15 @@ function Conversation() {
 
   const error = ask.error as ApiError | null;
   const result = ask.data;
+  // Both lists tolerate a response that carries neither field. A conversation index that fails to
+  // load must not take the question box down with it.
+  const listed = conversations.data?.items ?? [];
+  const turns = history.data?.turns ?? [];
+  // The turn just answered is rendered from the response and left alone; the reloaded copy of it
+  // is filtered out of the history below. Rendering it from the response first and then from the
+  // history would replace the node the moment the reload lands, which reads as a flicker and
+  // means the answer a reader is looking at was briefly a different element.
+  const earlier = [...turns].reverse().filter(turn => turn.turn_id !== result?.turn_id);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -76,6 +137,26 @@ function Conversation() {
       <div><h2 id="ask-scope">Educational use only</h2>
         <p>This workspace answers from the sources you indexed. It is not medical advice, it is not
           for a specific patient, and it abstains rather than guessing.</p></div>
+    </section>
+
+    <section className="panel" aria-labelledby="conversation-list">
+      <div className="question-footer">
+        <h2 id="conversation-list">Conversations</h2>
+        <button type="button" className="secondary" onClick={() => open(null)}
+          disabled={!conversationId}>New conversation</button>
+      </div>
+      {conversations.isPending && <p>Loading your conversations…</p>}
+      {conversations.isError && <p role="alert">Your conversations could not be loaded.</p>}
+      {conversations.isSuccess && !listed.length &&
+        <p className="muted">No conversations yet. Your first question starts one.</p>}
+      {!!listed.length && <ul className="service-list">
+        {listed.map(item => <li key={item.conversation_id}>
+          <button type="button" className="link"
+            aria-current={item.conversation_id === conversationId ? 'true' : undefined}
+            onClick={() => open(item.conversation_id)}>{item.title}</button>
+          <span className="mono">{item.turn_count} turn{item.turn_count === 1 ? '' : 's'}</span>
+        </li>)}
+      </ul>}
     </section>
 
     <form onSubmit={submit}>
@@ -103,18 +184,17 @@ function Conversation() {
     </section>}
 
     {result && <Answer result={result} />}
-
     {result && <details><summary>Timing</summary>
       <dl className="detail-grid">{result.stages.map(stage =>
         <div key={stage.stage}><dt>{stage.stage}</dt><dd>{stage.duration_ms.toFixed(0)} ms</dd></div>)}</dl>
     </details>}
 
-    {history.data && history.data.turns.length > 1 && <section className="panel">
-      <h2>Earlier in this conversation</h2>
-      {history.data.turns.slice(0, -1).reverse().map(turn => <article className="version-card" key={turn.turn_id}>
+    {history.isPending && conversationId && <p>Loading this conversation…</p>}
+    {!!earlier.length && <section className="panel" aria-labelledby="conversation-turns">
+      <h2 id="conversation-turns">{result ? 'Earlier in this conversation' : history.data?.title}</h2>
+      {earlier.map(turn => <article className="version-card" key={turn.turn_id}>
         <h3>{turn.question}</h3>
-        <p>{turn.verified ? 'Answered and verified' : turn.message}</p>
-        {turn.verified && <pre className="chunk-preview">{turn.answer}</pre>}
+        <Answer result={turn} />
       </article>)}
     </section>}
   </>;
