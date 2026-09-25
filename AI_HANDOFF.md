@@ -355,6 +355,53 @@ chunk, rather than at embedding two stages away.
   moves every chunk boundary in every document with headings — an ADR and a full rechunk, not a
   tuning pass.
 
+**Uncommitted: product acceptance on a real chapter.** A clearly supported question —
+"What is the tentorial surface of the cerebellum?" against a corpus whose page reads "The tentorial
+surface faces and conforms to the lower surface of the tentorium" — abstained UNVERIFIED **10 times
+out of 10**. Retrieval was never at fault: the sentence ranked 1 dense, 3 BM25, 1 fused. Four
+defects in claim handling, each found by tracing one request end to end:
+
+| Defect | Why it fired | Fix |
+|---|---|---|
+| Coordination split on a term count taken from the **index** analyzer, which emits a capitalised word twice for IDF | "Midline anterior" counted 3 terms, so a noun phrase split across its own subject and the remainder matched no declared claim → `CLAIM_NOT_CITED` | count distinct words; split only where **both halves are declared propositions**, so splitting can never manufacture an uncited claim |
+| A citation marker written into the prose became its own sentence | its hex groups counted as content, so `[<uuid>]` was verified as a material medical claim | markers are not propositions; the generator is also told to write none |
+| Sentence-level negation polarity | source "is smooth **and not** marked by deep fissures"; a claim quoting the positive half was `NEGATION_REVERSED` → CONTRADICTED | polarity read per clause, with the whole sentence still a candidate so "not A and B" still matches |
+| "respectively" split, and pronoun subjects | "...accommodate the brainstem and falx cerebelli, respectively" cut in half says both incisurae hold the brainstem — which the verifier correctly called CONTRADICTED, though the draft never said it. "It contains the vermis..." was refused for having no antecedent | never split a distributive coordination; carry the sentence **and the one before it** as verifier context, labelled not-evidence |
+
+Prompts moved to `grounded-draft-v2` (no citation markers in prose; write self-contained
+statements) and `claim-verification-v2` (resolve an elided subject from the context, judge only the
+statement). **Nothing was relaxed**: the whole-statement rule, every deterministic check, the
+citation requirement and single-repair-then-abstain are unchanged, and undeclared text is still
+verified inside the sentence that carries it.
+
+Measured on the live workspace, same question, 10 trials each: **0/10 → 5/10 → 9/10 VERIFIED**, the
+one failure a genuine `SEMANTICALLY_CONTRADICTED`. All four supported questions verify; an
+out-of-corpus question abstains `INSUFFICIENT_EVIDENCE` with `EVIDENCE_DOES_NOT_ADDRESS_QUESTION`;
+a personal-advice question is `OUT_OF_SCOPE` in 51 ms with no provider call.
+
+**Ask conversations survive navigation.** The open conversation was `useState` inside the routed
+page, so Ask → Library → Ask discarded it and the next question opened a second conversation over
+history the server had been keeping. `GET /conversations` and `GET /conversations/{id}` already
+existed and were never called. The id now lives in the session (cleared on sign-out) and in the
+address; turns always come from the server, and no conversation content is put in browser storage.
+
+**Retrieval inspector is diagnostic only, and now says so.** Its mode is a field of one request:
+`/retrieval/search` (dense / BM25 / RRF), `/retrieval/rerank`, `/retrieval/draft`,
+`/retrieval/answer`. `AskRequest` has no mode field at all, so Ask cannot inherit one; a test pins
+that. Each mode now states what it runs and whether it calls a provider.
+
+**Latency, measured (warm p50 of five, one cold call separately).** Warm 12.6 s; cold 21.3 s, the
+difference almost entirely the first provider call. The dominant stage is **MedCPT cross-encoder
+reranking at 7.7 s — 61% of a warm request** — 20 candidates × 512 tokens on CPU, models already
+warm in the retrieval sidecar. Retrieval itself is 45 ms (dense 9, sparse 18). Generation 1.9 s,
+verification ~2.3 s. Nothing was tuned: reducing `candidate_top_k` or batch size is an accuracy
+change and needs a benchmark first. The claim fixes did cut verification on the failing question
+from 58 s to ~2.3 s by removing a repair round and its re-verification.
+
+The reader-facing Timing row was also wrong: `pipeline_total_ms` was labelled "Total" while
+verification ran *after* it, so a 70-second answer reported 12 seconds. Subtotals are now excluded
+and Total is measured at the request boundary.
+
 ## RAG v1 freeze (post-M12)
 
 Retrieval, reranking, sufficiency, generation and verification are **frozen**. The acceptance gates
