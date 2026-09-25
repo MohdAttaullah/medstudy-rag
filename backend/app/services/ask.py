@@ -32,6 +32,7 @@ from app.schemas.ask import (
     StageTiming,
 )
 from app.security.auth import Principal
+from app.services.progress import reporter
 from app.services.verification import VerificationService
 from app.sufficiency import intent
 
@@ -104,6 +105,7 @@ STAGE_LABELS = {
     "claim_extraction_ms": "Extracting claims",
     "claim_verification_ms": "Verifying claims",
     "contradiction_ms": "Checking for conflict",
+    "persistence_ms": "Recording the turn",
 }
 #: Deliberately absent from the table above. `pipeline_total_ms` is the M5-M7 subtotal and
 #: `verification_total_ms` wraps the M8 rows, so showing either alongside its own parts would
@@ -127,6 +129,9 @@ class AskService:
         filters: RetrievalFilters | None = None,
     ) -> AskResponse:
         actor.require("ask:submit")
+        # The request boundary is here: a reader waits for the ownership check and the replay
+        # lookup too, so a total that began after them would be a subtotal wearing the word Total.
+        started = perf_counter()
         config = self.settings.ask
         if len(question) > config.max_question_chars:
             raise DomainError("QUESTION_TOO_LONG", "The question exceeds the allowed length.", 422)
@@ -144,7 +149,8 @@ class AskService:
             # provider call and could return a different outcome for the same question.
             return stored
 
-        started = perf_counter()
+        progress = reporter()
+        progress.start("PREPARING")
         # Intent is read before retrieval, from the question alone. An individualized clinical
         # request is not a question this educational system answers at any evidence level, so
         # refusing here means no index is searched and no provider is called — and it means the
@@ -155,8 +161,15 @@ class AskService:
             # Fail closed: an unclassifiable question is refused, never waved through.
             wanted = "PERSONAL_ACTION_SEEKING"
         self._log_intent(correlation_id, wanted)
+        progress.complete("PREPARING")
         if not intent.permitted(wanted):
-            return await run_in_threadpool(
+            # Refused from the question alone: no index is searched and no provider is called, so
+            # every stage that would have read the corpus is reported skipped rather than left
+            # looking as though it might still run.
+            progress.skip("RETRIEVAL", "RERANK", "EVIDENCE", "GENERATION", "VERIFICATION")
+            progress.start("FINALIZE")
+            refusal_persistence = perf_counter()
+            refusal = await run_in_threadpool(
                 self._commit,
                 actor,
                 key,
@@ -167,7 +180,10 @@ class AskService:
                 {},
                 "PERSONAL_MEDICAL_ADVICE_REQUESTED",
                 (perf_counter() - started) * 1000,
+                refusal_persistence,
             )
+            progress.complete("FINALIZE")
+            return refusal
 
         outcome, payload, failure = "FAILED", {}, None
         try:
@@ -180,6 +196,8 @@ class AskService:
                 raise
         total = (perf_counter() - started) * 1000
 
+        progress.start("FINALIZE")
+        persistence = perf_counter()
         response = await run_in_threadpool(
             self._commit,
             actor,
@@ -191,7 +209,9 @@ class AskService:
             payload,
             failure,
             total,
+            persistence,
         )
+        progress.complete("FINALIZE")
         self._log(correlation_id, response.outcome, response.reason_codes)
         return response
 
@@ -256,6 +276,7 @@ class AskService:
         payload: dict[str, Any],
         declared_code: str | None,
         total: float,
+        persistence: float | None = None,
     ) -> AskResponse:
         answer = (payload.get("verified_answer") or {}) if outcome == "VERIFIED" else {}
         report = payload.get("verification") or {}
@@ -294,7 +315,20 @@ class AskService:
             )
             stored = repository.citations(turn.id)
             claims = self._claims(answer, stored) if outcome == "VERIFIED" else []
-            return self._response(turn, stored, self._stages(payload, total), claims)
+            recorded = 0.0
+            if persistence is not None:
+                # Recording the turn is the last stage a reader waits on, so it gets its own row
+                # rather than disappearing into the difference between the parts and the total —
+                # and the total grows to include it, because the caller waited for it.
+                recorded = (perf_counter() - persistence) * 1000
+                payload = {
+                    **payload,
+                    "durations_ms": {
+                        **(payload.get("durations_ms") or {}),
+                        "persistence_ms": recorded,
+                    },
+                }
+            return self._response(turn, stored, self._stages(payload, total + recorded), claims)
 
     def _citations(self, answer: dict[str, Any], blocks: dict[str, Any]) -> list[dict[str, Any]]:
         """Only evidence that actually supported a verified claim becomes a citation.

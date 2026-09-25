@@ -158,3 +158,38 @@ dd { font-size: 13px; margin: 6px 0 0; overflow-wrap: anywhere; }
 /* A list entry that opens something, styled as text rather than as a control. */
 button.link { background: none; border: none; padding: 0; font: inherit; color: #19383e; text-decoration: underline; cursor: pointer; text-align: left; }
 button.link[aria-current="true"] { font-weight: 700; text-decoration: none; }
+
+/* Live stage progress.
+   Every state is carried by a mark and by words as well as by colour, so the stepper reads the
+   same in greyscale, to a colour-blind reader and to a screen reader. */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+.stepper { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 2px; }
+.step { display: flex; gap: 14px; padding: 10px 0; align-items: flex-start; }
+.step + .step { border-block-start: 1px solid #eef2f0; }
+.step-mark {
+  flex-shrink: 0; display: inline-grid; place-items: center; inline-size: 22px; block-size: 22px;
+  border-radius: 50%; border: 1px solid currentColor; font-size: 12px; line-height: 1; margin-top: 2px;
+}
+.step-title { font-size: 14px; font-weight: 600; margin: 0; }
+.step-state { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; margin: 3px 0 0; color: #627776; }
+.step-detail { font-size: 13px; line-height: 1.6; margin: 6px 0 0; color: #51696a; }
+.step-pending { color: #8d9c9b; }
+.step-pending .step-title { font-weight: 500; }
+.step-skipped { color: #7a8c8b; }
+.step-skipped .step-title { text-decoration: line-through; text-decoration-thickness: 1px; }
+.step-completed { color: #2f7a52; }
+.step-completed .step-title, .step-running .step-title, .step-failed .step-title { color: #19383e; }
+.step-failed { color: #a34131; }
+.step-failed .step-state { color: #842c1e; }
+.step-running { color: #175d62; }
+.step-running .step-state { color: #175d62; font-weight: 700; }
+/* The running mark pulses to show the request is alive. It encodes nothing on its own: the row
+   already says "Running now" in text. */
+.step-running .step-mark { animation: step-pulse 1.4s ease-in-out infinite; }
+@keyframes step-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  .step-running .step-mark { animation: none; border-width: 2px; }
+}

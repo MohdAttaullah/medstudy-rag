@@ -20,6 +20,7 @@ from app.reranking.remote import build_reranker, verify_spec
 from app.retrieval.model import RetrievalFilters
 from app.retrieval.query.normalize import normalize
 from app.security.auth import Principal
+from app.services.progress import reporter
 from app.services.retrieval import RetrievalService
 
 
@@ -77,6 +78,8 @@ class EvidenceService:
             index_factory=r.index,
             metrics=r.metrics,
         )
+        progress = reporter()
+        progress.start("RETRIEVAL")
         candidates = first.search(
             actor,
             query,
@@ -99,6 +102,8 @@ class EvidenceService:
                 hit.chunk_id: repository.source(hit.chunk_id) for hit in candidates.candidates
             }
         hydration_ms = (perf_counter() - hydration_started) * 1000
+        # Retrieval is done once its candidates are hydrated; what follows reads them.
+        progress.complete("RETRIEVAL")
         normalized = normalize(query, c.query_encoder)
         inputs = [
             RerankInput(
@@ -109,6 +114,7 @@ class EvidenceService:
             for h in candidates.candidates
         ]
         rerank_started = perf_counter()
+        progress.start("RERANK")
         if self._reranker is None:
             self._reranker = build_reranker(c.reranker)
         spec = self._reranker.specification
@@ -121,7 +127,11 @@ class EvidenceService:
         ):
             raise RerankingError("RERANKER_INFERENCE_FAILED")
         rerank_ms = (perf_counter() - rerank_started) * 1000
+        progress.complete("RERANK")
         anchors = [sources[result.chunk_id] for result in results[: c.reranking.final_top_k]]
+        # EVIDENCE spans expansion and assembly here and closes at the sufficiency gate, which is
+        # the decision the stage describes and which M7 owns.
+        progress.start("EVIDENCE")
         expansion_started = perf_counter()
         with r.sessions() as session:
             if resolve_corpus(session, actor.tenant_id) != corpus:

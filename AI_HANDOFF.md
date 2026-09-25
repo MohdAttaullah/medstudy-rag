@@ -402,6 +402,48 @@ The reader-facing Timing row was also wrong: `pipeline_total_ms` was labelled "T
 verification ran *after* it, so a 70-second answer reported 12 seconds. Subtotals are now excluded
 and Total is measured at the request boundary.
 
+**Uncommitted: live stage progress for Ask.** A twelve-to-thirty-second request showed a fixed
+list of four stage names for its whole duration, so a reader could not tell which stage was running,
+which had finished, or whether the machine was alive. `AskConfig.stream_progress_stages` had existed
+as configuration since M9 with nothing reading it.
+
+`POST /ask` is now content-negotiated: `Accept: text/event-stream` gets `stage` frames while the
+request runs and then one `result` frame carrying exactly the JSON body the default form returns.
+No new endpoint, no new state store, no background task, no WebSocket — the existing request streams
+its own progress, and a client that does not negotiate keeps the old contract byte for byte, which
+is why all 139 frontend tests and the M9 suites passed unchanged.
+
+Seven stages — PREPARING, RETRIEVAL, RERANK, EVIDENCE, GENERATION, VERIFICATION, FINALIZE — each
+announced by the code that performs it, at boundaries the orchestrators already measured for
+`durations_ms`. `app/services/progress.py` carries them out through a `ContextVar`, so no stage
+signature changed and the worker thread the synchronous M5/M6 stages run in reports to the same
+request. **A stage event has no field that can hold content**: request id, stage, state, sequence,
+timings, and nothing else, so the channel cannot widen what M8 decided a reader may see. Nothing is
+simulated — no timer advances a stage, no percentage, no ETA; a backend test greps the frontend for
+exactly those shortcuts and proves the grep catches them.
+
+Live on the real stack (tenant `ba3d8361`, "Cerebellum and Fourth Ventricle"):
+
+| Question | Timeline |
+|---|---|
+| tentorial surface | PREPARING 0 ms · RETRIEVAL 618 ms · **RERANK 8.1 s** · EVIDENCE 229 ms · GENERATION 6.0 s · **VERIFICATION 15.3 s** · FINALIZE 44 ms → VERIFIED at 30.6 s |
+| personal advice | PREPARING 0 ms · five stages SKIPPED · FINALIZE 16 ms → OUT_OF_SCOPE at 33 ms, no provider call |
+| out of corpus | retrieval → generation ran, VERIFICATION SKIPPED (provider declined) → INSUFFICIENT_EVIDENCE at 9.7 s |
+
+Two timing defects surfaced and were fixed while doing it. M8's own measurements lived on the
+verification report and never reached the response, so the largest stage of a long request appeared
+in the total and in no row. And the out-of-scope path reported `Total: 0 ms` for a request that took
+46 ms, because the clock started after the ownership and replay checks and stopped before the turn
+was recorded; the boundary now covers both, and `persistence_ms` is its own row.
+
+No cancel control is offered: the pipeline has no cancellation mechanism, and a button that only
+dropped the connection while the provider call continued would be a lie about what it does.
+
+**Observation, not addressed** (the brief ruled the page layout out of scope): the conversation list
+sits above the composer and the stepper, so on a workspace with many conversations the progress
+panel lands below the fold. Placing progress adjacent to the composer, or collapsing the list, is
+the obvious follow-up.
+
 ## RAG v1 freeze (post-M12)
 
 Retrieval, reranking, sufficiency, generation and verification are **frozen**. The acceptance gates

@@ -14,6 +14,7 @@ import { SessionProvider } from '../library/Session';
 
 describe('timing', () => {
   const stages = [
+    { stage: 'Recording the turn', duration_ms: 18 },
     { stage: 'Searching sources', duration_ms: 46 },
     { stage: 'Reranking evidence', duration_ms: 7792 },
     { stage: 'Expanding context', duration_ms: 191 },
@@ -24,10 +25,12 @@ describe('timing', () => {
 
   it('groups measurements into the stages an operator reasons about', () => {
     const { rows, total, unattributed } = group(stages);
-    expect(rows.map(row => row.label)).toEqual(['Retrieval', 'Reranking', 'Evidence', 'Generation', 'Verification']);
+    expect(rows.map(row => row.label)).toEqual([
+      'Retrieval', 'Reranking', 'Evidence', 'Generation', 'Verification', 'Finalization',
+    ]);
     expect(total).toBe(31000);
     // Whatever the stages do not account for stays visible rather than being absorbed.
-    expect(unattributed).toBe(31000 - (46 + 7792 + 191 + 3975 + 18000));
+    expect(unattributed).toBe(31000 - (46 + 7792 + 191 + 3975 + 18000 + 18));
   });
 
   function timing() {

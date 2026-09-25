@@ -29,6 +29,70 @@ export async function api<T>(token: string, path: string, init: RequestInit = {}
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
+/**
+ * POST something that may answer with Server-Sent Events.
+ *
+ * The server streams stage events while it works and finishes with the same payload the JSON form
+ * returns. A server that answers with JSON instead — an older build, or one with progress streaming
+ * switched off — is handled by reading it as JSON, so the caller works either way and no client
+ * needs to know which it is talking to.
+ */
+export async function askWithProgress<T>(
+  token: string,
+  path: string,
+  body: unknown,
+  onStage: (event: unknown) => void,
+  signal?: AbortSignal,
+): Promise<T> {
+  const response = await fetch('/api/v1' + path, {
+    method: 'POST',
+    signal,
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream, application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const kind = response.headers.get('content-type') ?? '';
+  if (!kind.includes('text/event-stream')) {
+    // Not negotiated: one JSON response, exactly as before.
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) throw payload ? decodeError(payload) : nonJsonError(response.status);
+    return payload as T;
+  }
+  if (!response.ok || !response.body) throw nonJsonError(response.status);
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result: T | undefined;
+  let failure: ApiError | undefined;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (value) buffer += decoder.decode(value, { stream: true });
+    // Frames are separated by a blank line; anything after the last one is a partial frame.
+    const frames = buffer.split('\n\n');
+    buffer = frames.pop() ?? '';
+    for (const frame of frames) {
+      const name = /^event: (.*)$/m.exec(frame)?.[1];
+      const data = /^data: (.*)$/m.exec(frame)?.[1];
+      if (!name || !data) continue;
+      const payload = JSON.parse(data);
+      if (name === 'stage') onStage(payload);
+      else if (name === 'result') result = payload as T;
+      else if (name === 'error') failure = decodeError(payload);
+    }
+    if (done) break;
+  }
+  if (failure) throw failure;
+  if (result === undefined) {
+    // The connection ended without a verdict. Reporting success here would be a guess.
+    throw new ApiError('NETWORK_ERROR', 'The connection closed before the answer arrived.');
+  }
+  return result;
+}
+
 export function uploadPdf<T>(token: string, file: File, metadata: object, key: string,
                              progress: (percent: number) => void, documentId?: string): Promise<T> {
   return new Promise((resolve, reject) => {

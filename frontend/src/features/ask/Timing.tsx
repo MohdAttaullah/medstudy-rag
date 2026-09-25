@@ -18,6 +18,7 @@ const GROUPS: [string, string[]][] = [
   ['Evidence', ['Expanding context', 'Assembling evidence', 'Checking evidence sufficiency']],
   ['Generation', ['Drafting from evidence', 'Redrafting from evidence']],
   ['Verification', ['Extracting claims', 'Verifying claims', 'Checking for conflict']],
+  ['Finalization', ['Recording the turn']],
 ];
 
 export interface Stage { stage: string; duration_ms: number }

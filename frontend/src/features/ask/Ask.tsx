@@ -1,21 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { api, ApiError } from '../../api/client';
+import { api, ApiError, askWithProgress } from '../../api/client';
 import { AccessGate, useSession } from '../library/Session';
 import { Answer } from './Answer';
+import { BUSY_LABEL, ProgressStepper, runningStage } from './ProgressStepper';
 import { Timing } from './Timing';
-import type { AskResponse, ConversationSummary, ConversationView } from '../../types/retrieval';
+import type {
+  AskResponse, ConversationSummary, ConversationView, StageEvent,
+} from '../../types/retrieval';
 import type { Page } from '../../types/documents';
-
-// Bounded stage names only. The user sees where the request is, never a lane score, a draft token
-// or anything that would let an unverified statement appear before verification finishes.
-const STAGES = [
-  'Searching sources',
-  'Checking evidence',
-  'Drafting from evidence',
-  'Verifying claims',
-];
 
 /**
  * The Ask page.
@@ -80,17 +74,19 @@ function Conversation() {
     setParams(next, { replace: !id });
   }
 
+  // Stage events for the request in flight. Cleared when a new one starts, so the stepper always
+  // describes the request being watched and never a previous one.
+  const [stages, setStages] = useState<StageEvent[]>([]);
+
   const ask = useMutation({
-    mutationFn: (text: string) => api<AskResponse>(token, '/ask', {
-      method: 'POST',
+    mutationFn: (text: string) => askWithProgress<AskResponse>(
+      token,
+      '/ask',
       // The question, an optional conversation to continue, and an idempotency key. Nothing that
       // could assert what the answer is or whether it was verified.
-      body: JSON.stringify({
-        question: text,
-        conversation_id: conversationId,
-        idempotency_key: key.current,
-      }),
-    }),
+      { question: text, conversation_id: conversationId, idempotency_key: key.current },
+      event => setStages(current => [...current, event as StageEvent]),
+    ),
     onSuccess: result => {
       open(result.conversation_id);
       setQuestion('');
@@ -113,6 +109,9 @@ function Conversation() {
     enabled: Boolean(conversationId) && !ask.isPending,
   });
 
+  // What the button says while a request is open: the stage the server last announced.
+  const stage = runningStage(stages);
+  const busy = stage ? BUSY_LABEL[stage] : 'Checking evidence…';
   const error = ask.error as ApiError | null;
   const result = ask.data;
   // Both lists tolerate a response that carries neither field. A conversation index that fails to
@@ -127,8 +126,11 @@ function Conversation() {
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
+    // One request at a time. A second submission would spend another provider call on a question
+    // already being answered, and the idempotency key of the first would no longer protect it.
     if (!question.trim() || ask.isPending) return;
     key.current = crypto.randomUUID();
+    setStages([]);
     ask.mutate(question.trim());
   }
 
@@ -167,16 +169,13 @@ function Conversation() {
         placeholder="Ask a question about your source material…" />
       <div className="question-footer">
         <span>Every claim is checked against a traceable source.</span>
-        <button type="submit" disabled={ask.isPending || !question.trim()}>
-          {ask.isPending ? 'Checking evidence…' : 'Ask with evidence'}</button>
+        <button type="submit" disabled={ask.isPending || !question.trim()}
+          aria-describedby={ask.isPending ? 'progress-heading' : undefined}>
+          {ask.isPending ? busy : 'Ask with evidence'}</button>
       </div>
     </form>
 
-    {ask.isPending && <section className="panel" aria-live="polite">
-      <h2>Working through the evidence</h2>
-      <ol className="service-list">{STAGES.map(stage => <li key={stage}><span>{stage}</span></li>)}</ol>
-      <p>No answer text is shown until claim verification finishes.</p>
-    </section>}
+    <ProgressStepper events={stages} active={ask.isPending} outcome={result?.outcome} />
 
     {error && !result && <section className="panel">
       <p className="eyebrow">SERVICE PROBLEM</p><h2>The request could not be completed</h2>

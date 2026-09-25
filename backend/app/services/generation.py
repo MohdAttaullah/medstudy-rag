@@ -31,6 +31,7 @@ from app.observability.usage import UsageSink
 from app.retrieval.model import RetrievalFilters
 from app.security.auth import Principal
 from app.services.evidence import EvidenceService
+from app.services.progress import reporter
 from app.sufficiency.gate import SufficiencyGate
 from app.sufficiency.model import SufficiencyDecision
 
@@ -99,6 +100,8 @@ class GenerationService:
         gate_started = perf_counter()
         decision = self.gate.evaluate(query, evidence)
         gate_ms = (perf_counter() - gate_started) * 1000
+        progress = reporter()
+        progress.complete("EVIDENCE")
         self._log_decision(correlation_id, decision)
 
         response: dict[str, Any] = {
@@ -127,8 +130,10 @@ class GenerationService:
                 conflicting_evidence_ids=list(decision.conflicting_evidence_ids),
             ).model_dump(mode="json")
             response["durations_ms"]["pipeline_total_ms"] = (perf_counter() - started) * 1000
+            progress.skip("GENERATION", "VERIFICATION")
             return response
 
+        progress.start("GENERATION")
         produced, provider_ms = await self._generate(query, evidence, decision, correlation_id)
         if isinstance(produced, DeclinedDraft):
             # The provider read the evidence and reported that it does not address the question.
@@ -146,8 +151,11 @@ class GenerationService:
             ).model_dump(mode="json")
             response["durations_ms"]["generation_ms"] = provider_ms
             response["durations_ms"]["pipeline_total_ms"] = (perf_counter() - started) * 1000
+            progress.complete("GENERATION")
+            progress.skip("VERIFICATION")
             return response
 
+        progress.complete("GENERATION")
         response["draft"] = produced.model_dump(mode="json")
         response["durations_ms"]["generation_ms"] = produced.durations_ms["provider_ms"]
         response["durations_ms"]["pipeline_total_ms"] = (perf_counter() - started) * 1000

@@ -232,6 +232,19 @@ export interface ConversationTurnView {
   verified: boolean; answer: string | null; message: string; reason_codes: string[];
   citations: AskCitation[]; sources: AskSource[]; created_at: string;
 }
+/**
+ * One state change of one Ask stage, exactly as the server sends it.
+ *
+ * There is no text field and no progress fraction, because the server has none to give: the channel
+ * carries stage identity, state and timing, and nothing a reader is not allowed to see.
+ */
+export type StageCode =
+  | 'PREPARING' | 'RETRIEVAL' | 'RERANK' | 'EVIDENCE' | 'GENERATION' | 'VERIFICATION' | 'FINALIZE';
+export type StageState = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'SKIPPED' | 'FAILED';
+export interface StageEvent {
+  request_id: string; stage: StageCode; state: StageState; sequence: number;
+  started_at: string | null; completed_at: string | null; elapsed_ms: number | null;
+}
 export interface ConversationSummary {
   conversation_id: string; title: string; turn_count: number; verified_turns: number;
   created_at: string; updated_at: string;

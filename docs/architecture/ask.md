@@ -46,10 +46,45 @@ statement about that contract, not a global switch. `AskConfig.requires_verified
 
 ## Streaming
 
-Progress stages only, and bounded ones: *Searching sources*, *Reranking evidence*, *Checking
-evidence sufficiency*, *Drafting from evidence*, *Verifying claims*. Answer text becomes visible
-only after verification completes. Streaming draft tokens would put unverified medical text in
-front of a reader; safety takes priority over perceived responsiveness.
+Progress stages only. Answer text becomes visible only after verification completes; streaming
+draft tokens would put unverified medical text in front of a reader, and safety takes priority over
+perceived responsiveness.
+
+`POST /ask` answers with one JSON response by default and, for a caller sending
+`Accept: text/event-stream`, with Server-Sent Events: `stage` frames while the request runs, then a
+single `result` frame carrying exactly the JSON body the other form returns. `AskConfig.
+stream_progress_stages` enables the negotiated form. Nothing else changes — the same service call,
+the same pipeline, the same response model — so a client that does not negotiate keeps the contract
+it was written against, and the frontend handles both shapes.
+
+Seven stages, each announced by the code that performs it:
+
+| Stage | Emitted by | Covers |
+|---|---|---|
+| `PREPARING` | `AskService` | scope and intent, read from the question alone |
+| `RETRIEVAL` | `EvidenceService` | the M5 lanes, fusion and candidate hydration |
+| `RERANK` | `EvidenceService` | the cross-encoder |
+| `EVIDENCE` | `EvidenceService` → `GenerationService` | expansion and assembly, closing at the sufficiency gate |
+| `GENERATION` | `GenerationService` | the grounded draft |
+| `VERIFICATION` | `VerificationService` | claim checking, repair and the contradiction scan |
+| `FINALIZE` | `AskService` | recording the turn and its citations |
+
+A stage is `RUNNING` when that code begins and `COMPLETED` when it returns; `SKIPPED` when the
+pipeline did not reach it — an out-of-scope question skips five, an insufficient-evidence gate skips
+generation and verification — and `FAILED` when it raised. A stage still running when the request
+ends is reported failed rather than left spinning. `PENDING` is never emitted: a stage nobody
+announced has not started, which the client renders as such.
+
+An event carries a request id, a stage, a state, a sequence number and timings. **It has no field
+that could hold content** — no draft, no claim, no verdict, no rationale, no evidence text — so the
+channel cannot widen what M8 decided a reader may see. Concluding against a draft is not a stage
+failure: `VERIFICATION` completes and the outcome carries the refusal.
+
+The reporter reaches the orchestrators through a `ContextVar`, so no stage signature changed, and
+`run_in_threadpool` copies that context into the worker thread the synchronous M5/M6 stages run in.
+Progress exists only on the asking connection: there is no id to fetch somebody else's progress by,
+and no shared store to read it from. A refusal that the JSON form answers with 4xx arrives on the
+stream as a typed `error` frame, because the status line is already sent by then.
 
 ## Request boundary
 
@@ -101,6 +136,14 @@ Subtotals are excluded because they double-count their own parts, and `Total` is
 request boundary rather than summed from the rows — so whatever the stages do not account for stays
 visible as the difference instead of disappearing. The detailed breakdown is shown only to a
 principal holding `retrieval:search`; a reader sees the total.
+
+The boundary is the whole request: the clock starts before the conversation-ownership check and the
+idempotency replay lookup, both of which a caller waits for, and stops after the turn is recorded —
+`persistence_ms` is its own row. M8's own measurements (claim extraction, claim verification, the
+contradiction scan and any repair) are merged from the verification report, so the largest stage of
+a long request appears as a row and not only inside the total. One limitation: a repaired draft is
+verified twice and the per-round keys are overwritten, so those rows describe the final round while
+the total still covers both.
 
 The downgrade refuses while conversations exist; `MEDRAG_ALLOW_CONVERSATION_LOSS=1` acknowledges the
 loss deliberately, which is what the test harness sets on its throwaway schema.

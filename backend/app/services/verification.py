@@ -22,6 +22,7 @@ from app.generation.providers.base import LLMProvider
 from app.retrieval.model import RetrievalFilters
 from app.security.auth import Principal
 from app.services.generation import GenerationService
+from app.services.progress import reporter
 from app.verification import claims as extraction
 from app.verification.engine import decide, find_contradictions, verify_claims
 from app.verification.model import (
@@ -150,10 +151,20 @@ class VerificationService:
 
         evidence = EvidenceSet.model_validate(result["evidence_set"])
         draft = GroundedDraft.model_validate(result["draft"])
+        progress = reporter()
+        progress.start("VERIFICATION")
         report, verified, abstention = await self._verify(
             actor, query, evidence, draft, correlation_id
         )
+        # Verification ran to a conclusion. Whether that conclusion released an answer is the
+        # outcome's business, not this stage's: an abstention is a successful check, not a fault.
+        progress.complete("VERIFICATION")
         response["verification"] = report.model_dump(mode="json")
+        # M8 measures claim extraction, claim verification, the contradiction scan and any repair,
+        # but kept those numbers on the report alone. The reader's timing breakdown reads the
+        # response, so without this merge the largest stage of a long request — verification —
+        # appeared in the total and in no row.
+        response["durations_ms"].update(report.durations_ms)
         response["verified"] = verified is not None
         response["verified_answer"] = verified.model_dump(mode="json") if verified else None
         response["verification_abstention"] = (
