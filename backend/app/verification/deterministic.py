@@ -15,6 +15,7 @@ from app.evidence.model import EvidenceBlock
 from app.retrieval.sparse.analyzer import terms
 from app.verification.claims import (
     ANALYZER,
+    COORDINATORS,
     FIGURE_CHUNKS,
     FORMULA_CHUNKS,
     NEGATIONS,
@@ -148,9 +149,16 @@ def check_negation(claim: Claim, cited: Sequence[EvidenceBlock]) -> list[ReasonC
     relevant: list[set[str]] = []
     for block in cited:
         for sentence in re.split(r"(?<=[.!?])\s+", block.text):
-            sentence_words = set(terms(sentence, ANALYZER))
-            if len(content & sentence_words) / len(content) >= 0.6:
-                relevant.append(sentence_words)
+            # Polarity belongs to a clause, not to the sentence that contains it. The source reads
+            # "the transition from the vermis to the hemispheres is smooth and not marked by the
+            # deep fissures", and a claim quoting the positive half — "the transition is smooth" —
+            # was reported as reversing a negation that belongs to the other half. Each clause is
+            # therefore weighed on its own, and the sentence entire is kept as a candidate too, so
+            # a negation spanning a coordination ("not A and B") still matches a claim about it.
+            for passage in (*COORDINATORS.split(sentence), sentence):
+                passage_words = set(terms(passage, ANALYZER))
+                if len(content & passage_words) / len(content) >= 0.6:
+                    relevant.append(passage_words)
     if not relevant:
         # Structured evidence spreads one subject over several fragments, so fall back to the
         # block as a whole before concluding anything about polarity.

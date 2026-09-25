@@ -62,6 +62,9 @@ Run first; a claim they fail never reaches a model, and no model verdict can ove
   `NUMERIC_MISMATCH`, the same value under a different unit is `UNIT_MISMATCH`.
 - **Negation**: compared against the passages actually about the claim's subject, falling back to
   the whole block for structured evidence. Reported only on a genuine polarity disagreement.
+  Polarity is read per **clause**, and the sentence entire stays a candidate so that a negation
+  spanning a coordination still matches. A source reading "the transition is smooth **and not
+  marked by** the deep fissures" does not make a claim quoting its positive half a reversal.
 - **Certainty**: a strong assertion (`causes`, `always`, `contraindicated`) fires
   `OVERSTATED_CERTAINTY` only when the cited evidence hedges and never states the strong form.
 - **Structured evidence**: keyed off what the claim *cites*, not its type label. A cited
