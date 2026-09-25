@@ -2,19 +2,36 @@ import { useState } from 'react';
 import { EvidenceInspector } from './EvidenceInspector';
 import { DraftInspector } from './DraftInspector';
 import { VerificationInspector } from './VerificationInspector';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api, ApiError } from '../../api/client';
 import { AccessGate, useSession } from '../library/Session';
 import type { AnswerResponse, Candidate, DraftResponse, RetrievalStatus, SearchResponse, RerankedResponse } from '../../types/retrieval';
 
+/**
+ * What each mode actually runs, read from the endpoint it calls rather than from its name.
+ *
+ * DENSE_ONLY, BM25_ONLY and HYBRID_RRF post to /retrieval/search, which runs first-stage retrieval
+ * and stops. RERANKED posts to /retrieval/rerank, adding the cross-encoder and evidence assembly.
+ * GROUNDED_DRAFT posts to /retrieval/draft, which adds the sufficiency gate and one generator
+ * call. VERIFIED_ANSWER posts to /retrieval/answer, the same pipeline Ask runs, including claim
+ * verification. The last two call a provider; the first four do not.
+ *
+ * None of them writes anything. The mode is a field of one request, the endpoints resolve
+ * configuration per request from the server's own settings, and no route here can change what a
+ * later /ask does.
+ */
 const MODES = [
-  ['HYBRID_RRF', 'Hybrid (RRF)'],
-  ['RERANKED', 'Hybrid + reranking + evidence'],
-  ['GROUNDED_DRAFT', 'Evidence gate + grounded draft (unverified)'],
-  ['VERIFIED_ANSWER', 'Full pipeline + claim verification'],
-  ['DENSE_ONLY', 'Dense only'],
-  ['BM25_ONLY', 'BM25 only'],
+  ['HYBRID_RRF', 'Hybrid (RRF)', 'Dense + BM25 fused with Reciprocal Rank Fusion.', false],
+  ['RERANKED', 'Hybrid + reranking + evidence',
+    'Adds CrossEncoder reranking and EvidenceSet construction.', false],
+  ['GROUNDED_DRAFT', 'Evidence gate + grounded draft (unverified)',
+    'Adds the sufficiency gate and a grounded draft. Stops before claim verification, so nothing '
+    + 'it shows has been checked.', true],
+  ['VERIFIED_ANSWER', 'Full pipeline + claim verification',
+    'The closest diagnostic equivalent of Ask: every stage, including claim verification.', true],
+  ['DENSE_ONLY', 'Dense only', 'Semantic retrieval only.', false],
+  ['BM25_ONLY', 'BM25 only', 'Keyword retrieval only.', false],
 ] as const;
 
 /**
@@ -36,7 +53,17 @@ export function RetrievalInspector() {
 function Inspector() {
   const { token } = useSession();
   const [query, setQuery] = useState('');
-  const [mode, setMode] = useState<string>('HYBRID_RRF');
+  // Kept in the URL so leaving the page and coming back does not silently reset the selection.
+  // It is a view preference and nothing more: it is read only when this page builds its own
+  // request, and no other page reads it.
+  const [params, setParams] = useSearchParams();
+  const mode = MODES.some(([value]) => value === params.get('mode'))
+    ? params.get('mode')! : 'HYBRID_RRF';
+  const setMode = (next: string) => {
+    const updated = new URLSearchParams(params);
+    updated.set('mode', next);
+    setParams(updated, { replace: true });
+  };
   const [lane, setLane] = useState<'hybrid' | 'dense' | 'sparse' | 'reranked' | 'evidence' | 'sufficiency' | 'draft' | 'claims' | 'answer'>('hybrid');
   const [selected, setSelected] = useState<Candidate | null>(null);
 
@@ -105,9 +132,18 @@ function Inspector() {
         <textarea id="retrieval-query" rows={3} value={query} onChange={e => setQuery(e.target.value)}
           placeholder="Enter a query to retrieve source passages…" />
         <label htmlFor="retrieval-mode">Retrieval mode</label>
-        <select id="retrieval-mode" value={mode} onChange={e => setMode(e.target.value)}>
+        <select id="retrieval-mode" value={mode} onChange={e => setMode(e.target.value)}
+          aria-describedby="retrieval-mode-help">
           {MODES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
+        <p id="retrieval-mode-help" className="muted">
+          {MODES.find(([value]) => value === mode)?.[2]}
+          {' '}
+          <strong>Diagnostic only — this selection does not change Ask behaviour.</strong>
+          {MODES.find(([value]) => value === mode)?.[3]
+            ? ' This mode calls the configured provider.'
+            : ' This mode makes no provider call.'}
+        </p>
         <div className="question-footer">
           <span>The query is sent to retrieval only. Nothing generates text from it.</span>
           <button type="submit" disabled={!query.trim() || search.isPending}>
