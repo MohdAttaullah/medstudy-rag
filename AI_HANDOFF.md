@@ -444,6 +444,53 @@ sits above the composer and the stepper, so on a workspace with many conversatio
 panel lands below the fold. Placing progress adjacent to the composer, or collapsing the list, is
 the obvious follow-up.
 
+**Uncommitted: the Ask page is a conversation, and answers can show their source figures.**
+
+*The page.* The conversation index used to render above the chat, so on a workspace with any
+history the composer and the live progress sat below a list that grew without bound. The index
+moved to the rail; the centre now shows the selected conversation only — question bubbles, the
+answer, and the progress stepper under the turn being answered. The rail carries Ask / Library /
+Settings, New conversation, the recent conversations (scrolling independently), and an **Advanced
+tools** disclosure whose entries are filtered by permission, so a reader is no longer shown four
+inspector pages they cannot open. It collapses to icons (labels stay for screen readers and
+tooltips) and becomes a drawer with a scrim under 860px. The collapse preference lives in this
+browser and touches nothing else. A finished request collapses to one line — `✓ Verified · 30.6 s ·
+View processing details` — that expands to the same backend stage record.
+
+*Citations* are evidence cards: source label, document, page, provenance metadata, and the exact
+stored excerpt M8 verified against, read back rather than reconstructed.
+
+*Figures.* `app/services/figures.py` resolves the figures a verified answer may display, from
+provenance only: a citation that *is* a figure (`CITED_EVIDENCE`), or a citation whose verified
+text names a figure whose caption declares that label (`CITED_TEXT_REFERENCE`). Same page, same
+document and subject similarity are all explicitly not links. Ranges are expanded only across one
+major number, compound references — "( Figs. 1.2 and 1.7 )" — are read in full, a figure without a
+stored image is never offered, and at most six are listed. **Nothing is interpreted**; the M8
+visual rules are untouched, and a figure supports no claim. `AskResponse.figures` and the stored
+turn view call the same resolver over the same stored citations, so a figure survives a
+conversation reload; no migration was needed.
+
+*Images* reuse the existing M2 route under `document:read`, tenant-scoped, with the figure required
+to belong to the parse run in the path. **A defect the live run caught:** the browser cannot send
+an `Authorization` header from an `<img src>`, so the first implementation produced a 401 and a
+broken picture. The bytes are now fetched like any other request and rendered from an object URL —
+which keeps the one authorized path and still exposes no object-store key.
+
+Live on tenant `ba3d8361`: "What is the petrosal surface of the cerebellum?" → VERIFIED in 27.9 s,
+two evidence cards, and **Figure 1.7** linked because the cited text reads "( Figs. 1.2 and 1.7 )";
+"roof of the fourth ventricle" → **Figure 1.9**; both survived the conversation reload. The image
+served 200 `image/png` (570 KB) to its own tenant, 404 to another tenant's admin, 401 anonymously.
+
+**Truthfully reported non-result:** the tentorial question shows *no* figure. Its evidence names
+"( Figs. 1.2-1.4 )", and the parse attached no caption to figures 1.2–1.4 — they are among the
+eleven `CHUNK_FIGURE_NO_TEXT` figures — so no label can be matched and nothing is forced.
+
+**Also unchanged by design:** "show me the relevant figure" and "what structure is indicated by the
+arrow" both abstain `INSUFFICIENT_EVIDENCE` with `VISUAL_INTERPRETATION_UNAVAILABLE`. The
+sufficiency gate classifies a request to see a picture as visual-dependent (ADR-023), and an
+abstention carries no figures by contract. Changing that is a sufficiency decision, out of scope
+here.
+
 ## RAG v1 freeze (post-M12)
 
 Retrieval, reranking, sufficiency, generation and verification are **frozen**. The acceptance gates

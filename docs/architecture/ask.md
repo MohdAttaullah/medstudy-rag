@@ -148,6 +148,37 @@ the total still covers both.
 The downgrade refuses while conversations exist; `MEDRAG_ALLOW_CONVERSATION_LOSS=1` acknowledges the
 loss deliberately, which is what the test harness sets on its throwaway schema.
 
+## Source figures
+
+A verified answer may display figures from the documents it cites. They are **supplementary source
+material, never evidence**: nothing interprets an image anywhere in this system, no claim may rest
+on one, and `VISUAL_INTERPRETATION_REQUIRED` still refuses any claim that would need pixels read.
+
+A figure appears only when the answer's own cited evidence links to it, by one of two links that
+can be checked by looking:
+
+| `linked_by` | The link |
+|---|---|
+| `CITED_EVIDENCE` | a citation *is* that figure — a `FIGURE_CONTEXT` chunk carries its artifact id |
+| `CITED_TEXT_REFERENCE` | the citation's stored, verified text names the figure, and a figure in the same parse run declares that label in its caption |
+
+Sharing a page is not a link. Sharing a document is not a link. Subject-matter similarity is not a
+link. `app/services/figures.py` reads the labels a passage actually writes — "( Fig. 1.2 )",
+"( Figs. 1.2-1.4 )", "( Figs. 1.2 and 1.7 )" — expands a range only across one major number, and
+matches them against captions that declare the same label. A figure with no stored image is never
+offered, because a link that 404s is worse than no link. At most six are listed, in page order.
+
+`AskResponse.figures` and the stored turn view are resolved by the same function from the same
+stored citations, so an answer that showed a figure still shows it when the conversation is read
+back. Nothing about figures is persisted: the citations already are, and the link is derived.
+
+Images are served by the existing M2 route —
+`GET /documents/{id}/versions/{v}/parse-runs/{run}/figures/{figure}/image` — under `document:read`,
+scoped to the caller's tenant, with the figure required to belong to the parse run named in the
+path. No object-store key, bucket or signed URL ever reaches a client. Because that route needs an
+`Authorization` header and an `<img src>` cannot send one, the browser fetches the bytes like any
+other request and renders them from an object URL.
+
 ## Citations and the source viewer
 
 No new document routes. Citations deep-link into the existing M2 parse inspector, which streams page
