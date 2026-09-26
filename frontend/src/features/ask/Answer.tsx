@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
-import type { AskCitation, AskResponse, ConversationTurnView } from '../../types/retrieval';
+import { useSourceImage } from './SourceImage';
+import type {
+  AskCitation, AskFigure, AskResponse, ConversationTurnView,
+} from '../../types/retrieval';
 
 /**
  * What this surface needs, which both a live answer and a stored turn already satisfy.
@@ -11,6 +14,7 @@ import type { AskCitation, AskResponse, ConversationTurnView } from '../../types
 export type AnswerRecord = Pick<
   AskResponse | ConversationTurnView,
   'outcome' | 'verified' | 'answer' | 'message' | 'reason_codes' | 'citations' | 'sources'
+  | 'figures'
 >;
 
 const ASSESSMENT = new Set(['QUESTION_BANK', 'QUESTION_PAPER', 'ANSWER_KEY']);
@@ -32,18 +36,27 @@ export function sourceHref(citation: AskCitation) {
   return artifact ? `${base}#artifact-${artifact}` : element ? `${base}#element-${element}` : base;
 }
 
+/**
+ * One piece of evidence, shown as the thing it is: the exact words in the source.
+ *
+ * The excerpt is the text M8 verified the claim against, stored at verification time and read back
+ * here — not re-resolved from the document, and never assembled in the browser. A reader can hold
+ * this beside the page it names and find the same sentence.
+ */
 function Citation({ citation }: {citation: AskCitation}) {
   const assessment = ASSESSMENT.has(citation.source_type);
   const box = citation.spans.find(span => span.bbox && span.bbox.every(v => v !== null));
-  return <article className="version-card">
-    <h4>[{citation.ordinal}] {citation.document_title}</h4>
-    <p>{citation.source_type.replaceAll('_', ' ').toLowerCase()} · authority {citation.authority_level.toLowerCase()}
-      {' · '}{citation.chunk_type.replaceAll('_', ' ').toLowerCase()}
-      {citation.pages.length ? ` · page ${citation.pages.join(', ')}` : ' · page not recorded'}</p>
+  const page = citation.pages.length ? `Page ${citation.pages.join(', ')}` : 'Page not recorded';
+  return <article className="evidence-card">
+    <p className="eyebrow">SOURCE [{citation.ordinal}]</p>
+    <h4>{citation.document_title}</h4>
+    <p className="evidence-where">{page} · {citation.chunk_type.replaceAll('_', ' ').toLowerCase()}
+      {' · '}{citation.source_type.replaceAll('_', ' ').toLowerCase()}
+      {' · authority '}{citation.authority_level.toLowerCase()}</p>
     {assessment && <p role="note" className="notice">
       Assessment material. A recorded examiner answer is not, by itself, a medical reference.
     </p>}
-    <pre className="chunk-preview">{citation.cited_text}</pre>
+    <blockquote className="evidence-quote">{citation.cited_text}</blockquote>
     {citation.artifacts.map(artifact => <p key={artifact.artifact_id}>
       {artifact.kind === 'TABLE' && <>Table source · rows {artifact.row_indexes.join(', ') || 'unlisted'} · headers {artifact.header_rows.join(', ') || 'none recorded'}</>}
       {artifact.kind === 'FORMULA' && <>Formula source — shown exactly as the document states it; nothing here rewrites the notation.</>}
@@ -55,6 +68,55 @@ function Citation({ citation }: {citation: AskCitation}) {
     <div className="actions">
       <Link to={sourceHref(citation)}>Open source page</Link>
       <Link to={`/chunk-runs/${citation.chunk_run_id}?chunk=${citation.citation_id}`}>Inspect provenance</Link>
+    </div>
+  </article>;
+}
+
+/**
+ * A source figure beside an answer. Supplementary material, never evidence.
+ *
+ * It is here because the server found a provenance link — the citation is this figure, or the
+ * citation's verified text names it by label — and the card says which. The image is served by the
+ * authorized parse route, so no object-store key is ever exposed and the tenant check is the one
+ * every document read already goes through. Nothing interpreted the picture.
+ */
+function FigureCard({ figure }: {figure: AskFigure}) {
+  const base = `/api/v1/documents/${figure.document_id}/versions/${figure.document_version_id}`
+    + `/parse-runs/${figure.parse_run_id}/figures/${figure.figure_id}`;
+  const page = figure.page ?? 1;
+  const viewer = `/documents/${figure.document_id}/versions/${figure.document_version_id}`
+    + `/parse/${figure.parse_run_id}?page=${page}#artifact-${figure.figure_id}`;
+  const title = figure.caption?.trim() || 'untitled in the source';
+  // The image is fetched with the session's bearer token and shown from an object URL: the route
+  // requires authorization, and an <img src> cannot carry a header. See SourceImage.
+  const { url, failed } = useSourceImage(`${base}/image`);
+  return <article className="figure-card">
+    <a className="figure-thumb" href={url ?? viewer} target={url ? '_blank' : undefined}
+      rel="noreferrer">
+      {/* Alt text is the source's own caption, never a description of what the picture shows. */}
+      {url
+        ? <img src={url} alt={`Source figure as printed: ${title}`} />
+        : <span className="figure-placeholder" aria-hidden="true" />}
+    </a>
+    <div>
+      <h4>{figure.label ? `Figure ${figure.label}` : 'Source figure'}</h4>
+      <p className="evidence-where">
+        {figure.document_title} · {figure.page ? `page ${figure.page}` : 'page not recorded'}
+      </p>
+      {figure.caption && <p className="figure-caption">{figure.caption}</p>}
+      <p className="figure-note" role="note">
+        Source figure — not interpreted by AI.{' '}
+        {figure.linked_by === 'CITED_EVIDENCE'
+          ? 'The cited evidence is this figure.'
+          : 'The cited source text refers to this figure.'}
+      </p>
+      {failed && <p className="figure-unavailable" role="note">
+        The stored image could not be loaded. Open the source page to see it in the document.
+      </p>}
+      <div className="actions">
+        {url && <a href={url} target="_blank" rel="noreferrer">Open full image</a>}
+        <Link to={viewer}>Open source page</Link>
+      </div>
     </div>
   </article>;
 }
@@ -112,7 +174,17 @@ export function Answer({ result }: {result: AnswerRecord}) {
       </li>)}</ul>
 
     <h3>Citations</h3>
+    <p className="muted">Each card is the exact source text this answer was checked against.</p>
     {result.citations.map(citation => <Citation key={citation.citation_id} citation={citation} />)}
+
+    {!!result.figures?.length && <>
+      <h3>Related source figures</h3>
+      <p className="muted">
+        Shown because the cited evidence links to them. They are source material, not evidence: no
+        image was read, and no statement above rests on one.
+      </p>
+      {result.figures.map(figure => <FigureCard key={figure.figure_id} figure={figure} />)}
+    </>}
   </section>;
 }
 

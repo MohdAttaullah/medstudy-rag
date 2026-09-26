@@ -246,6 +246,21 @@ button.link[aria-current="true"] { font-weight: 700; text-decoration: none; }
 .bubble-user p { margin: 0; font-size: 14px; line-height: 1.6; }
 .composer { position: sticky; bottom: 0; background: #f6f8f7; padding-block: 16px 8px; margin-top: 18px; border-block-start: 1px solid #e3eae7; }
 
+/* ---------------------------------------------------------------- evidence and figures */
+.evidence-card, .figure-card { background: white; border: 1px solid #dfe7e4; border-radius: 8px; padding: 18px; margin: 14px 0; }
+.evidence-card .eyebrow { margin-bottom: 6px; }
+.evidence-card h4, .figure-card h4 { margin: 0 0 4px; font-size: 14px; }
+.evidence-where { font-size: 12px; color: #627776; margin: 0 0 10px; }
+.evidence-quote {
+  margin: 0 0 12px; padding: 12px 16px; border-left: 3px solid #175d62; background: #f3f7f5;
+  font-size: 14px; line-height: 1.7; color: #1d3b40;
+}
+.figure-card { display: flex; gap: 18px; align-items: flex-start; }
+.figure-thumb { flex-shrink: 0; display: block; inline-size: 160px; border: 1px solid #dfe7e4; border-radius: 6px; overflow: hidden; background: #f3f7f5; }
+.figure-thumb img { display: block; inline-size: 100%; block-size: auto; }
+.figure-caption { font-size: 13px; line-height: 1.6; color: #51696a; margin: 0 0 8px; }
+.figure-note { font-size: 12px; color: #6b4d12; background: #fcf6e8; border: 1px solid #ecdcb4; border-radius: 5px; padding: 7px 10px; margin: 0 0 10px; }
+
 @media (max-width: 860px) {
   .drawer-toggle { display: inline-flex; margin-inline-end: 14px; }
   .sidebar {
@@ -261,3 +276,13 @@ button.link[aria-current="true"] { font-weight: 700; text-decoration: none; }
   .sidebar { transition: none; }
 }
 
+/* A figure whose bytes are still being fetched, or could not be. */
+.figure-placeholder { display: block; inline-size: 100%; aspect-ratio: 4 / 3; background: #eef2f0; }
+.figure-unavailable { font-size: 12px; color: #6b4d12; margin: 0 0 10px; }
+
+/* A figure legend in this corpus can run to a paragraph. It stays in the DOM — readable to a
+   screen reader, selectable, and complete — but is clamped so the card remains scannable. */
+.figure-caption {
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+}
+.figure-card:focus-within .figure-caption, .figure-caption:hover { -webkit-line-clamp: unset; }

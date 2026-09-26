@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -79,8 +79,15 @@ it('renders a verified answer with its citations and sources', async () => {
   expect(await screen.findByRole('heading', { name: 'Answer' })).toBeInTheDocument();
   expect(screen.getByText('The source states the association.')).toBeInTheDocument();
   expect(screen.getByText('VERIFIED AGAINST RETRIEVED SOURCES')).toBeInTheDocument();
-  expect(screen.getByText('[1] Synthetic Reference Volume')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Sources' })).toBeInTheDocument();
+
+  // A citation is now an evidence card: the label, the document, where it is, and the exact words
+  // the answer was checked against, each readable on its own rather than run together in a line.
+  const card = screen.getByText('SOURCE [1]').closest('article')!;
+  expect(within(card).getByRole('heading', { name: 'Synthetic Reference Volume' })).toBeInTheDocument();
+  expect(within(card).getByText(/Page 3/)).toBeInTheDocument();
+  expect(within(card).getByText('A synthetic source passage.')).toBeInTheDocument();
+  expect(within(card).getByText(/authority reference/)).toBeInTheDocument();
 });
 
 it('shows no confidence figure anywhere', async () => {

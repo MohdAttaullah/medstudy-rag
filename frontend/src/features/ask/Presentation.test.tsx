@@ -14,7 +14,7 @@ import { Answer } from './Answer';
 const base = {
   outcome: 'UNVERIFIED' as const, verified: false, answer: null,
   message: 'Evidence was found, but a supported answer could not be verified against it.',
-  reason_codes: [] as string[], citations: [], sources: [],
+  reason_codes: [] as string[], citations: [], sources: [], figures: [],
 };
 
 function show(result: Parameters<typeof Answer>[0]['result']) {
