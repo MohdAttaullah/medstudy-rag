@@ -14,6 +14,7 @@ from time import perf_counter
 from typing import Any
 from uuid import UUID, uuid4
 
+from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from app.core.config import Settings
@@ -32,6 +33,7 @@ from app.schemas.ask import (
     StageTiming,
 )
 from app.security.auth import Principal
+from app.services.figures import resolve as resolve_figures
 from app.services.progress import reporter
 from app.services.verification import VerificationService
 from app.sufficiency import intent
@@ -328,7 +330,14 @@ class AskService:
                         "persistence_ms": recorded,
                     },
                 }
-            return self._response(turn, stored, self._stages(payload, total + recorded), claims)
+            return self._response(
+                turn,
+                stored,
+                self._stages(payload, total + recorded),
+                claims,
+                session=session,
+                tenant_id=actor.tenant_id,
+            )
 
     def _citations(self, answer: dict[str, Any], blocks: dict[str, Any]) -> list[dict[str, Any]]:
         """Only evidence that actually supported a verified claim becomes a citation.
@@ -441,8 +450,16 @@ class AskService:
         citations: list[TurnCitation],
         stages: list[StageTiming],
         claims: list[AskClaim] | None = None,
+        session: Session | None = None,
+        tenant_id: UUID | None = None,
     ) -> AskResponse:
         views = [self._citation(row) for row in citations]
+        # Only a verified answer carries citations, so only a verified answer can link a figure.
+        figures = (
+            resolve_figures(session, tenant_id, views)
+            if session is not None and tenant_id is not None and turn.verified
+            else []
+        )
         return AskResponse(
             correlation_id=turn.correlation_id,
             conversation_id=turn.conversation_id,
@@ -455,6 +472,7 @@ class AskService:
             claims=claims or self._stored_claims(turn, views),
             citations=views,
             sources=self._sources(views),
+            figures=figures,
             message=MESSAGES[turn.outcome],
             reason_codes=list(turn.reason_codes or []),
             stages=stages,
@@ -537,9 +555,18 @@ class AskService:
         return list(grouped.values())
 
     def conversation_turn(
-        self, turn: ConversationTurn, citations: list[TurnCitation]
+        self,
+        turn: ConversationTurn,
+        citations: list[TurnCitation],
+        session: Session | None = None,
+        tenant_id: UUID | None = None,
     ) -> ConversationTurnView:
         views = [self._citation(row) for row in citations]
+        figures = (
+            resolve_figures(session, tenant_id, views)
+            if session is not None and tenant_id is not None and turn.verified
+            else []
+        )
         return ConversationTurnView(
             turn_id=turn.id,
             sequence_number=turn.sequence_number,
@@ -551,6 +578,7 @@ class AskService:
             reason_codes=list(turn.reason_codes or []),
             citations=views if turn.verified else [],
             sources=self._sources(views) if turn.verified else [],
+            figures=figures,
             created_at=turn.created_at.isoformat(),
         )
 

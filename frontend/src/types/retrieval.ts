@@ -224,13 +224,14 @@ export interface AskResponse {
   correlation_id: string; conversation_id: string; turn_id: string; question: string;
   outcome: AskOutcome; verified: boolean; answering_enabled: true;
   answer: string | null; claims: AskClaim[]; citations: AskCitation[]; sources: AskSource[];
+  figures: AskFigure[];
   message: string; reason_codes: string[];
   stages: {stage: string; duration_ms: number}[]; created_at: string;
 }
 export interface ConversationTurnView {
   turn_id: string; sequence_number: number; question: string; outcome: AskOutcome;
   verified: boolean; answer: string | null; message: string; reason_codes: string[];
-  citations: AskCitation[]; sources: AskSource[]; created_at: string;
+  citations: AskCitation[]; sources: AskSource[]; figures: AskFigure[]; created_at: string;
 }
 /**
  * One state change of one Ask stage, exactly as the server sends it.
@@ -244,6 +245,11 @@ export type StageState = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'SKIPPED' | 'FAIL
 export interface StageEvent {
   request_id: string; stage: StageCode; state: StageState; sequence: number;
   started_at: string | null; completed_at: string | null; elapsed_ms: number | null;
+}
+export interface AskFigure {
+  figure_id: string; document_id: string; document_version_id: string; parse_run_id: string;
+  document_title: string; page: number | null; caption: string | null; label: string | null;
+  linked_by: 'CITED_EVIDENCE' | 'CITED_TEXT_REFERENCE'; citation_ids: string[];
 }
 export interface ConversationSummary {
   conversation_id: string; title: string; turn_count: number; verified_turns: number;

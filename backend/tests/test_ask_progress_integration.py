@@ -256,3 +256,65 @@ def test_progress_cannot_be_watched_from_another_tenant(stack):  # noqa: F811
     # And no route accepts a request id to read somebody else's progress.
     paths = {getattr(route, "path", "") for route in client.app.routes}
     assert not [path for path in paths if "progress" in path or "events" in path]
+
+
+# --------------------------------------------------------- source figures on an answer
+
+
+def read(client, credentials, conversation_id, role=0):
+    response = client.get(
+        f"/api/v1/conversations/{conversation_id}", headers=auth(credentials, role)
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_a_verified_answer_carries_a_figures_list(stack):  # noqa: F811
+    """The field exists on every verified answer, empty when nothing links."""
+    client, _, credentials, _, _, _ = stack
+    _, (_, result), _ = stream(client, credentials)
+    assert result["outcome"] == "VERIFIED"
+    assert isinstance(result["figures"], list)
+    for figure in result["figures"]:
+        # Whatever is listed is linked to a citation of this very answer.
+        assert figure["citation_ids"]
+        assert {c["citation_id"] for c in result["citations"]} >= set(figure["citation_ids"])
+        assert figure["linked_by"] in {"CITED_EVIDENCE", "CITED_TEXT_REFERENCE"}
+
+
+def test_a_reloaded_conversation_resolves_the_same_figures(stack):  # noqa: F811
+    """A figure that appears with the answer must still be there when the turn is read back.
+
+    The two paths build their views separately, so this is the assertion that keeps them from
+    drifting — an answer that showed a figure and then lost it on reload would look like the
+    evidence had changed.
+    """
+    client, _, credentials, _, _, _ = stack
+    _, (_, result), _ = stream(client, credentials)
+    stored = read(client, credentials, result["conversation_id"])
+    turn = next(t for t in stored["turns"] if t["turn_id"] == result["turn_id"])
+    assert [f["figure_id"] for f in turn["figures"]] == [f["figure_id"] for f in result["figures"]]
+    assert [f["linked_by"] for f in turn["figures"]] == [f["linked_by"] for f in result["figures"]]
+
+
+def test_an_unverified_turn_carries_no_figures(stack):  # noqa: F811
+    """No answer was released, so nothing is source material *for* it."""
+    client, control, credentials, _, _, _ = stack
+    control.verification._verifier = FakeClaimVerifier(
+        lambda claim: VerifierVerdict(verdict="UNSUPPORTED")
+    )
+    control.verification.settings = control.verification.settings.model_copy(
+        update={"repair": RepairConfig(enabled=False)}
+    )
+    _, (_, result), _ = stream(client, credentials)
+    assert result["outcome"] == "UNVERIFIED"
+    assert result["figures"] == []
+    stored = read(client, credentials, result["conversation_id"])
+    assert all(turn["figures"] == [] for turn in stored["turns"])
+
+
+def test_a_figure_never_travels_with_an_object_store_key(stack):  # noqa: F811
+    client, _, credentials, _, _, _ = stack
+    _, (_, result), raw = stream(client, credentials)
+    for leaked in ("image_key", "minio", "x-amz", "9000"):
+        assert leaked not in raw.lower()

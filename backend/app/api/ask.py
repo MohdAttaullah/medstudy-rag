@@ -194,7 +194,10 @@ def conversation(conversation_id: UUID, actor: Actor, service: Service) -> dict[
             "created_at": row.created_at.isoformat(),
             "updated_at": row.updated_at.isoformat(),
             "turns": [
-                service.ask.conversation_turn(turn, repository.citations(turn.id)) for turn in turns
+                service.ask.conversation_turn(
+                    turn, repository.citations(turn.id), session, actor.tenant_id
+                )
+                for turn in turns
             ],
         }
 

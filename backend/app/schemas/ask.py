@@ -88,6 +88,27 @@ class AskCitation(BaseModel):
     cited_text: str
 
 
+class AskFigure(BaseModel):
+    """A source figure an answer may display, and the provenance that earned it a place.
+
+    It is not evidence. `linked_by` records which provenance link put it here — the citation is
+    that figure, or the citation's verified text names it — so a reader can check the reason
+    rather than take it on trust. No image is interpreted anywhere in this system.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    figure_id: UUID
+    document_id: UUID
+    document_version_id: UUID
+    parse_run_id: UUID
+    document_title: str
+    page: int | None
+    caption: str | None
+    label: str | None
+    linked_by: Literal["CITED_EVIDENCE", "CITED_TEXT_REFERENCE"]
+    citation_ids: list[UUID]
+
+
 class AskSource(BaseModel):
     """One document behind the answer. Retrieval candidates that supported nothing never appear."""
 
@@ -132,6 +153,9 @@ class AskResponse(BaseModel):
     claims: list[AskClaim] = Field(default_factory=list)
     citations: list[AskCitation] = Field(default_factory=list)
     sources: list[AskSource] = Field(default_factory=list)
+    #: Source figures the citations link to. Supplementary material, never evidence: nothing here
+    #: was interpreted, and the validator below keeps them out of every unverified outcome.
+    figures: list[AskFigure] = Field(default_factory=list)
     # A plain sentence for the reader, chosen from a fixed set per outcome. Never provider prose,
     # never a verifier's rationale, never an internal code path.
     message: str
@@ -152,8 +176,8 @@ class AskResponse(BaseModel):
             raise ValueError("An answer exists if and only if the outcome is VERIFIED")
         if verified != self.verified:
             raise ValueError("`verified` must agree with the outcome")
-        if not verified and (self.claims or self.citations or self.sources):
-            raise ValueError("Only a verified answer carries claims, citations or sources")
+        if not verified and (self.claims or self.citations or self.sources or self.figures):
+            raise ValueError("Only a verified answer carries claims, citations, sources or figures")
         return self
 
 
@@ -169,6 +193,7 @@ class ConversationTurnView(BaseModel):
     reason_codes: list[str]
     citations: list[AskCitation]
     sources: list[AskSource]
+    figures: list[AskFigure] = Field(default_factory=list)
     created_at: str
 
     @model_validator(mode="after")
