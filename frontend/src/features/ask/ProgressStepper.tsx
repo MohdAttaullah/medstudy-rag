@@ -60,6 +60,16 @@ const SLOW: Partial<Record<StageCode, string>> = {
 };
 const SLOW_AFTER_MS = 4000;
 
+/** How a finished request introduces its own record, in a mark and a word. */
+const OUTCOMES: Record<string, {mark: string; word: string}> = {
+  VERIFIED: {mark: '✓', word: 'Verified'},
+  INSUFFICIENT_EVIDENCE: {mark: '◍', word: 'Not enough evidence'},
+  CONFLICTING_EVIDENCE: {mark: '◍', word: 'Sources disagree'},
+  UNVERIFIED: {mark: '!', word: 'Could not verify'},
+  FAILED: {mark: '✕', word: 'Technical failure'},
+  OUT_OF_SCOPE: {mark: 'i', word: 'Outside scope'},
+};
+
 const MARKS: Record<StageState, string> = {
   COMPLETED: '✓', RUNNING: '●', PENDING: '○', SKIPPED: '–', FAILED: '✕',
 };
@@ -125,12 +135,25 @@ export function ProgressStepper(
 
   if (!events.length && !active) return null;
 
+  // Finished work collapses to one line. Seven stages are what a reader needs *while* they wait;
+  // afterwards they are a record, and a record does not need to occupy the screen above the answer.
+  if (!active) {
+    const settled = OUTCOMES[outcome ?? ''] ?? { mark: '✓', word: 'Finished' };
+    return <details className="panel progress progress-summary">
+      <summary>
+        <span className="outcome-mark" aria-hidden="true">{settled.mark}</span>
+        <span>{settled.word}</span>
+        <span className="mono">{(elapsed / 1000).toFixed(1)} s</span>
+        <span className="summary-hint">View processing details</span>
+      </summary>
+      <Stages states={states} running={undefined} stageSince={null} stageElapsed={0} slow={undefined} />
+    </details>;
+  }
+
   return <section className="panel progress" aria-labelledby="progress-heading">
     <div className="question-footer">
-      <h2 id="progress-heading">
-        {active ? 'Working through your evidence' : 'How this answer was produced'}
-      </h2>
-      {active && first !== null &&
+      <h2 id="progress-heading">Working through your evidence</h2>
+      {first !== null &&
         <span className="mono" aria-hidden="true">{(elapsed / 1000).toFixed(1)} s</span>}
     </div>
 
@@ -141,26 +164,39 @@ export function ProgressStepper(
         : outcome ? `Finished. Outcome ${outcome.replaceAll('_', ' ').toLowerCase()}.` : ''}
     </p>
 
-    <ol className="stepper">
-      {STAGES.map(stage => {
-        const state = states[stage.code];
-        return <li key={stage.code} className={`step step-${state.toLowerCase()}`}>
-          <span className="step-mark" aria-hidden="true">{MARKS[state]}</span>
-          <div>
-            <p className="step-title">{stage.title}</p>
-            {/* Never colour alone: every row states its condition in words. */}
-            <p className="step-state">{WORDS[state]}</p>
-            {state === 'RUNNING' && <p className="step-detail">{stage.detail}</p>}
-            {state === 'RUNNING' && stageSince !== null &&
-              <p className="step-detail mono">Current stage: {(stageElapsed / 1000).toFixed(1)} s</p>}
-            {state === 'RUNNING' && slow && <p className="step-detail">{slow}</p>}
-          </div>
-        </li>;
-      })}
-    </ol>
+    <Stages states={states} running={running} stageSince={stageSince} stageElapsed={stageElapsed}
+      slow={slow} />
 
-    {active && <p className="muted">
-      No answer text is shown until claim verification finishes.
-    </p>}
+    <p className="muted">No answer text is shown until claim verification finishes.</p>
   </section>;
+}
+
+/** One renderer for the live stepper and for the record it collapses into. */
+function Stages(
+  { states, running, stageSince, stageElapsed, slow }: {
+    states: Record<StageCode, StageState>;
+    running: { code: StageCode; title: string; detail: string } | undefined;
+    stageSince: number | null;
+    stageElapsed: number;
+    slow: string | undefined;
+  },
+) {
+  return <ol className="stepper">
+    {STAGES.map(stage => {
+      const state = states[stage.code];
+      const live = running?.code === stage.code;
+      return <li key={stage.code} className={`step step-${state.toLowerCase()}`}>
+        <span className="step-mark" aria-hidden="true">{MARKS[state]}</span>
+        <div>
+          <p className="step-title">{stage.title}</p>
+          {/* Never colour alone: every row states its condition in words. */}
+          <p className="step-state">{WORDS[state]}</p>
+          {live && <p className="step-detail">{stage.detail}</p>}
+          {live && stageSince !== null &&
+            <p className="step-detail mono">Current stage: {(stageElapsed / 1000).toFixed(1)} s</p>}
+          {live && slow && <p className="step-detail">{slow}</p>}
+        </div>
+      </li>;
+    })}
+  </ol>;
 }

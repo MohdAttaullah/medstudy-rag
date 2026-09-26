@@ -261,6 +261,11 @@ button.link[aria-current="true"] { font-weight: 700; text-decoration: none; }
 .figure-caption { font-size: 13px; line-height: 1.6; color: #51696a; margin: 0 0 8px; }
 .figure-note { font-size: 12px; color: #6b4d12; background: #fcf6e8; border: 1px solid #ecdcb4; border-radius: 5px; padding: 7px 10px; margin: 0 0 10px; }
 
+/* ---------------------------------------------------------------- collapsed progress */
+.progress-summary > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; font-weight: 600; }
+.progress-summary .summary-hint { margin-inline-start: auto; font-size: 12px; font-weight: 400; color: #4d7771; text-decoration: underline; }
+.progress-summary[open] > summary { margin-bottom: 12px; }
+
 @media (max-width: 860px) {
   .drawer-toggle { display: inline-flex; margin-inline-end: 14px; }
   .sidebar {

@@ -70,9 +70,11 @@ const COMPLETE: [string, string][] = STAGES.flatMap(stage => [
 
 let stream: { frames: string[]; hold?: { release: Promise<void> } };
 let posted: { url: string; body: Record<string, unknown> }[] = [];
+let stored: object[] = [];
 
 beforeEach(() => {
   posted = [];
+  stored = [];
   stream = { frames: frames(COMPLETE, answer()) };
   vi.stubGlobal('crypto', { ...globalThis.crypto, randomUUID: () => 'key-1' });
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
@@ -89,7 +91,7 @@ beforeEach(() => {
       });
     }
     const body = /\/conversations\/[^?]/.test(url)
-      ? { conversation_id: 'cv1', title: 'Q?', created_at: '', updated_at: '', turns: [] }
+      ? { conversation_id: 'cv1', title: 'Q?', created_at: '', updated_at: '', turns: stored }
       : { items: [], total: 0, offset: 0, limit: 25 };
     return new Response(JSON.stringify(body), {
       status: 200, headers: { 'Content-Type': 'application/json' },
@@ -369,6 +371,78 @@ describe('navigation', () => {
     expect(screen.getByRole('button', { name: 'Ask with evidence' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Your educational medical question'), { target: { value: 'Again?' } });
     expect(screen.getByRole('button', { name: 'Ask with evidence' })).toBeEnabled();
+    release();
+  });
+});
+
+describe('the finished record', () => {
+  it('collapses to one line that states the outcome and the time', async () => {
+    await ask();
+    await screen.findByText('A checked statement about the tentorial surface.');
+    // Seven stages are what a reader needs while waiting; afterwards they are a record.
+    const summary = screen.getByText('View processing details').closest('summary')!;
+    expect(within(summary).getByText('Verified')).toBeInTheDocument();
+    expect(within(summary).getByText(/\d+\.\d s/)).toBeInTheDocument();
+    expect(screen.queryByText('Running now')).not.toBeInTheDocument();
+    // The full stepper is present but folded away, not occupying the screen above the answer.
+    expect(summary.closest('details')).not.toHaveAttribute('open');
+  });
+
+  it('expands again to the same backend stage record', async () => {
+    await ask();
+    await screen.findByText('A checked statement about the tentorial surface.');
+    fireEvent.click(screen.getByText('View processing details'));
+    expect(within(step('Searching indexed sources')).getByText('Completed')).toBeInTheDocument();
+    expect(within(step('Checking every material claim')).getByText('Completed')).toBeInTheDocument();
+  });
+
+  it('names the outcome it actually reached', async () => {
+    stream = { frames: frames(COMPLETE, answer('UNVERIFIED')) };
+    await ask();
+    await screen.findByRole('heading', { name: 'Could not verify an answer' });
+    const summary = screen.getByText('View processing details').closest('summary')!;
+    expect(within(summary).getByText('Could not verify')).toBeInTheDocument();
+  });
+});
+
+describe('a conversation of several turns', () => {
+  it('reads top to bottom, each question above its own answer', async () => {
+    // One turn already stored, then a second asked live: the thread shows both, in order.
+    stored = [{
+      turn_id: 't0', sequence_number: 1, question: 'An earlier question?', outcome: 'VERIFIED',
+      verified: true, answer: 'An earlier checked statement.', message: 'Checked.',
+      reason_codes: [], citations: [], sources: [], figures: [], created_at: '',
+    }];
+    await ask('What is the tentorial surface?');
+    await screen.findByText('A checked statement about the tentorial surface.');
+
+    // The stored turn arrives with the conversation reload that follows the answer.
+    expect(await screen.findByText('An earlier question?')).toBeInTheDocument();
+    expect(screen.getByText('An earlier checked statement.')).toBeInTheDocument();
+    // Each exchange is its own turn, and every question is marked as the reader's.
+    expect(screen.getAllByText('You asked:').length).toBe(2);
+    // Oldest first, newest last. (The second bubble reads the question the server echoed back,
+    // which this stub fixes at "Q?" — what matters here is that it follows the stored turn.)
+    const thread = document.querySelector('.chat-thread')!;
+    const order = [...thread.querySelectorAll('.bubble-user p:last-child')]
+      .map(node => node.textContent);
+    expect(order).toHaveLength(2);
+    expect(order[0]).toBe('An earlier question?');
+  });
+
+  it('shows the live question while its answer is still being produced', async () => {
+    let release: () => void = () => undefined;
+    stream = {
+      frames: frames([['RERANK', 'RUNNING']], answer()),
+      hold: { release: new Promise<void>(resolve => { release = () => resolve(); }) },
+    };
+    await ask('A question in flight?');
+    // Scoped to the thread: the composer still holds the same text, which is not the assertion.
+    await waitFor(() => expect(
+      document.querySelector('.chat-thread .bubble-user p:last-child')?.textContent,
+    ).toBe('A question in flight?'));
+    // The composer stays protected while that turn is open.
+    expect(screen.getByRole('button', { name: 'Selecting passages…' })).toBeDisabled();
     release();
   });
 });
