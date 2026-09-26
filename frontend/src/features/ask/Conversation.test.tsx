@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -81,30 +81,63 @@ async function workspace(entry = '/ask') {
   await screen.findByLabelText('Your educational medical question');
 }
 
-it('lists the conversations this principal owns', async () => {
+/** The conversation index lives in the rail; the centre shows the conversation you are in. */
+function rail() {
+  return within(screen.getByRole('complementary', { name: 'Workspace navigation' }));
+}
+
+it('lists the conversations this principal owns, in the sidebar', async () => {
   await workspace();
-  expect(await screen.findByRole('button', { name: 'First question?' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Second question?' })).toBeInTheDocument();
+  expect(await rail().findByRole('link', { name: 'First question?' })).toBeInTheDocument();
+  expect(rail().getByRole('link', { name: 'Second question?' })).toBeInTheDocument();
   // The client asks for its own conversations and sends no identity of its own.
-  expect(requested.some(url => url.includes('/conversations?limit=25'))).toBe(true);
+  expect(requested.some(url => url.includes('/conversations?limit='))).toBe(true);
   expect(requested.every(url => !url.includes('tenant'))).toBe(true);
+});
+
+it('keeps the conversation index out of the middle of the page', async () => {
+  // The whole point of the redesign: the centre is the conversation, not a directory of them.
+  await workspace();
+  await rail().findByRole('link', { name: 'First question?' });
+  const main = within(screen.getByRole('main'));
+  expect(main.queryByRole('link', { name: 'Second question?' })).toBeNull();
+  expect(main.queryByRole('heading', { name: 'Conversations' })).toBeNull();
 });
 
 it('reloads the stored turns of a conversation from the server', async () => {
   await workspace();
-  fireEvent.click(await screen.findByRole('button', { name: 'First question?' }));
+  fireEvent.click(await rail().findByRole('link', { name: 'First question?' }));
   expect(await screen.findByText('Answer to First question?')).toBeInTheDocument();
   expect(await screen.findByText('Answer to A follow up?')).toBeInTheDocument();
+  // The turns came from the conversation endpoint, not from anything held in the browser.
+  expect(requested.some(url => url.includes('/conversations/cv1'))).toBe(true);
+});
+
+it('shows only the selected conversation in the main area', async () => {
+  await workspace();
+  fireEvent.click(await rail().findByRole('link', { name: 'First question?' }));
+  await screen.findByText('Answer to First question?');
+  expect(screen.queryByText('Answer to Second question?')).not.toBeInTheDocument();
+});
+
+it('switches conversation when another is chosen in the sidebar', async () => {
+  await workspace();
+  fireEvent.click(await rail().findByRole('link', { name: 'First question?' }));
+  await screen.findByText('Answer to First question?');
+  fireEvent.click(rail().getByRole('link', { name: 'Second question?' }));
+  expect(await screen.findByText('Answer to Second question?')).toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.queryByText('Answer to First question?')).not.toBeInTheDocument());
 });
 
 it('keeps the conversation open across navigation away and back', async () => {
   await workspace();
-  fireEvent.click(await screen.findByRole('button', { name: 'First question?' }));
+  fireEvent.click(await rail().findByRole('link', { name: 'First question?' }));
   await screen.findByText('Answer to First question?');
 
-  fireEvent.click(screen.getByRole('link', { name: 'Library' }));
+  fireEvent.click(rail().getByRole('link', { name: 'Library' }));
   await screen.findByRole('heading', { name: "Your source documents" });
-  fireEvent.click(screen.getByRole('link', { name: 'Ask' }));
+  fireEvent.click(rail().getByRole('link', { name: 'Ask' }));
 
   // The same conversation is still open, and its turns come back from the server.
   expect(await screen.findByText('Answer to First question?')).toBeInTheDocument();
@@ -126,7 +159,7 @@ it('continues the open conversation when another question is asked', async () =>
 it('starts a different conversation when New conversation is chosen', async () => {
   await workspace('/ask?conversation=cv1');
   await screen.findByText('Answer to First question?');
-  fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
+  fireEvent.click(rail().getByRole('link', { name: 'New conversation' }));
   await waitFor(() => expect(screen.queryByText('Answer to First question?')).not.toBeInTheDocument());
 
   fireEvent.change(screen.getByLabelText('Your educational medical question'), { target: { value: 'A brand new one?' } });
@@ -150,6 +183,18 @@ it('shows the stage waterfall to a principal holding retrieval diagnostics', asy
   await screen.findByText('Answer to How?');
   fireEvent.click(screen.getByText('Timing'));
   expect(await screen.findByRole('row', { name: /Total/ })).toBeInTheDocument();
+});
+
+it('offers example questions in an empty conversation', async () => {
+  await workspace();
+  expect(await screen.findByRole('heading', { name: 'Ask your indexed medical sources' }))
+    .toBeInTheDocument();
+  const examples = screen.getAllByRole('button', { name: /cerebellar|tentorial|fourth ventricle/i });
+  expect(examples.length).toBe(3);
+  // Choosing one fills the composer rather than asking on the reader's behalf.
+  fireEvent.click(examples[0]);
+  expect(screen.getByLabelText('Your educational medical question'))
+    .toHaveValue('What are the three cerebellar surfaces?');
 });
 
 it('stores no conversation content in browser storage', async () => {

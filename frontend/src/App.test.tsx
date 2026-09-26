@@ -16,11 +16,16 @@ describe('M0 workspace', () => {
     // Until M9 this asserted that answering was unavailable at all. The verified pipeline now
     // exists, so the invariant that replaces it is narrower and still the important one: the page
     // requires access, and nothing resembling an answer is on screen before a question is asked.
+    // The marketing heading it used to check went when Ask became a conversation surface; the
+    // gate and the absence of an answer are what mattered, and both are asserted here.
     show('/ask');
-    expect(screen.getByRole('heading', { name: 'Evidence comes first.' })).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Development workspace access' })).toBeVisible();
     expect(screen.queryByRole('heading', { name: 'Answer' })).toBeNull();
     expect(screen.queryByLabelText('Your educational medical question')).toBeNull();
+    // Nor is there a way to ask before signing in.
+    expect(screen.queryByRole('button', { name: 'Ask with evidence' })).toBeNull();
+    // A signed-out visitor sees no conversation of anyone's.
+    expect(screen.queryByRole('navigation', { name: 'Recent conversations' })).toBeNull();
   });
   it('protects document workflows with an access gate', () => {
     show('/documents/example');

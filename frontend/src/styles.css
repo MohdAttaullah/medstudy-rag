@@ -193,3 +193,71 @@ button.link[aria-current="true"] { font-weight: 700; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   .step-running .step-mark { animation: none; border-width: 2px; }
 }
+
+/* ---------------------------------------------------------------- the rail
+   Collapsing is a local view preference: it changes nothing about the session, the conversation
+   or anything the server holds. */
+.sidebar { position: relative; transition: width .15s ease; }
+.sidebar-collapsed { width: 72px; padding: 36px 12px; }
+.sidebar-collapsed .brand { justify-content: center; }
+.rail-toggle { position: absolute; top: 14px; right: 10px; padding: 4px 8px; background: #1d4d55; }
+.sidebar-collapsed .rail-toggle { right: 50%; transform: translateX(50%); }
+.nav-icon { display: inline-block; inline-size: 18px; text-align: center; margin-inline-end: 10px; }
+.sidebar-collapsed .nav-icon { margin-inline-end: 0; }
+.sidebar-collapsed nav a, .sidebar-collapsed .rail-disclosure { text-align: center; padding: 12px 0; }
+.rail-conversations { margin-top: 26px; display: flex; flex-direction: column; min-height: 0; }
+.rail-heading { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #9fbcbb; margin: 18px 0 6px; }
+.new-conversation { text-decoration: none; padding: 10px 16px; color: #d4e3e3; border: 1px dashed #3d6a70; border-radius: 6px; font-size: 13px; }
+.new-conversation:hover { background: #1d4d55; }
+/* Scrolls on its own, so a long history never pushes the tools off the rail. */
+.rail-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; max-block-size: 34vh; display: grid; gap: 2px; }
+.rail-list a {
+  display: block; padding: 8px 12px; font-size: 13px; color: #c9dcdb; text-decoration: none;
+  border-radius: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rail-list a:hover { background: #1d4d55; }
+.rail-list a[aria-current="page"], .rail-list a.rail-current { background: #28555b; color: #fff; font-weight: 600; }
+.rail-tools { margin-top: 20px; }
+.rail-disclosure {
+  width: 100%; background: none; border: 0; color: #9fbcbb; font-size: 11px; letter-spacing: .12em;
+  text-transform: uppercase; padding: 10px 16px; text-align: left; cursor: pointer;
+}
+.rail-disclosure:hover { color: #fff; }
+.drawer-toggle { display: none; padding: 6px 10px; }
+.drawer-scrim { display: none; }
+
+/* ---------------------------------------------------------------- the conversation */
+.chat { display: flex; flex-direction: column; min-block-size: calc(100vh - 210px); }
+.chat-scope { margin-bottom: 18px; }
+.chat-thread { flex: 1; display: flex; flex-direction: column; gap: 26px; }
+.chat-empty { padding: 26px 0 10px; }
+.chat-empty h1 { font-size: clamp(22px, 2.4vw, 32px); }
+.examples { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 8px; max-inline-size: 640px; }
+.example {
+  width: 100%; text-align: left; background: white; color: #19383e; border: 1px solid #dfe7e4;
+  padding: 12px 16px; border-radius: 8px; font-size: 14px; cursor: pointer;
+}
+.example:hover { border-color: #175d62; }
+.turn { display: flex; flex-direction: column; gap: 12px; }
+.bubble-user {
+  align-self: flex-end; max-inline-size: min(680px, 92%); background: #175d62; color: #fff;
+  padding: 12px 18px; border-radius: 14px 14px 2px 14px;
+}
+.bubble-user p { margin: 0; font-size: 14px; line-height: 1.6; }
+.composer { position: sticky; bottom: 0; background: #f6f8f7; padding-block: 16px 8px; margin-top: 18px; border-block-start: 1px solid #e3eae7; }
+
+@media (max-width: 860px) {
+  .drawer-toggle { display: inline-flex; margin-inline-end: 14px; }
+  .sidebar {
+    position: fixed; inset-block: 0; inset-inline-start: 0; z-index: 20; inline-size: 264px;
+    transform: translateX(-100%); transition: transform .18s ease;
+  }
+  .sidebar-open { transform: translateX(0); }
+  .drawer-scrim { display: block; position: fixed; inset: 0; z-index: 15; background: #12333799; border: 0; }
+  .figure-card { flex-direction: column; }
+  .figure-thumb { inline-size: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none; }
+}
+

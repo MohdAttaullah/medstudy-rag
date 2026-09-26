@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { RetrievalInspector } from './features/retrieval/RetrievalInspector';
 import { ChunkInspector } from './features/chunking/ChunkInspector';
 import { IndexInspector } from './features/embedding/IndexInspector';
@@ -11,11 +12,7 @@ import { Jobs } from './features/operations/Jobs';
 import { ParseInspector } from './features/parsing/ParseInspector';
 import { SettingsPage } from './features/settings/Settings';
 import { Ask } from './features/ask/Ask';
-
-const navigation = [
-  ['ask', 'Ask'], ['library', 'Library'], ['settings', 'Settings'],
-  ['retrieval', 'Retrieval inspector'], ['evaluations', 'Evaluations'], ['operations', 'Operations'], ['audit', 'Audit'],
-] as const;
+import { Sidebar } from './features/navigation/Sidebar';
 
 function PlannedPage({ title, description }: { title: string; description: string }) {
   return <><p className="eyebrow">WORKSPACE FOUNDATION</p><h1>{title}</h1>
@@ -40,15 +37,20 @@ function Operations() {
 }
 
 function Workspace() {
+  // On a narrow screen the rail becomes a drawer over the content; on a wide one this does
+  // nothing, because the rail is always in the layout there.
+  const [drawer, setDrawer] = useState(false);
   return <div className="workspace">
     <a className="skip-link" href="#main">Skip to content</a>
-    <aside className="sidebar"><div className="brand"><span className="brand-mark" aria-hidden="true">+</span>
-      <div>MEDICAL<span>Evidence workspace</span></div></div>
-      <nav aria-label="Main navigation">{navigation.map(([path, label]) =>
-        <NavLink key={path} to={`/${path}`}>{label}</NavLink>)}</nav>
-      <div className="sidebar-note">Educational use<br /><span>Not for patient diagnosis or treatment.</span></div>
-    </aside>
-    <div className="content"><header><span>Knowledge workspace</span><span className="badge">M10 / Configuration</span></header>
+    <Sidebar open={drawer} onNavigate={() => setDrawer(false)} />
+    {drawer && <button type="button" className="drawer-scrim" aria-label="Close navigation"
+      onClick={() => setDrawer(false)} />}
+    <div className="content"><header>
+      <button type="button" className="drawer-toggle secondary" aria-expanded={drawer}
+        aria-controls="main" onClick={() => setDrawer(value => !value)}>
+        <span aria-hidden="true">☰</span><span className="visually-hidden">Navigation</span>
+      </button>
+      <span>Knowledge workspace</span><span className="badge">M10 / Configuration</span></header>
       <main id="main" tabIndex={-1}><Routes>
         <Route path="/" element={<Navigate to="/ask" replace />} />
         <Route path="/ask" element={<Ask />} />

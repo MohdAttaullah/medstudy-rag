@@ -7,60 +7,56 @@ import { Answer } from './Answer';
 import { BUSY_LABEL, ProgressStepper, runningStage } from './ProgressStepper';
 import { Timing } from './Timing';
 import type {
-  AskResponse, ConversationSummary, ConversationView, StageEvent,
+  AskResponse, ConversationTurnView, ConversationView, StageEvent,
 } from '../../types/retrieval';
-import type { Page } from '../../types/documents';
+
+const EXAMPLES = [
+  'What are the three cerebellar surfaces?',
+  'What is the tentorial surface of the cerebellum?',
+  'Summarize the section on the fourth ventricle.',
+];
 
 /**
- * The Ask page.
+ * The Ask page: one conversation, read top to bottom.
  *
- * It submits a question and renders whatever the server decided. It holds no part of the answer
- * rule: it does not know what SUFFICIENT means, cannot see a draft, and has no branch that could
- * display one. The server returns an answer only behind an M8 PASS, and the response contract
- * makes any other shape unconstructable — so there is nothing here to get wrong.
+ * It used to render the whole conversation index above the chat, so the composer sat below a list
+ * that grew without bound and the live progress landed off-screen on a workspace with any history.
+ * The index now lives in the rail; this page shows the conversation you are in and nothing else.
+ *
+ * It still holds no part of the answer rule: it does not know what SUFFICIENT means, cannot see a
+ * draft, and has no branch that could display one. The server returns an answer only behind an M8
+ * PASS, and the response contract makes any other shape unconstructable.
  */
 export function Ask() {
-  return <><p className="eyebrow">EDUCATIONAL KNOWLEDGE</p><h1>Evidence comes first.</h1>
-    <p className="intro">
-      Ask about your indexed source library. An answer appears only when every statement in it has
-      been checked against the sources cited beside it.
-    </p>
-    <AccessGate><Conversation /></AccessGate></>;
+  return <AccessGate><Conversation /></AccessGate>;
 }
 
 function Conversation() {
   const { token, conversation: held, setConversation } = useSession();
   const queries = useQueryClient();
   const [question, setQuestion] = useState('');
-  // The open conversation is held in two places, and neither of them is this component.
-  //
-  // It used to be `useState` here, which the router discards the moment the page unmounts: going
-  // to Library and back started a new conversation over a history the server had been keeping all
-  // along, and the turns looked lost. The session holds it across navigation — the sidebar link
-  // goes to a bare /ask, so a search parameter alone would not survive the trip — and the address
-  // carries it too, so a reload or a pasted link reopens the same conversation. Only the id is
-  // held either way; the turns are read from the server.
+  // The open conversation is held in two places, and neither of them is this component. The
+  // session outlives navigation — the rail links to a bare /ask — and the address carries it too,
+  // so a reload or a pasted link reopens the same conversation. Only the id is held either way;
+  // the turns are always read from the server.
   const [params, setParams] = useSearchParams();
   const named = params.get('conversation');
   const conversationId = named ?? held;
   // One key per submission. A retry of the same submission returns the stored turn instead of
   // spending another provider call.
   const key = useRef<string>(crypto.randomUUID());
+  const [stages, setStages] = useState<StageEvent[]>([]);
+  const foot = useRef<HTMLDivElement>(null);
 
-  // Reconcile the address and the session once, on arrival at the page, and let `open` be
-  // authoritative from then on. An address that names a conversation wins — that is a reload or a
-  // pasted link. An address that names none adopts the held one rather than clearing it, because
-  // the sidebar link goes to a bare /ask and arriving there is navigation, not a decision to
-  // leave the conversation; New conversation is how you leave it. Reconciling on every render
-  // instead would race that button: the session clears, the address has not caught up yet, and
-  // the stale address puts the conversation straight back.
+  // Reconcile the address and the session once, on arrival, and let `open` be authoritative from
+  // then on. Reconciling on every render would race New conversation: the session clears, the
+  // address has not caught up, and the stale address puts the conversation straight back.
   const reconciled = useRef(false);
   useEffect(() => {
     if (reconciled.current) return;
     reconciled.current = true;
-    if (named && named !== held) {
-      setConversation(named);
-    } else if (!named && held) {
+    if (named && named !== held) setConversation(named);
+    else if (!named && held) {
       const next = new URLSearchParams(params);
       next.set('conversation', held);
       setParams(next, { replace: true });
@@ -73,10 +69,6 @@ function Conversation() {
     if (id) next.set('conversation', id); else next.delete('conversation');
     setParams(next, { replace: !id });
   }
-
-  // Stage events for the request in flight. Cleared when a new one starts, so the stepper always
-  // describes the request being watched and never a previous one.
-  const [stages, setStages] = useState<StageEvent[]>([]);
 
   const ask = useMutation({
     mutationFn: (text: string) => askWithProgress<AskResponse>(
@@ -95,104 +87,119 @@ function Conversation() {
     },
   });
 
-  // Every conversation this principal owns. The server scopes the list to the authenticated
-  // tenant and user; the client sends no identifier of its own and could not widen it if it tried.
-  const conversations = useQuery({
-    queryKey: ['conversations'],
-    queryFn: () => api<Page<ConversationSummary>>(token, '/conversations?limit=25'),
-    enabled: Boolean(token),
-  });
-
   const history = useQuery({
     queryKey: ['conversation', conversationId],
     queryFn: () => api<ConversationView>(token, `/conversations/${conversationId}`),
     enabled: Boolean(conversationId) && !ask.isPending,
   });
 
-  // What the button says while a request is open: the stage the server last announced.
+  const result = ask.data;
+  const error = ask.error as ApiError | null;
+  const turns = history.data?.turns ?? [];
+  // The turn just answered is rendered from the response and filtered out of the reloaded history,
+  // because rendering it from both replaces the node the moment the reload lands — a flicker, and
+  // briefly a different element under the reader's eyes.
+  const earlier = turns.filter(turn => turn.turn_id !== result?.turn_id);
   const stage = runningStage(stages);
   const busy = stage ? BUSY_LABEL[stage] : 'Checking evidence…';
-  const error = ask.error as ApiError | null;
-  const result = ask.data;
-  // Both lists tolerate a response that carries neither field. A conversation index that fails to
-  // load must not take the question box down with it.
-  const listed = conversations.data?.items ?? [];
-  const turns = history.data?.turns ?? [];
-  // The turn just answered is rendered from the response and left alone; the reloaded copy of it
-  // is filtered out of the history below. Rendering it from the response first and then from the
-  // history would replace the node the moment the reload lands, which reads as a flicker and
-  // means the answer a reader is looking at was briefly a different element.
-  const earlier = [...turns].reverse().filter(turn => turn.turn_id !== result?.turn_id);
+  const empty = !earlier.length && !result && !ask.isPending && !error;
+
+  // Keep the newest exchange in view as it grows. The composer keeps focus; only the thread moves.
+  // Optional-called because not every environment implements it, and a missing convenience must
+  // never take the page down with it.
+  useEffect(() => {
+    foot.current?.scrollIntoView?.({ block: 'end', behavior: 'smooth' });
+  }, [earlier.length, result?.turn_id, ask.isPending]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    // One request at a time. A second submission would spend another provider call on a question
-    // already being answered, and the idempotency key of the first would no longer protect it.
+    // One request at a time: a second submission would spend another provider call on a question
+    // already being answered, and the first request's idempotency key would no longer protect it.
     if (!question.trim() || ask.isPending) return;
     key.current = crypto.randomUUID();
     setStages([]);
     ask.mutate(question.trim());
   }
 
-  return <>
-    <section className="notice" aria-labelledby="ask-scope">
+  return <div className="chat">
+    <section className="notice chat-scope" aria-labelledby="ask-scope">
       <span className="status-dot" aria-hidden="true" />
       <div><h2 id="ask-scope">Educational use only</h2>
         <p>This workspace answers from the sources you indexed. It is not medical advice, it is not
           for a specific patient, and it abstains rather than guessing.</p></div>
     </section>
 
-    <section className="panel" aria-labelledby="conversation-list">
-      <div className="question-footer">
-        <h2 id="conversation-list">Conversations</h2>
-        <button type="button" className="secondary" onClick={() => open(null)}
-          disabled={!conversationId}>New conversation</button>
-      </div>
-      {conversations.isPending && <p>Loading your conversations…</p>}
-      {conversations.isError && <p role="alert">Your conversations could not be loaded.</p>}
-      {conversations.isSuccess && !listed.length &&
-        <p className="muted">No conversations yet. Your first question starts one.</p>}
-      {!!listed.length && <ul className="service-list">
-        {listed.map(item => <li key={item.conversation_id}>
-          <button type="button" className="link"
-            aria-current={item.conversation_id === conversationId ? 'true' : undefined}
-            onClick={() => open(item.conversation_id)}>{item.title}</button>
-          <span className="mono">{item.turn_count} turn{item.turn_count === 1 ? '' : 's'}</span>
-        </li>)}
-      </ul>}
-    </section>
+    <div className="chat-thread">
+      {empty && <section className="chat-empty">
+        <h1>Ask your indexed medical sources</h1>
+        <p className="intro">
+          Every statement in an answer is checked against the sources cited beside it. A question
+          the indexed documents do not cover is refused rather than filled in.
+        </p>
+        <p className="rail-heading">Examples</p>
+        <ul className="examples">{EXAMPLES.map(example => <li key={example}>
+          <button type="button" className="example" onClick={() => setQuestion(example)}>
+            {example}
+          </button>
+        </li>)}</ul>
+      </section>}
 
-    <form onSubmit={submit}>
-      <label htmlFor="question">Your educational medical question</label>
-      <textarea id="question" rows={4} value={question} maxLength={2000}
+      {history.isPending && conversationId && !result &&
+        <p className="muted">Loading this conversation…</p>}
+
+      {earlier.map(turn => <article className="turn" key={turn.turn_id}>
+        <Question text={turn.question} />
+        <Answer result={turn} />
+      </article>)}
+
+      {ask.isPending && <article className="turn">
+        <Question text={question} />
+        <ProgressStepper events={stages} active outcome={null} />
+      </article>}
+
+      {result && <article className="turn">
+        <Question text={result.question} />
+        <ProgressStepper events={stages} active={false} outcome={result.outcome} />
+        <Answer result={result} />
+        <Timing stages={result.stages} />
+      </article>}
+
+      {error && !result && <article className="turn">
+        <Question text={question} />
+        <section className="panel outcome outcome-error">
+          <p className="eyebrow">
+            <span className="outcome-mark" aria-hidden="true">✕</span> SERVICE PROBLEM
+          </p>
+          <h2>The request could not be completed</h2>
+          <p role="alert" className="error">{error.message}</p>
+          <p>This is a technical failure, not a statement about the evidence. You can try again.</p>
+        </section>
+      </article>}
+
+      <div ref={foot} />
+    </div>
+
+    <form onSubmit={submit} className="composer">
+      <label htmlFor="question" className="visually-hidden">Your educational medical question</label>
+      <textarea id="question" rows={3} value={question} maxLength={2000}
+        aria-describedby="composer-note"
         onChange={event => setQuestion(event.target.value)}
         placeholder="Ask a question about your source material…" />
       <div className="question-footer">
-        <span>Every claim is checked against a traceable source.</span>
+        <span id="composer-note">Every claim is checked against a traceable source.</span>
         <button type="submit" disabled={ask.isPending || !question.trim()}
           aria-describedby={ask.isPending ? 'progress-heading' : undefined}>
           {ask.isPending ? busy : 'Ask with evidence'}</button>
       </div>
     </form>
-
-    <ProgressStepper events={stages} active={ask.isPending} outcome={result?.outcome} />
-
-    {error && !result && <section className="panel">
-      <p className="eyebrow">SERVICE PROBLEM</p><h2>The request could not be completed</h2>
-      <p role="alert" className="error">{error.message}</p>
-      <p>This is a technical failure, not a statement about the evidence. You can try again.</p>
-    </section>}
-
-    {result && <Answer result={result} />}
-    {result && <Timing stages={result.stages} />}
-
-    {history.isPending && conversationId && <p>Loading this conversation…</p>}
-    {!!earlier.length && <section className="panel" aria-labelledby="conversation-turns">
-      <h2 id="conversation-turns">{result ? 'Earlier in this conversation' : history.data?.title}</h2>
-      {earlier.map(turn => <article className="version-card" key={turn.turn_id}>
-        <h3>{turn.question}</h3>
-        <Answer result={turn} />
-      </article>)}
-    </section>}
-  </>;
+  </div>;
 }
+
+function Question({ text }: { text: string }) {
+  return <div className="bubble bubble-user">
+    <p className="visually-hidden">You asked:</p>
+    <p>{text}</p>
+  </div>;
+}
+
+export type { ConversationTurnView };
