@@ -1,0 +1,182 @@
+/*
+ * Shared components: panels, notices, tables, forms and the inspector surfaces.
+ *
+ * These are the pieces every page borrows. They were previously a long tail of one-off hex values
+ * accumulated a milestone at a time; the rules are the same rules, now expressed in tokens, so a
+ * document table and a settings card finally share one border, one radius and one grey.
+ */
+
+/* ---- panels and notices ------------------------------------------------ */
+.panel {
+  padding: var(--space-5); background: var(--bg-surface);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  margin: var(--space-5) 0;
+}
+.panel > p { font: var(--text-secondary-size); color: var(--text-secondary); margin: var(--space-3) 0; }
+.panel > p:last-child { margin-bottom: 0; }
+
+.notice {
+  display: flex; gap: var(--space-3); padding: var(--space-4);
+  background: var(--bg-subtle); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); margin-bottom: var(--space-5);
+}
+.notice p { font: var(--text-secondary-size); color: var(--text-secondary); }
+.status-dot {
+  flex-shrink: 0; inline-size: 8px; block-size: 8px; border-radius: 50%;
+  background: var(--info); margin-top: 7px;
+}
+
+.error {
+  background: var(--danger-subtle); border-inline-start: 3px solid var(--danger);
+  padding: var(--space-3); color: var(--danger); font: var(--text-meta);
+  margin: var(--space-4) 0; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.success-list {
+  background: var(--success-subtle); padding: var(--space-4) var(--space-6);
+  font: var(--text-meta); color: var(--text-secondary); border-radius: var(--radius-sm);
+}
+
+/* ---- the outcome accent ------------------------------------------------
+   Used by the Ask answer and by any panel reporting a checked result. Colour is an accent on top
+   of a mark and a word, never the signal itself. */
+.outcome { border-inline-start: 3px solid var(--border-subtle); }
+/* The mark is the icon itself. It was previously a typographic character inside a drawn circle,
+   which read as a bullet point rather than as a status. */
+.outcome-mark { display: inline-flex; align-items: center; flex-shrink: 0; }
+
+/* ---- layout helpers ---------------------------------------------------- */
+.section-heading, .actions, .filters, .pagination {
+  display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap;
+}
+.section-heading { justify-content: space-between; }
+.section-heading h2 { margin: 0; }
+.section-heading label { font-size: 11px; margin: 0; }
+.checkbox-label { display: flex; align-items: center; }
+.pagination { justify-content: flex-end; margin-top: var(--space-4); font: var(--text-meta); }
+.pagination > span { margin-inline-end: auto; }
+
+.form-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4); margin: var(--space-5) 0;
+}
+.form-grid label { margin: 0; }
+.form-grid .wide { grid-column: 1 / -1; }
+.drop-zone {
+  border: 2px dashed var(--border-control); border-radius: var(--radius-md);
+  padding: var(--space-5); margin-top: var(--space-4); background: var(--bg-subtle);
+}
+.drop-zone ul { padding-inline-start: var(--space-5); font: var(--text-meta); overflow-wrap: anywhere; }
+.drop-zone input { background: transparent; border: 0; padding: 0; }
+.access-panel { max-inline-size: 460px; }
+.access-panel button { margin-top: var(--space-4); }
+.transfer-progress { margin-top: var(--space-4); }
+progress { inline-size: 100%; accent-color: var(--accent-primary); }
+
+/* A row that reads as text but behaves as a control. */
+button.link {
+  background: none; border: 0; padding: 0; font: inherit; color: var(--accent-primary);
+  text-decoration: underline; cursor: pointer; text-align: start;
+}
+button.link[aria-current="true"] { font-weight: 700; text-decoration: none; }
+.button-link { display: inline-block; margin-top: var(--space-2); font: var(--text-meta); font-weight: 600; }
+
+/* ---- key/value and list views ------------------------------------------ */
+.service-list { list-style: none; padding: 0; margin: var(--space-4) 0; }
+.service-list li {
+  display: flex; justify-content: space-between; gap: var(--space-4); align-items: baseline;
+  padding: var(--space-3) 0; border-block-end: 1px solid var(--border-subtle);
+  font: var(--text-secondary-size);
+}
+.service-list li:last-child { border-block-end: 0; }
+
+.detail-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4); margin: var(--space-4) 0;
+}
+dt {
+  font: 600 10.5px/1.5 var(--font-sans); letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+dd { font: var(--text-meta); margin: var(--space-1) 0 0; overflow-wrap: anywhere; }
+
+article > span { display: block; font: var(--text-meta); color: var(--text-muted); margin-bottom: var(--space-3); }
+.question-footer {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--space-4);
+  margin-top: var(--space-3); font: var(--text-meta); color: var(--text-muted);
+}
+
+/* ---- tables ------------------------------------------------------------ */
+.table-scroll { overflow-x: auto; margin: var(--space-4) 0; }
+table { inline-size: 100%; border-collapse: collapse; text-align: start; font: var(--text-meta); }
+th {
+  font: 600 10.5px/1.5 var(--font-sans); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-muted);
+}
+th, td { border-block-end: 1px solid var(--border-subtle); padding: var(--space-3) var(--space-2); vertical-align: top; }
+td small { display: block; margin-top: var(--space-2); color: var(--text-muted); }
+td:first-child { min-inline-size: 160px; max-inline-size: 280px; overflow-wrap: anywhere; }
+
+/* Lifecycle states. Each keeps its own wording in the markup; the fill is a second signal. */
+.state {
+  display: inline-block; text-transform: capitalize; border-radius: var(--radius-sm);
+  padding: 3px var(--space-2); background: var(--bg-subtle); color: var(--text-secondary);
+  font: 500 11px/1.4 var(--font-sans); white-space: nowrap;
+}
+.state-queued { background: var(--success-subtle); color: var(--success); }
+.state-validating, .state-uploaded, .state-info { background: var(--info-subtle); color: var(--info); }
+.state-failed, .state-quarantined, .state-critical, .state-error { background: var(--danger-subtle); color: var(--danger); }
+.state-parsing, .state-normalizing, .state-enriching, .state-running { background: var(--info-subtle); color: var(--info); }
+.state-ready_for_chunking, .state-succeeded { background: var(--success-subtle); color: var(--success); }
+.state-needs_review, .state-warning { background: var(--warning-subtle); color: var(--warning); }
+
+/* ---- document, parse and chunk inspectors ------------------------------ */
+.job-card, .version-card { border-block-start: 1px solid var(--border-subtle); padding: var(--space-5) 0; }
+.version-card h3, .history h3 { font-size: 14px; font-weight: 600; margin-bottom: var(--space-3); }
+.history { margin-top: var(--space-4); background: var(--bg-subtle); padding: var(--space-4); border-radius: var(--radius-md); }
+.history ol { padding-inline-start: var(--space-5); margin: 0; }
+.history li { padding: var(--space-2) 0; font: var(--text-meta); }
+.history li > span:last-child { display: block; margin-top: var(--space-2); color: var(--text-muted); }
+
+.parse-summary { margin-top: var(--space-4); background: var(--bg-surface); }
+.parse-page { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.page-preview { inline-size: 100%; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface); }
+.figure-crop { max-inline-size: 100%; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin: var(--space-3) 0; }
+.parse-text pre, .element-list pre {
+  white-space: pre-wrap; overflow-wrap: anywhere; font: var(--text-mono);
+  background: var(--bg-subtle); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); padding: var(--space-3); margin: var(--space-2) 0;
+}
+.element-list { list-style: none; padding: 0; margin: 0; }
+.element-list > li { border-block-start: 1px solid var(--border-subtle); padding: var(--space-3) 0; font: var(--text-meta); }
+.element-list > li p { margin: var(--space-2) 0; line-height: 1.6; }
+.parse-table th, .parse-table td { border: 1px solid var(--border-subtle); padding: var(--space-2) var(--space-3); }
+.parse-table th { background: var(--bg-subtle); }
+.element-list .muted, .parse-summary .muted { margin-top: var(--space-2); }
+.chunk-text { white-space: pre-wrap; overflow-wrap: anywhere; max-block-size: 32rem; overflow: auto; }
+.chunk-preview { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* ---- the timing waterfall ----------------------------------------------
+   The bar repeats the percentage beside it; it never replaces it. */
+.timing-waterfall { inline-size: 100%; border-collapse: collapse; font: var(--text-meta); }
+.timing-waterfall caption { text-align: start; color: var(--text-muted); font: var(--text-meta); padding-block: var(--space-2); }
+.timing-waterfall th, .timing-waterfall td {
+  text-align: start; padding: var(--space-1) var(--space-3) var(--space-1) 0;
+  border-block-end: 1px solid var(--border-subtle); vertical-align: top;
+}
+.timing-waterfall th[scope="row"] { font: 600 12.5px/1.5 var(--font-sans); text-transform: none; letter-spacing: 0; color: var(--text-primary); }
+.timing-waterfall th[scope="row"] .mono { display: block; font-weight: 400; }
+.timing-waterfall .bar {
+  display: inline-block; block-size: 7px; min-inline-size: 2px; margin-inline-end: var(--space-2);
+  background: var(--accent-primary); border-radius: 2px; vertical-align: 1px;
+}
+.timing-waterfall tfoot th, .timing-waterfall tfoot td { border-block-end: 0; padding-block-start: var(--space-2); }
+
+@media (max-width: 900px) {
+  .form-grid, .detail-grid { grid-template-columns: 1fr; }
+  .panel { padding: var(--space-4); }
+  .section-heading { align-items: flex-start; }
+  .drop-zone { padding: var(--space-4); }
+  .filters { inline-size: 100%; }
+  .parse-page { grid-template-columns: 1fr; }
+  .question-footer { align-items: flex-start; flex-direction: column; gap: var(--space-2); }
+}

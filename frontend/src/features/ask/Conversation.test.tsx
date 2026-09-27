@@ -167,10 +167,42 @@ it('starts a different conversation when New conversation is chosen', async () =
   await waitFor(() => expect(asked.conversation_id).toBeNull());
 });
 
+it('sends on Enter and keeps Shift+Enter for a new line', async () => {
+  await workspace();
+  const field = screen.getByLabelText('Your educational medical question');
+  fireEvent.change(field, { target: { value: 'A line' } });
+
+  // Shift+Enter is a newline in the composer, not a submission.
+  fireEvent.keyDown(field, { key: 'Enter', shiftKey: true });
+  expect(asked.question).toBeUndefined();
+
+  fireEvent.keyDown(field, { key: 'Enter' });
+  await waitFor(() => expect(asked.question).toBe('A line'));
+});
+
+it('refuses a second submission while one is in flight, by key and by button', async () => {
+  await workspace();
+  const field = screen.getByLabelText('Your educational medical question');
+  fireEvent.change(field, { target: { value: 'Only once?' } });
+  fireEvent.keyDown(field, { key: 'Enter' });
+
+  // While the request is open the button is disabled and Enter does nothing: a second submission
+  // would spend another provider call on a question already being answered, and the first
+  // request's idempotency key would no longer protect it.
+  const button = screen.getByRole('button', { name: /…$/ });
+  expect(button).toBeDisabled();
+  fireEvent.keyDown(field, { key: 'Enter' });
+  fireEvent.click(button);
+  await screen.findByText('Answer to Only once?');
+  expect(requested.filter(url => url.endsWith('/ask'))).toHaveLength(1);
+});
+
 it('drops the conversation on sign-out so the next principal starts clean', async () => {
   await workspace('/ask?conversation=cv1');
   await screen.findByText('Answer to First question?');
-  fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+  // Sign-out lives in the header's account menu now, rather than loose above the page content.
+  fireEvent.click(screen.getByRole('button', { name: 'Account and workspace' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
   await screen.findByLabelText('Access key');
   // No conversation content survives on the sign-in screen.
   expect(screen.queryByText('Answer to First question?')).not.toBeInTheDocument();

@@ -1,10 +1,18 @@
 .settings-workspace { min-width: 0; }
 .settings-workspace input:not([type=checkbox]), .settings-workspace select { max-width: 100%; box-sizing: border-box; }
-.settings-sections, .settings-actions { display: flex; flex-wrap: wrap; gap: .55rem; margin: 1rem 0; }
-.settings-sections [aria-pressed=true] { outline: 2px solid #17645c; outline-offset: 2px; }
+.settings-sections, .settings-actions {
+  display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-4) 0;
+}
+.settings-sections button { font-weight: 500; }
+/* Selected is a fill and a weight, not an outline that reads as a focus ring. */
+.settings-sections [aria-pressed=true] {
+  background: var(--accent-primary); color: var(--text-inverse); border-color: transparent;
+  font-weight: 600;
+}
 .settings-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 1rem; }
-.setting-card, .settings-editor, .settings-history li { overflow-wrap: anywhere; min-width: 0; }
-.setting-card h2 { font-size: 1.05rem; }
+.setting-card, .settings-editor, .settings-history li { overflow-wrap: anywhere; min-inline-size: 0; }
+.setting-card h2 { font-size: 15px; }
+.settings-workspace > label + input, #settings-search { max-inline-size: 420px; }
 .setting-card dd { margin: .2rem 0 .7rem; }
 .setting-card dt { font-weight: 600; }
 .settings-confirm { display: flex; align-items: center; gap: .6rem; margin: 1rem 0; }

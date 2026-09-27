@@ -3,6 +3,7 @@ import { Link, NavLink } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { useSession } from '../library/Session';
+import { Icon, type IconName } from './icons';
 import type { Page } from '../../types/documents';
 import type { ConversationSummary } from '../../types/retrieval';
 
@@ -23,18 +24,18 @@ import type { ConversationSummary } from '../../types/retrieval';
  */
 
 const PRIMARY = [
-  ['ask', 'Ask', '◆'],
-  ['library', 'Library', '▤'],
-  ['settings', 'Settings', '⚙'],
-] as const;
+  ['ask', 'Ask', 'ask'],
+  ['library', 'Library', 'library'],
+  ['settings', 'Settings', 'settings'],
+] as const satisfies readonly (readonly [string, string, IconName])[];
 
 /** Each advanced tool with the permission that makes it usable. */
 const ADVANCED = [
-  ['retrieval', 'Retrieval inspector', '◎', 'retrieval:search'],
-  ['evaluations', 'Evaluations', '◇', 'retrieval:search'],
-  ['operations', 'Operations', '▣', 'ingestion:read'],
-  ['audit', 'Audit', '☰', 'audit:read'],
-] as const;
+  ['retrieval', 'Retrieval inspector', 'retrieval', 'retrieval:search'],
+  ['evaluations', 'Evaluations', 'evaluations', 'retrieval:search'],
+  ['operations', 'Operations', 'operations', 'ingestion:read'],
+  ['audit', 'Audit', 'audit', 'audit:read'],
+] as const satisfies readonly (readonly [string, string, IconName, string])[];
 
 const COLLAPSED_KEY = 'medrag.sidebar.collapsed';
 
@@ -78,21 +79,23 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () =>
     className={`sidebar${collapsed ? ' sidebar-collapsed' : ''}${open ? ' sidebar-open' : ''}`}
     aria-label="Workspace navigation"
   >
+    {/* A working identity, not a final brand: a mark, a product name, and what the product is.
+        Collapsed, only the mark remains. */}
     <div className="brand">
-      <span className="brand-mark" aria-hidden="true">+</span>
-      {!collapsed && <div>MEDICAL<span>Evidence workspace</span></div>}
+      <span className="brand-mark"><Icon name="brand" /></span>
+      {!collapsed && <span className="brand-name">Medical Evidence<span>Evidence workspace</span></span>}
     </div>
 
-    <button type="button" className="rail-toggle secondary" aria-expanded={!collapsed}
+    <button type="button" className="rail-toggle" aria-expanded={!collapsed}
       onClick={() => setCollapsed(value => !value)}>
-      <span aria-hidden="true">{collapsed ? '»' : '«'}</span>
+      <Icon name={collapsed ? 'expand-rail' : 'collapse-rail'} />
       <span className="visually-hidden">{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span>
     </button>
 
     <nav aria-label="Main navigation">
       {PRIMARY.map(([path, text, icon]) =>
         <NavLink key={path} to={`/${path}`} onClick={onNavigate} title={collapsed ? text : undefined}>
-          <span className="nav-icon" aria-hidden="true">{icon}</span>{label(text)}
+          <Icon name={icon} />{label(text)}
         </NavLink>)}
     </nav>
 
@@ -101,7 +104,7 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () =>
           NavLink would mark this as current on every visit to /ask. */}
       <Link to="/ask" className="new-conversation" onClick={() => { setConversation(null); onNavigate(); }}
         title={collapsed ? 'New conversation' : undefined}>
-        <span className="nav-icon" aria-hidden="true">+</span>{label('New conversation')}
+        <Icon name="new-conversation" />{label('New conversation')}
       </Link>
       {!collapsed && <>
         <p className="rail-heading" id="recent-conversations">Recent</p>
@@ -119,6 +122,7 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () =>
               onClick={() => { setConversation(item.conversation_id); onNavigate(); }}
               aria-current={item.conversation_id === conversation ? 'page' : undefined}
               className={item.conversation_id === conversation ? 'rail-current' : undefined}
+              // A title, because a long question is truncated to one line in the rail.
               title={item.title}
             >{item.title}</Link>
           </li>)}
@@ -128,20 +132,18 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () =>
 
     {!!tools.length && <section className="rail-tools">
       <button type="button" className="rail-disclosure" aria-expanded={showAdvanced}
-        onClick={() => setShowAdvanced(value => !value)}>
-        <span className="nav-icon" aria-hidden="true">{showAdvanced ? '▾' : '▸'}</span>
+        onClick={() => setShowAdvanced(value => !value)}
+        title={collapsed ? 'Advanced tools' : undefined}>
+        <Icon name="advanced" small />
         {label('Advanced tools')}
+        {!collapsed && <Icon name="chevron-right" small />}
       </button>
       {showAdvanced && <nav aria-label="Advanced tools">
         {tools.map(([path, text, icon]) =>
           <NavLink key={path} to={`/${path}`} onClick={onNavigate} title={collapsed ? text : undefined}>
-            <span className="nav-icon" aria-hidden="true">{icon}</span>{label(text)}
+            <Icon name={icon} />{label(text)}
           </NavLink>)}
       </nav>}
     </section>}
-
-    {!collapsed && <div className="sidebar-note">
-      Educational use<br /><span>Not for patient diagnosis or treatment.</span>
-    </div>}
   </aside>;
 }

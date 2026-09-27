@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Icon, type IconName } from '../navigation/icons';
 import type { StageCode, StageEvent, StageState } from '../../types/retrieval';
 
 /**
@@ -60,19 +61,35 @@ const SLOW: Partial<Record<StageCode, string>> = {
 };
 const SLOW_AFTER_MS = 4000;
 
-/** How a finished request introduces its own record, in a mark and a word. */
-const OUTCOMES: Record<string, {mark: string; word: string}> = {
-  VERIFIED: {mark: '✓', word: 'Verified'},
-  INSUFFICIENT_EVIDENCE: {mark: '◍', word: 'Not enough evidence'},
-  CONFLICTING_EVIDENCE: {mark: '◍', word: 'Sources disagree'},
-  UNVERIFIED: {mark: '!', word: 'Could not verify'},
-  FAILED: {mark: '✕', word: 'Technical failure'},
-  OUT_OF_SCOPE: {mark: 'i', word: 'Outside scope'},
+/** How a finished request introduces its own record, in a mark, a word and a severity. */
+const OUTCOMES: Record<string, {icon: IconName; word: string; tone: string}> = {
+  VERIFIED: {icon: 'verified', word: 'Verified', tone: 'verified'},
+  INSUFFICIENT_EVIDENCE: {icon: 'no-answer', word: 'Not enough evidence', tone: 'caution'},
+  CONFLICTING_EVIDENCE: {icon: 'conflict', word: 'Sources disagree', tone: 'caution'},
+  UNVERIFIED: {icon: 'unverified', word: 'Could not verify', tone: 'caution'},
+  FAILED: {icon: 'failed', word: 'Technical failure', tone: 'error'},
+  OUT_OF_SCOPE: {icon: 'scope', word: 'Outside scope', tone: 'neutral'},
 };
 
-const MARKS: Record<StageState, string> = {
-  COMPLETED: '✓', RUNNING: '●', PENDING: '○', SKIPPED: '–', FAILED: '✕',
+/**
+ * The mark inside each stepper node.
+ *
+ * The node itself is a ring. A completed stage puts a tick in it, a skipped one a dash, a failed
+ * one a cross; a running stage fills the ring with a dot, and a stage not yet announced leaves it
+ * empty. Every one of those is also stated in words on the row beneath, so the ring is a second
+ * signal rather than the only one.
+ */
+const MARKS: Record<StageState, IconName | 'dot' | 'empty'> = {
+  COMPLETED: 'stage-done', RUNNING: 'dot', PENDING: 'empty',
+  SKIPPED: 'stage-skipped', FAILED: 'stage-failed',
 };
+
+function Mark({ state }: { state: StageState }) {
+  const mark = MARKS[state];
+  return <span className="step-mark" data-mark={mark} aria-hidden="true">
+    {mark === 'dot' ? <span className="step-dot" /> : mark === 'empty' ? null : <Icon name={mark} small />}
+  </span>;
+}
 const WORDS: Record<StageState, string> = {
   COMPLETED: 'Completed', RUNNING: 'Running now', PENDING: 'Not started',
   SKIPPED: 'Skipped', FAILED: 'Failed',
@@ -138,23 +155,24 @@ export function ProgressStepper(
   // Finished work collapses to one line. Seven stages are what a reader needs *while* they wait;
   // afterwards they are a record, and a record does not need to occupy the screen above the answer.
   if (!active) {
-    const settled = OUTCOMES[outcome ?? ''] ?? { mark: '✓', word: 'Finished' };
-    return <details className="panel progress progress-summary">
+    const settled = OUTCOMES[outcome ?? ''] ?? { icon: 'verified' as IconName, word: 'Finished', tone: 'verified' };
+    return <details className="progress progress-summary">
       <summary>
-        <span className="outcome-mark" aria-hidden="true">{settled.mark}</span>
+        <span className={`outcome-mark summary-${settled.tone}`} data-mark={settled.icon}
+          aria-hidden="true"><Icon name={settled.icon} small /></span>
         <span>{settled.word}</span>
-        <span className="mono">{(elapsed / 1000).toFixed(1)} s</span>
+        <span className="progress-clock">{(elapsed / 1000).toFixed(1)} s</span>
         <span className="summary-hint">View processing details</span>
       </summary>
       <Stages states={states} running={undefined} stageSince={null} stageElapsed={0} slow={undefined} />
     </details>;
   }
 
-  return <section className="panel progress" aria-labelledby="progress-heading">
-    <div className="question-footer">
+  return <section className="progress" aria-labelledby="progress-heading">
+    <div className="progress-head">
       <h2 id="progress-heading">Working through your evidence</h2>
       {first !== null &&
-        <span className="mono" aria-hidden="true">{(elapsed / 1000).toFixed(1)} s</span>}
+        <span className="progress-clock" aria-hidden="true">{(elapsed / 1000).toFixed(1)} s</span>}
     </div>
 
     {/* One polite region for the whole stepper: a screen reader hears the stage that changed,
@@ -186,7 +204,7 @@ function Stages(
       const state = states[stage.code];
       const live = running?.code === stage.code;
       return <li key={stage.code} className={`step step-${state.toLowerCase()}`}>
-        <span className="step-mark" aria-hidden="true">{MARKS[state]}</span>
+        <Mark state={state} />
         <div>
           <p className="step-title">{stage.title}</p>
           {/* Never colour alone: every row states its condition in words. */}
@@ -194,6 +212,8 @@ function Stages(
           {live && <p className="step-detail">{stage.detail}</p>}
           {live && stageSince !== null &&
             <p className="step-detail mono">Current stage: {(stageElapsed / 1000).toFixed(1)} s</p>}
+          {/* The clock above counts real elapsed time since the server announced this stage. It
+              is not a fraction and not an estimate: nothing here predicts when the stage ends. */}
           {live && slow && <p className="step-detail">{slow}</p>}
         </div>
       </li>;

@@ -1,0 +1,200 @@
+/*
+ * The application shell: the rail, the header, the content column.
+ *
+ * The shell is deliberately quiet. Nothing in it competes with the answer, because nothing in it
+ * is what the reader came for. The rail is a dark surface that recedes; the header is a thin line
+ * holding only the two things that change per session — which workspace you are in, and how to
+ * leave it.
+ */
+
+.workspace { display: flex; min-block-size: 100vh; }
+
+/* ---- the rail ---------------------------------------------------------- */
+.sidebar {
+  position: sticky; inset-block-start: 0; display: flex; flex-direction: column; flex-shrink: 0;
+  inline-size: var(--rail-width); background: var(--bg-sidebar); color: var(--text-rail);
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  transition: inline-size .16s ease;
+  /* The rail is its own scroll context and never grows the page. */
+  block-size: 100vh; overflow: hidden;
+}
+.sidebar-collapsed { inline-size: var(--rail-collapsed); padding-inline: var(--space-2); }
+
+.brand {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-4);
+  color: var(--text-inverse); text-decoration: none;
+}
+.brand-mark {
+  display: grid; place-items: center; inline-size: 30px; block-size: 30px; flex-shrink: 0;
+  border-radius: var(--radius-sm); background: var(--accent-primary); color: var(--text-inverse);
+}
+.brand-name { font: 600 14px/1.25 var(--font-sans); letter-spacing: -.005em; }
+.brand-name span {
+  display: block; font: var(--text-meta); font-size: 11.5px; font-weight: 400;
+  color: var(--text-rail-muted); margin-top: 1px; letter-spacing: 0;
+}
+.sidebar-collapsed .brand { justify-content: center; padding-inline: 0; }
+
+.rail-toggle {
+  position: absolute; inset-block-start: var(--space-4); inset-inline-end: var(--space-3);
+  display: grid; place-items: center; inline-size: 28px; block-size: 28px; padding: 0;
+  background: transparent; border: 0; color: var(--text-rail-muted); border-radius: var(--radius-sm);
+}
+.rail-toggle:hover:not(:disabled) { background: var(--bg-rail-hover); color: var(--text-inverse); }
+.sidebar-collapsed .rail-toggle {
+  position: static; inline-size: 100%; margin-bottom: var(--space-2);
+}
+
+/* Navigation rows. Primary and advanced share one shape, so the rail reads as one list with two
+   levels of importance rather than as two unrelated menus. */
+.sidebar nav { display: grid; gap: 2px; }
+.sidebar nav a, .new-conversation, .rail-disclosure, .rail-list a {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: 9px var(--space-3); border-radius: var(--radius-sm);
+  color: var(--text-rail); text-decoration: none;
+  font: 500 14px/1.4 var(--font-sans);
+  /* A long label ends in an ellipsis inside the rail instead of widening it. `min-inline-size: 0`
+     is what actually stops a flex or grid child forcing its container wider than the rail —
+     without it the history list pushed a horizontal scrollbar into the navigation. */
+  min-inline-size: 0; white-space: nowrap; overflow: hidden;
+}
+.sidebar nav a > span:not(.visually-hidden),
+.new-conversation > span:not(.visually-hidden),
+.rail-disclosure > span:not(.visually-hidden) {
+  min-inline-size: 0; overflow: hidden; text-overflow: ellipsis;
+}
+.sidebar nav a:hover, .new-conversation:hover, .rail-list a:hover {
+  background: var(--bg-rail-hover); color: var(--text-inverse);
+}
+/* Selected is a fill *and* an inset marker bar, so it never rests on colour alone. */
+.sidebar nav a.active, .rail-list a[aria-current="page"], .rail-list a.rail-current {
+  background: var(--bg-rail-selected); color: var(--text-inverse); font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--accent-subtle);
+}
+.sidebar-collapsed nav a, .sidebar-collapsed .new-conversation, .sidebar-collapsed .rail-disclosure {
+  justify-content: center; padding-inline: 0;
+}
+
+.new-conversation {
+  margin: var(--space-4) 0 var(--space-2);
+  border: 1px solid var(--bg-rail-selected); font-weight: 600;
+}
+
+.rail-conversations { display: flex; flex-direction: column; min-block-size: 0; }
+.rail-heading {
+  font: 600 10.5px/1.4 var(--font-sans); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-rail-muted); margin: var(--space-3) var(--space-3) var(--space-1);
+}
+.rail-conversations .muted { color: var(--text-rail-muted); padding-inline: var(--space-3); }
+
+/* History is secondary: smaller, quieter, and scrolling in its own box so it can never push the
+   tools off the rail or introduce a second scrollbar on the page. */
+.rail-list {
+  list-style: none; margin: 0; padding: 0 0 var(--space-2); display: block;
+  overflow-y: auto; overflow-x: hidden; max-block-size: min(38vh, 340px);
+  /* A thin, self-coloured scrollbar where the browser supports one; the platform default
+     otherwise. The wide track with arrow buttons was a Windows default, not a decision. */
+  scrollbar-width: thin; scrollbar-color: var(--bg-rail-selected) transparent;
+}
+.rail-list::-webkit-scrollbar { inline-size: 8px; }
+.rail-list::-webkit-scrollbar-track { background: transparent; }
+.rail-list::-webkit-scrollbar-thumb { background: var(--bg-rail-selected); border-radius: 4px; }
+.rail-list li { min-inline-size: 0; }
+.rail-list a {
+  display: block; font-weight: 400; font-size: 13.5px; color: var(--text-rail-muted);
+  padding-block: 7px; text-overflow: ellipsis;
+}
+
+.rail-tools { margin-top: auto; padding-top: var(--space-4); }
+.rail-disclosure {
+  inline-size: 100%; background: none; border: 0; cursor: pointer; text-align: start;
+  font: 600 10.5px/1.4 var(--font-sans); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-rail-muted);
+}
+.rail-disclosure:hover { background: var(--bg-rail-hover); color: var(--text-inverse); }
+/* The trailing chevron, and only it: the leading icon names the section and must not rotate. */
+.rail-disclosure > .icon-sm:last-child { margin-inline-start: auto; transition: transform .15s ease; }
+.rail-disclosure[aria-expanded="true"] > .icon-sm:last-child { transform: rotate(90deg); }
+.rail-tools nav { margin-top: var(--space-1); }
+.rail-tools nav a { font-size: 13.5px; font-weight: 400; color: var(--text-rail-muted); }
+
+/* ---- the header --------------------------------------------------------
+   One line. The page title lives in the page, not here, so this holds only the session. */
+.content { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; }
+.content > header {
+  display: flex; align-items: center; gap: var(--space-3);
+  min-block-size: var(--header-height); padding: 0 var(--space-5);
+  background: var(--bg-surface); border-block-end: 1px solid var(--border-subtle);
+  position: sticky; inset-block-start: 0; z-index: 10;
+}
+.header-context { font: 600 13px/1.4 var(--font-sans); color: var(--text-secondary); }
+.header-end { margin-inline-start: auto; display: flex; align-items: center; gap: var(--space-2); }
+
+/* The workspace and account menu. Everything the shell used to spell out in the content area —
+   who you are, which workspace, and how to sign out — is behind this one control. */
+.account { position: relative; }
+.account-button {
+  display: flex; align-items: center; gap: var(--space-2); padding: 4px 8px 4px 4px;
+  background: transparent; color: var(--text-secondary); border-color: transparent;
+  font: 500 13px/1.3 var(--font-sans);
+}
+.account-button:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-primary); }
+.avatar {
+  display: grid; place-items: center; inline-size: 28px; block-size: 28px; flex-shrink: 0;
+  border-radius: 50%; background: var(--accent-primary); color: var(--text-inverse);
+  font: 600 11.5px/1 var(--font-sans); letter-spacing: .02em;
+}
+.account-menu {
+  position: absolute; inset-inline-end: 0; inset-block-start: calc(100% + var(--space-2));
+  min-inline-size: 252px; padding: var(--space-3); z-index: 30;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-overlay);
+}
+.account-menu h2 { font: 600 14px/1.35 var(--font-sans); margin: 0; }
+.account-menu .muted { display: block; margin-top: 2px; }
+.account-menu hr { border: 0; border-block-start: 1px solid var(--border-subtle); margin: var(--space-3) 0; }
+.account-menu button {
+  inline-size: 100%; display: flex; align-items: center; justify-content: center;
+  gap: var(--space-2);
+}
+
+/* Capped and centred. Without a ceiling, a form on a 1728-pixel display stretched its fields to
+   700 pixels each; the conversation caps itself tighter still, at the reading measure. */
+.content > main {
+  flex: 1; inline-size: 100%; max-inline-size: 1200px; margin-inline: auto;
+  padding: var(--space-6) var(--space-5);
+}
+.content > footer {
+  padding: var(--space-4) var(--space-5); font: var(--text-meta); color: var(--text-muted);
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+.drawer-toggle { display: none; }
+.drawer-scrim { display: none; }
+
+/* ---- narrow viewports --------------------------------------------------
+   The rail becomes a drawer over the content. Nothing is removed — the same links, the same
+   history, the same tools — it is summoned rather than always present. */
+@media (max-width: 900px) {
+  .drawer-toggle {
+    display: grid; place-items: center; inline-size: 34px; block-size: 34px; padding: 0;
+    background: transparent; border-color: transparent; color: var(--text-secondary);
+  }
+  .drawer-toggle:hover:not(:disabled) { background: var(--bg-hover); }
+  .sidebar {
+    position: fixed; inset-block: 0; inset-inline-start: 0; z-index: 40;
+    inline-size: min(300px, 86vw); transform: translateX(-100%);
+    transition: transform .18s ease; box-shadow: var(--shadow-overlay);
+  }
+  .sidebar-open { transform: translateX(0); }
+  .sidebar-collapsed { inline-size: min(300px, 86vw); padding-inline: var(--space-3); }
+  .rail-toggle { display: none; }
+  .drawer-scrim {
+    display: block; position: fixed; inset: 0; z-index: 35; border: 0;
+    background: var(--scrim);
+  }
+  .content > header { padding-inline: var(--space-4); }
+  .content > main { padding: var(--space-5) var(--space-4); }
+  .content > footer { padding-inline: var(--space-4); }
+}

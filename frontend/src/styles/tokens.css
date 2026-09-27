@@ -1,0 +1,114 @@
+/*
+ * Design tokens.
+ *
+ * Every colour, space, radius, shadow and type step in this application is named here and used by
+ * name everywhere else. The rule is simple: no literal hex value outside this file. That is not
+ * tidiness for its own sake — the stylesheet had accumulated eleven slightly different greens and
+ * four different greys, which is how a product ends up looking assembled rather than designed.
+ *
+ * Every text/background pair below was measured against WCAG 2.1 AA before being adopted; the
+ * measured ratios are recorded beside the pairs that carry text. Contrast is a property of the
+ * token pair, so fixing it here fixes it everywhere at once.
+ */
+
+:root {
+  /* ---- surfaces ------------------------------------------------------- */
+  --bg-app: #f6f8f9;            /* the canvas the workspace sits on */
+  --bg-surface: #ffffff;        /* cards, panels, the composer */
+  --bg-subtle: #eef2f3;         /* quiet fills: quotes, thumbnails, code */
+  --bg-sidebar: #10272d;        /* deep desaturated teal-slate */
+  --bg-hover: #eef2f3;
+  --bg-selected: #e5f0f0;
+
+  /* Rail surfaces are separate tokens: the rail is a dark context, and reusing the light
+     hover/selected fills there would be invisible. */
+  --bg-rail-hover: #1b3d45;
+  --bg-rail-selected: #22505a;
+
+  /* ---- text ------------------------------------------------------------
+     on --bg-surface: primary 16.6:1, secondary 7.6:1, muted 5.2:1
+     on --bg-app:     primary 15.6:1, muted 4.9:1 */
+  --text-primary: #0f2126;
+  --text-secondary: #44575d;
+  --text-muted: #5d7076;
+  --text-inverse: #ffffff;
+  --text-disabled: #536569;     /* 5.1:1 on --bg-disabled */
+
+  /* Rail text: 11.3:1 on the sidebar; muted 8.1:1 on the sidebar and 4.6:1 on a selected row. */
+  --text-rail: #cfdfe0;
+  --text-rail-muted: #a6c0c2;
+
+  /* ---- borders ---------------------------------------------------------
+     --border-control is the only one that carries meaning (it is the edge of an input or a
+     button), so it is the only one held to the 3:1 of WCAG 1.4.11 — 3.05:1 on white. The other
+     two separate surfaces and are decorative. */
+  --border-subtle: #e1e7e9;
+  --border-strong: #c3ced1;
+  --border-control: #84979c;
+
+  /* ---- accent ----------------------------------------------------------
+     7.8:1 as text on white, and 7.8:1 for white text on it — so one token serves both the link
+     colour and the filled button, which is what keeps the interface from drifting into several
+     unrelated teals. */
+  --accent-primary: #0f5b60;
+  --accent-hover: #0b464a;
+  --accent-subtle: #e5f0f0;
+
+  /* ---- semantic --------------------------------------------------------
+     Each pair reads at least 5.3:1 on its own subtle fill and 5.9:1 on white. Colour is never the
+     only carrier of these states: each also has a mark and a word. */
+  --success: #1a6b41;        --success-subtle: #e6f3eb;
+  --warning: #8a5a0f;        --warning-subtle: #fbf2e0;
+  --danger: #9b332a;         --danger-subtle: #fbeae7;
+  --info: #2d5c8e;           --info-subtle: #e9f1f8;
+
+  --bg-disabled: #e6eaeb;
+  --focus-ring: #b47719;     /* 3.8:1 on white, 4.1:1 on the sidebar */
+
+  /* ---- spacing ---------------------------------------------------------
+     One scale, multiples of four. A value that is not on the scale is a mistake, not a nuance. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* ---- radius ----------------------------------------------------------
+     Three steps. Small for controls, medium for cards, large for the composer and the bubble. */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* ---- elevation -------------------------------------------------------
+     Only two, and only for things that genuinely float above the page: a menu, the drawer. A card
+     that merely sits on the canvas gets a border, not a shadow. */
+  --shadow-raised: 0 1px 2px rgb(15 33 38 / 6%), 0 4px 12px rgb(15 33 38 / 8%);
+  --shadow-overlay: 0 8px 32px rgb(15 33 38 / 18%);
+  /* The dim behind the mobile drawer. It is the only translucent surface in the system. */
+  --scrim: rgb(15 33 38 / 55%);
+
+  /* ---- typography ------------------------------------------------------
+     A system stack. Inter is used when the operating system already has it; nothing is downloaded,
+     because a medical workspace should not block first paint on a font request. */
+  --font-sans: Inter, "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+
+  --text-page: 600 clamp(24px, 2.2vw, 30px)/1.2 var(--font-sans);    /* page title */
+  --text-section: 600 17px/1.35 var(--font-sans);                    /* section heading */
+  --text-body: 400 15px/1.65 var(--font-sans);                       /* body */
+  --text-secondary-size: 400 14px/1.6 var(--font-sans);              /* supporting prose */
+  --text-meta: 400 12.5px/1.5 var(--font-sans);                      /* metadata */
+  --text-mono: 400 12px/1.5 var(--font-mono);                        /* technical, timings */
+
+  /* Prose is capped in characters rather than pixels, because the thing that tires a reader is
+     the number of words per line. 50-75 is the researched band; this sits inside it. */
+  --measure: 68ch;
+  --thread-width: 1040px;
+
+  --rail-width: 276px;
+  --rail-collapsed: 72px;
+  --header-height: 56px;
+}

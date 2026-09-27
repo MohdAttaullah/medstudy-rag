@@ -1,5 +1,7 @@
+import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import { useSourceImage } from './SourceImage';
+import { Icon, type IconName } from '../navigation/icons';
 import type {
   AskCitation, AskFigure, AskResponse, ConversationTurnView,
 } from '../../types/retrieval';
@@ -18,6 +20,9 @@ export type AnswerRecord = Pick<
 >;
 
 const ASSESSMENT = new Set(['QUESTION_BANK', 'QUESTION_PAPER', 'ANSWER_KEY']);
+
+/** A stored enumeration in the words a reader uses. The raw value stays available in Details. */
+const human = (value: string) => value.replaceAll('_', ' ').toLowerCase();
 
 /**
  * Where a citation opens. The M2 parse inspector already renders the authoritative page, its
@@ -42,33 +47,60 @@ export function sourceHref(citation: AskCitation) {
  * The excerpt is the text M8 verified the claim against, stored at verification time and read back
  * here — not re-resolved from the document, and never assembled in the browser. A reader can hold
  * this beside the page it names and find the same sentence.
+ *
+ * The reading order is the order a clinician actually needs: which document, which page, then the
+ * quote. Chunk type, authority level and the recorded bounding box are real provenance and are
+ * still on the page, but behind a disclosure — they were set at the same size and weight as the
+ * excerpt, competing with it for the attention of a reader who came to read the source sentence.
  */
 function Citation({ citation }: {citation: AskCitation}) {
   const assessment = ASSESSMENT.has(citation.source_type);
   const box = citation.spans.find(span => span.bbox && span.bbox.every(v => v !== null));
-  const page = citation.pages.length ? `Page ${citation.pages.join(', ')}` : 'Page not recorded';
+  const page = citation.pages.length
+    ? `Page ${citation.pages.join(', ')}`
+    : 'Page not recorded';
   return <article className="evidence-card">
+    {/* The bracketed ordinal is the same marker the answer text carries inline, so a reader can
+        match a sentence to its card without counting. */}
     <p className="eyebrow">SOURCE [{citation.ordinal}]</p>
     <h4>{citation.document_title}</h4>
-    <p className="evidence-where">{page} · {citation.chunk_type.replaceAll('_', ' ').toLowerCase()}
-      {' · '}{citation.source_type.replaceAll('_', ' ').toLowerCase()}
-      {' · authority '}{citation.authority_level.toLowerCase()}</p>
-    {assessment && <p role="note" className="notice">
+    <p className="evidence-where">{page}</p>
+    {assessment && <p role="note" className="assessment-note">
+      <Icon name="conflict" small />
       Assessment material. A recorded examiner answer is not, by itself, a medical reference.
     </p>}
-    <blockquote className="evidence-quote">{citation.cited_text}</blockquote>
-    {citation.artifacts.map(artifact => <p key={artifact.artifact_id}>
-      {artifact.kind === 'TABLE' && <>Table source · rows {artifact.row_indexes.join(', ') || 'unlisted'} · headers {artifact.header_rows.join(', ') || 'none recorded'}</>}
-      {artifact.kind === 'FORMULA' && <>Formula source — shown exactly as the document states it; nothing here rewrites the notation.</>}
-      {artifact.kind === 'FIGURE' && <>Figure source · {artifact.image_available ? 'original image available in the page viewer' : 'original crop unavailable; open the source page'}</>}
-    </p>)}
-    <p className="mono">
-      {box ? `Region on page ${box.page ?? '—'}: ${box.bbox!.map(v => Number(v).toFixed(1)).join(', ')}` : 'No region recorded for this source; the page is shown instead.'}
-    </p>
+    {/* A long excerpt scrolls inside the card. That makes it a keyboard stop — a reader who cannot
+        use a pointer still has to be able to scroll it — so it is given an explicit tab stop and
+        a name, rather than relying on the browsers that happen to focus scrollable regions. */}
+    <blockquote className="evidence-quote" tabIndex={0}
+      aria-label={`Source excerpt ${citation.ordinal}, scrollable`}>{citation.cited_text}</blockquote>
     <div className="actions">
       <Link to={sourceHref(citation)}>Open source page</Link>
-      <Link to={`/chunk-runs/${citation.chunk_run_id}?chunk=${citation.citation_id}`}>Inspect provenance</Link>
     </div>
+    <details className="evidence-detail">
+      <summary>Source details</summary>
+      <dl>
+        <dt>Document type</dt><dd>{human(citation.source_type)}</dd>
+        <dt>Authority</dt><dd>authority {human(citation.authority_level)}</dd>
+        <dt>Passage</dt><dd>{human(citation.chunk_type)}</dd>
+        <dt>Region</dt><dd className="mono">
+          {box
+            ? `Region on page ${box.page ?? '—'}: ${box.bbox!.map(v => Number(v).toFixed(1)).join(', ')}`
+            : 'No region recorded for this source; the page is shown instead.'}
+        </dd>
+        {citation.artifacts.map(artifact => <Fragment key={artifact.artifact_id}>
+          <dt>{human(artifact.kind)}</dt>
+          <dd>
+            {artifact.kind === 'TABLE' && <>Table source · rows {artifact.row_indexes.join(', ') || 'unlisted'} · headers {artifact.header_rows.join(', ') || 'none recorded'}</>}
+            {artifact.kind === 'FORMULA' && <>Formula source — shown exactly as the document states it; nothing here rewrites the notation.</>}
+            {artifact.kind === 'FIGURE' && <>Figure source · {artifact.image_available ? 'original image available in the page viewer' : 'original crop unavailable; open the source page'}</>}
+          </dd>
+        </Fragment>)}
+      </dl>
+      <div className="actions">
+        <Link to={`/chunk-runs/${citation.chunk_run_id}?chunk=${citation.citation_id}`}>Inspect provenance</Link>
+      </div>
+    </details>
   </article>;
 }
 
@@ -98,17 +130,18 @@ function FigureCard({ figure }: {figure: AskFigure}) {
         ? <img src={url} alt={`Source figure as printed: ${title}`} />
         : <span className="figure-placeholder" aria-hidden="true" />}
     </a>
-    <div>
+    <div className="figure-body">
       <h4>{figure.label ? `Figure ${figure.label}` : 'Source figure'}</h4>
       <p className="evidence-where">
         {figure.document_title} · {figure.page ? `page ${figure.page}` : 'page not recorded'}
       </p>
       {figure.caption && <p className="figure-caption">{figure.caption}</p>}
       <p className="figure-note" role="note">
-        Source figure — not interpreted by AI.{' '}
-        {figure.linked_by === 'CITED_EVIDENCE'
-          ? 'The cited evidence is this figure.'
-          : 'The cited source text refers to this figure.'}
+        <Icon name="figure" small />
+        <span>Source figure — not interpreted by AI.{' '}
+          {figure.linked_by === 'CITED_EVIDENCE'
+            ? 'The cited evidence is this figure.'
+            : 'The cited source text refers to this figure.'}</span>
       </p>
       {failed && <p className="figure-unavailable" role="note">
         The stored image could not be loaded. Open the source page to see it in the document.
@@ -129,12 +162,17 @@ function FigureCard({ figure }: {figure: AskFigure}) {
  * "sources disagree", "the draft failed checking" and "the service broke" call for four different
  * responses from a reader. There is no confidence figure anywhere: an answer is verified against
  * its sources or it is not shown.
+ *
+ * Visually, a verified answer is *not* a card. It is the subject of the page, set as text against
+ * the canvas with a quiet status line above it. The outcomes that withheld an answer do get a
+ * tinted surface, because those are the exceptions a reader has to notice.
  */
 export function Answer({ result }: {result: AnswerRecord}) {
   if (result.outcome !== 'VERIFIED') {
-    const { severity, mark, label } = OUTCOMES[result.outcome] ?? OUTCOMES.FAILED;
-    return <section className={`panel outcome outcome-${severity}`} aria-labelledby="ask-outcome">
-      <p className="eyebrow"><span className="outcome-mark" aria-hidden="true">{mark}</span> {label}</p>
+    const state = OUTCOMES[result.outcome] ?? OUTCOMES.FAILED;
+    return <section className={`answer answer-exception outcome outcome-${state.severity}`}
+      aria-labelledby="ask-outcome">
+      <OutcomeLine state={state} />
       <h2 id="ask-outcome">{TITLES[result.outcome]}</h2>
       <p role="status">{result.message}</p>
       {result.outcome === 'CONFLICTING_EVIDENCE' && <p>
@@ -149,7 +187,7 @@ export function Answer({ result }: {result: AnswerRecord}) {
         No sources were searched and no model was called. Rephrasing the question as what the
         indexed sources say about a topic will be answered normally.
       </p>}
-      {!!result.reason_codes.length && <details><summary>Why</summary>
+      {!!result.reason_codes.length && <details className="evidence-detail"><summary>Why</summary>
         <ul className="service-list">{result.reason_codes.map(code =>
           <li key={code}>
             <span>{REASONS[code] ?? 'A check recorded this code without a plain-language summary.'}</span>
@@ -158,19 +196,20 @@ export function Answer({ result }: {result: AnswerRecord}) {
     </section>;
   }
 
-  return <section className="panel outcome outcome-verified" aria-labelledby="ask-answer">
-    <p className="eyebrow"><span className="outcome-mark" aria-hidden="true">✓</span>{' '}
-      VERIFIED AGAINST RETRIEVED SOURCES</p>
+  return <section className="answer outcome outcome-verified" aria-labelledby="ask-answer">
+    <OutcomeLine state={OUTCOMES.VERIFIED} />
     <h2 id="ask-answer">Answer</h2>
     <p role="status">{result.message}</p>
     <div className="answer-text">{result.answer!.split('\n').map((line, index) =>
       <p key={index}>{line}</p>)}</div>
 
     <h3>Sources</h3>
-    <ul className="service-list">{result.sources.map(source =>
+    <ul className="source-list">{result.sources.map(source =>
       <li key={source.document_version_id}>
         <span>{source.title}</span>
-        <span className="mono">{source.authority_level.toLowerCase()} · {source.citation_ids.length} citation{source.citation_ids.length === 1 ? '' : 's'}</span>
+        {/* Plain metadata, not code: a monospaced face here made an authority level read like an
+            identifier. The genuinely technical values keep the monospaced face. */}
+        <span className="muted">{human(source.authority_level)} · {source.citation_ids.length} citation{source.citation_ids.length === 1 ? '' : 's'}</span>
       </li>)}</ul>
 
     <h3>Citations</h3>
@@ -189,18 +228,30 @@ export function Answer({ result }: {result: AnswerRecord}) {
 }
 
 /**
- * How each outcome is announced.
+ * How each outcome is announced: a mark, a word, and a colour — in that order of load-bearing.
  *
- * Severity drives a colour, but never alone: every state also carries a distinct mark and its own
- * words, so the difference survives greyscale, colour blindness and a screen reader. The marks are
- * decorative — `aria-hidden` — because the label beside them already says it in text.
+ * `data-mark` names the shape rather than describing it, so a test can assert that each severity
+ * really does carry its own non-colour marker without depending on which glyph was chosen. The
+ * mark is `aria-hidden` because the label beside it already says it in words.
  */
-const OUTCOMES: Record<string, {severity: string; mark: string; label: string}> = {
-  INSUFFICIENT_EVIDENCE: {severity: 'caution', mark: '◍', label: 'NO ANSWER SHOWN'},
-  CONFLICTING_EVIDENCE: {severity: 'caution', mark: '◍', label: 'SOURCES DISAGREE'},
-  UNVERIFIED: {severity: 'warning', mark: '!', label: 'NOT VERIFIED'},
-  FAILED: {severity: 'error', mark: '✕', label: 'SERVICE PROBLEM'},
-  OUT_OF_SCOPE: {severity: 'neutral', mark: 'i', label: 'OUTSIDE WHAT THIS WORKSPACE DOES'},
+function OutcomeLine({ state }: { state: OutcomeState }) {
+  return <p className="eyebrow outcome-line">
+    <span className="outcome-mark" data-mark={state.icon} aria-hidden="true">
+      <Icon name={state.icon} small />
+    </span>
+    {state.label}
+  </p>;
+}
+
+interface OutcomeState { severity: string; icon: IconName; label: string }
+
+const OUTCOMES: Record<string, OutcomeState> = {
+  VERIFIED: {severity: 'verified', icon: 'verified', label: 'Verified against sources'},
+  INSUFFICIENT_EVIDENCE: {severity: 'caution', icon: 'no-answer', label: 'Not enough evidence'},
+  CONFLICTING_EVIDENCE: {severity: 'caution', icon: 'conflict', label: 'Sources disagree'},
+  UNVERIFIED: {severity: 'warning', icon: 'unverified', label: 'Could not verify'},
+  FAILED: {severity: 'error', icon: 'failed', label: 'Technical failure'},
+  OUT_OF_SCOPE: {severity: 'neutral', icon: 'scope', label: 'Outside workspace scope'},
 };
 
 /** Reason codes in a reviewer's words. The code itself stays visible beside each one. */

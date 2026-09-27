@@ -23,7 +23,9 @@ async function signIn(page: import('@playwright/test').Page) {
   await page.goto('/ask');
   await page.getByLabel('Access key').fill(credentials());
   await page.getByRole('button', { name: 'Open workspace' }).click();
-  await expect(page.getByRole('heading', { name: 'Educational use only' })).toBeVisible();
+  // The educational-use notice is a compact, persistent row now rather than a full-width card
+  // with its own heading. The full wording is still there, behind its disclosure.
+  await expect(page.getByText('Educational reference only')).toBeVisible();
 }
 
 function rail(page: import('@playwright/test').Page) {

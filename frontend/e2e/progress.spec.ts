@@ -28,7 +28,9 @@ test('the stepper reports the stage the pipeline is actually running', async ({ 
   await page.goto('/ask');
   await page.getByLabel('Access key').fill(credentials());
   await page.getByRole('button', { name: 'Open workspace' }).click();
-  await expect(page.getByRole('heading', { name: 'Educational use only' })).toBeVisible();
+  // The educational-use notice is a compact, persistent row now rather than a full-width card
+  // with its own heading. The full wording is still there, behind its disclosure.
+  await expect(page.getByText('Educational reference only')).toBeVisible();
 
   await page.getByLabel('Your educational medical question')
     .fill('What is the tentorial surface of the cerebellum?');
@@ -57,8 +59,13 @@ test('the stepper reports the stage the pipeline is actually running', async ({ 
   });
   await expect(answer.or(refusal).first()).toBeVisible({ timeout: 240000 });
 
-  // After the request: every stage has settled, and none is left spinning.
-  await expect(page.getByRole('heading', { name: 'How this answer was produced' })).toBeVisible();
+  // After the request the stepper collapses to a single record row, which names the outcome and
+  // how long the whole request took. (This assertion named a heading that stopped existing when
+  // the finished stepper became a disclosure; what it was really checking — that every stage has
+  // settled and none is left spinning — is checked below, on the opened record.)
+  await expect(page.getByText('View processing details')).toBeVisible();
+  await expect(page.getByText('Running now')).toHaveCount(0);
+  await page.getByText('View processing details').click();
   await expect(page.locator('.step-running')).toHaveCount(0);
   await expect(page.locator('.step-pending')).toHaveCount(0);
   await expect(page.locator('.step-completed')).toHaveCount(7);

@@ -78,7 +78,8 @@ it('renders a verified answer with its citations and sources', async () => {
   await ask();
   expect(await screen.findByRole('heading', { name: 'Answer' })).toBeInTheDocument();
   expect(screen.getByText('The source states the association.')).toBeInTheDocument();
-  expect(screen.getByText('VERIFIED AGAINST RETRIEVED SOURCES')).toBeInTheDocument();
+  // The status line is a mark, a concise label, and a colour — in that order of load-bearing.
+  expect(screen.getByText('Verified against sources')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Sources' })).toBeInTheDocument();
 
   // A citation is now an evidence card: the label, the document, where it is, and the exact words
@@ -146,7 +147,7 @@ it('distinguishes a technical failure from missing evidence', async () => {
   outcome = 'FAILED';
   await ask();
   await screen.findByRole('heading', { name: 'The answering service failed' });
-  expect(screen.getByText('SERVICE PROBLEM')).toBeInTheDocument();
+  expect(screen.getByText('Technical failure')).toBeInTheDocument();
   expect(screen.queryByText(/do not support an answer/)).not.toBeInTheDocument();
 });
 
@@ -154,7 +155,7 @@ it('presents an out-of-scope refusal as a policy decision, not a corpus gap', as
   outcome = 'OUT_OF_SCOPE';
   await ask();
   await screen.findByRole('heading', { name: 'Not a question this workspace answers' });
-  expect(screen.getByText('OUTSIDE WHAT THIS WORKSPACE DOES')).toBeInTheDocument();
+  expect(screen.getByText('Outside workspace scope')).toBeInTheDocument();
   // A reader told the sources were missing would reasonably try rephrasing or adding a document.
   expect(screen.queryByText(/do not support an answer/)).not.toBeInTheDocument();
   expect(screen.getByText(/No sources were searched and no model was called/)).toBeInTheDocument();

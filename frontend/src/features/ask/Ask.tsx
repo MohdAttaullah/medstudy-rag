@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, askWithProgress } from '../../api/client';
+import { Icon } from '../navigation/icons';
 import { AccessGate, useSession } from '../library/Session';
 import { Answer } from './Answer';
 import { BUSY_LABEL, ProgressStepper, runningStage } from './ProgressStepper';
@@ -47,6 +48,7 @@ function Conversation() {
   const key = useRef<string>(crypto.randomUUID());
   const [stages, setStages] = useState<StageEvent[]>([]);
   const foot = useRef<HTMLDivElement>(null);
+  const field = useRef<HTMLTextAreaElement>(null);
 
   // Reconcile the address and the session once, on arrival, and let `open` be authoritative from
   // then on. Reconciling on every render would race New conversation: the session clears, the
@@ -111,6 +113,24 @@ function Conversation() {
     foot.current?.scrollIntoView?.({ block: 'end', behavior: 'smooth' });
   }, [earlier.length, result?.turn_id, ask.isPending]);
 
+  // The composer starts at about two lines and grows with the text to the ceiling the stylesheet
+  // sets, after which it scrolls. Measured from the element rather than counted from the string,
+  // because wrapping depends on the rendered width.
+  useEffect(() => {
+    const node = field.current;
+    if (!node) return;
+    node.style.height = 'auto';
+    node.style.height = `${node.scrollHeight}px`;
+  }, [question]);
+
+  // Enter sends; Shift+Enter is a newline. The button remains the primary, labelled way to submit.
+  function shortcut(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      submit(event);
+    }
+  }
+
   function submit(event: React.FormEvent) {
     event.preventDefault();
     // One request at a time: a second submission would spend another provider call on a question
@@ -121,13 +141,19 @@ function Conversation() {
     ask.mutate(question.trim());
   }
 
-  return <div className="chat">
-    <section className="notice chat-scope" aria-labelledby="ask-scope">
-      <span className="status-dot" aria-hidden="true" />
-      <div><h2 id="ask-scope">Educational use only</h2>
-        <p>This workspace answers from the sources you indexed. It is not medical advice, it is not
-          for a specific patient, and it abstains rather than guessing.</p></div>
-    </section>
+  return <div className={`chat${empty ? ' chat-idle' : ''}`}>
+    {/* The safety meaning is unchanged and the full wording is one click away. What changed is
+        the footprint: as a full-width card it was taking roughly a third of the first screen,
+        above the answer, on every single visit. */}
+    <div className="scope-notice" role="note">
+      <Icon name="info" small />
+      <details className="scope-text">
+        <summary>Educational reference only — not for patient-specific medical advice.</summary>
+        <p>This workspace answers only from the sources you indexed. Every statement in an answer
+          is checked against the sources cited beside it. It is not medical advice, it is not for
+          a specific patient, and it abstains rather than guessing.</p>
+      </details>
+    </div>
 
     <div className="chat-thread">
       {empty && <section className="chat-empty">
@@ -136,7 +162,7 @@ function Conversation() {
           Every statement in an answer is checked against the sources cited beside it. A question
           the indexed documents do not cover is refused rather than filled in.
         </p>
-        <p className="rail-heading">Examples</p>
+        <p className="eyebrow">Try one of these</p>
         <ul className="examples">{EXAMPLES.map(example => <li key={example}>
           <button type="button" className="example" onClick={() => setQuestion(example)}>
             {example}
@@ -157,18 +183,25 @@ function Conversation() {
         <ProgressStepper events={stages} active outcome={null} />
       </article>}
 
+      {/* A finished request puts the answer first. The stepper stays where it was while the
+          request ran — under the question — but once it settles it is a record of how the answer
+          was produced, so it belongs after the answer rather than above it, where its outcome
+          line was repeating the answer's own. */}
       {result && <article className="turn">
         <Question text={result.question} />
-        <ProgressStepper events={stages} active={false} outcome={result.outcome} />
         <Answer result={result} />
+        <ProgressStepper events={stages} active={false} outcome={result.outcome} />
         <Timing stages={result.stages} />
       </article>}
 
       {error && !result && <article className="turn">
         <Question text={question} />
-        <section className="panel outcome outcome-error">
-          <p className="eyebrow">
-            <span className="outcome-mark" aria-hidden="true">✕</span> SERVICE PROBLEM
+        <section className="answer answer-exception outcome outcome-error">
+          <p className="eyebrow outcome-line">
+            <span className="outcome-mark" data-mark="failed" aria-hidden="true">
+              <Icon name="failed" small />
+            </span>
+            Technical failure
           </p>
           <h2>The request could not be completed</h2>
           <p role="alert" className="error">{error.message}</p>
@@ -180,23 +213,33 @@ function Conversation() {
     </div>
 
     <form onSubmit={submit} className="composer">
-      <label htmlFor="question" className="visually-hidden">Your educational medical question</label>
-      <textarea id="question" rows={3} value={question} maxLength={2000}
-        aria-describedby="composer-note"
-        onChange={event => setQuestion(event.target.value)}
-        placeholder="Ask a question about your source material…" />
-      <div className="question-footer">
-        <span id="composer-note">Every claim is checked against a traceable source.</span>
-        <button type="submit" disabled={ask.isPending || !question.trim()}
-          aria-describedby={ask.isPending ? 'progress-heading' : undefined}>
-          {ask.isPending ? busy : 'Ask with evidence'}</button>
+      <div className="composer-box">
+        <label htmlFor="question" className="visually-hidden">Your educational medical question</label>
+        <textarea id="question" ref={field} rows={2} value={question} maxLength={2000}
+          aria-describedby="composer-note"
+          onChange={event => setQuestion(event.target.value)}
+          onKeyDown={shortcut}
+          placeholder="Ask a question about your source material…" />
+        <div className="composer-actions">
+          <span className="composer-note" id="composer-note">
+            Every claim is checked against a traceable source.
+          </span>
+          {/* The guard against a second submission is the same one as before: a request already
+              in flight holds the idempotency key, and starting another would spend a second
+              provider call on a question that is already being answered. */}
+          <button type="submit" className="composer-submit"
+            disabled={ask.isPending || !question.trim()}
+            aria-describedby={ask.isPending ? 'progress-heading' : undefined}>
+            {ask.isPending ? busy : <>Ask with evidence<Icon name="chevron-right" small /></>}
+          </button>
+        </div>
       </div>
     </form>
   </div>;
 }
 
 function Question({ text }: { text: string }) {
-  return <div className="bubble bubble-user">
+  return <div className="bubble-user">
     <p className="visually-hidden">You asked:</p>
     <p>{text}</p>
   </div>;

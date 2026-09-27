@@ -53,6 +53,9 @@ export function AccessGate({ children }: { children: ReactNode }) {
       <button disabled={busy}>{busy ? 'Signing in…' : 'Open workspace'}</button>
     </form><p className="muted">The key stays in this tab's memory and clears on refresh or sign-out.</p>
   </section>;
-  return <><div className="session-bar"><span>{session.identity.display_name} · {session.identity.role}</span>
-    <button className="secondary" onClick={() => session.setSession('', null)}>Sign out</button></div>{children}</>;
+  // Who is signed in, and signing out, are rendered once by the application header (see
+  // `AccountMenu`). They used to be emitted here, which put a line of session metadata and a loose
+  // button at the top of the content on every gated page — and twice on Operations, which mounts
+  // two gates. The gate's job is the gate.
+  return <>{children}</>;
 }

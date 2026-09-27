@@ -491,6 +491,67 @@ sufficiency gate classifies a request to see a picture as visual-dependent (ADR-
 abstention carries no figures by contract. Changing that is a sufficiency decision, out of scope
 here.
 
+## Interface design system (post-M12, uncommitted)
+
+A presentation-only pass. **No RAG behaviour changed**: retrieval, fusion, reranking, evidence,
+sufficiency, generation, verification, citation semantics, figure-selection semantics, SSE progress
+semantics, conversation persistence, authentication, tenant isolation and every API contract are
+untouched. No backend file was modified. See `docs/architecture/design-system.md` for the tokens,
+the principles and the measured accessibility results.
+
+**What changed.** The stylesheet was reorganised from one 293-line file of accumulated literals
+into `frontend/src/styles/{tokens,base,shell,ask,components}.css`, with every colour, space, radius
+and type step named once in `tokens.css` and nothing outside it writing a literal colour. The rail,
+the header and the Ask surface were redesigned around those tokens. `lucide-react` was added and
+the rail's typographic glyphs (a diamond, a gear character, box-drawing marks) were replaced by one
+outline icon set, all `aria-hidden` with the text label supplying the accessible name.
+
+**Defects fixed, each verified in the running application:**
+
+- The question bubble rendered muted grey on deep teal at roughly 1.5:1, because a generic
+  `article p` rule overrode the bubble's own colour. It is white on the accent at **7.82:1**.
+- The conversation list forced a horizontal scrollbar into the rail and scrolled its titles
+  sideways, so entries read as `?` and `n?`. A grid child without `min-inline-size: 0` was sizing
+  the column to the longest untruncated title.
+- The composer's focus ring was a pale tint measuring **1.1:1**; it is now the application's amber
+  ring on the wrapping box.
+- The scrollable source excerpt is focusable because it scrolls, and carried only the browser's
+  default 1px outline. It now has an explicit tab stop, an accessible name and the application ring.
+- `M10 / Configuration` — an internal milestone marker from ADR-015 — was removed from the product
+  shell. The header now names the page; the workspace, the role and sign-out moved from a loose
+  line above the page content into an account menu. `AccessGate` no longer emits that line, which
+  also removes the duplicate it produced on Operations (two gates mount there).
+- The educational-use notice was consuming roughly a third of the first screen. It is a compact
+  persistent row with the full wording behind a disclosure; the safety meaning is unchanged.
+- The finished progress record was repeating the answer's own status line directly above it. It now
+  renders after the answer, where a record of how the answer was produced belongs.
+
+**Measured results:** 25/25 text pairs meet WCAG 2.1 AA; 22/22 keyboard stops paint a visible
+indicator; no sideways scrolling at 150% or 200% zoom; no horizontal overflow at 390px.
+
+**Three stale e2e assertions were repaired, none of them introduced here.** Each names the commit
+that broke it:
+
+- `e2e/progress.spec.ts` asserted a heading `How this answer was produced`, which stopped existing
+  at `e4bd3d3` when the finished stepper became a disclosure row. It now asserts the record row and
+  opens it before checking the stages.
+- `e2e/workspace.spec.ts` asserted a marketing heading `Evidence comes first.`, removed at `73eb049`
+  when Ask became a conversation. It now asserts the shell a signed-out visitor actually lands on,
+  and gained an assertion that no account control is offered when there is no principal.
+- `e2e/retrieval.spec.ts` clicked `Retrieval inspector` as a top-level rail entry; `73eb049` folded
+  it under the Advanced tools disclosure. It now opens the disclosure first.
+
+Neither spec had been touched between `73eb049` and this work, so both had been failing since that
+commit. Anything that reported those runs as green was reading the exit status of a pipeline whose
+last stage was `tail`, not Playwright's.
+
+**Frontend tests 174/174 pass; `tsc -b` and `npm run build` clean.** Test updates were confined to
+the places where presentation intentionally changed: seven sign-in helpers that waited for the
+principal's name now wait for the header's account control, and the outcome labels moved from
+shouted constants (`SERVICE PROBLEM`) to concise sentence case (`Technical failure`). No
+functionality assertion was weakened; the outcome-severity test was strengthened, asserting that
+each of the six outcomes carries a distinct non-colour marker rather than one glyph per severity.
+
 ## RAG v1 freeze (post-M12)
 
 Retrieval, reranking, sufficiency, generation and verification are **frozen**. The acceptance gates

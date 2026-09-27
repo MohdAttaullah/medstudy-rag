@@ -1,0 +1,362 @@
+/*
+ * The Ask surface.
+ *
+ * The hierarchy this file exists to enforce, in order: the conversation, the verified answer, the
+ * evidence behind it, the composer. Everything else — provenance identifiers, chunk types, stage
+ * timings — is real and stays reachable, but it is placed below that line and styled as
+ * metadata, because a clinician reading an answer is looking for the sentence and the source it
+ * came from, not for the architecture that produced it.
+ *
+ * The design leans on spacing and type rather than on containers. The previous version drew a
+ * border, a radius and a fill around almost everything, which flattened importance: when every
+ * block is a card, no block is emphasised.
+ */
+
+.chat {
+  display: flex; flex-direction: column;
+  inline-size: 100%; max-inline-size: var(--thread-width); margin-inline: auto;
+}
+/* Tall enough to hold the composer at the foot of the screen once there is a conversation to
+   scroll. An empty workspace drops the floor instead, so the first thing a reader sees is the
+   suggestions with the composer under them rather than a screen of empty canvas. Written as a
+   negation rather than as an override, so the narrow-viewport rule below cannot undo it. */
+.chat:not(.chat-idle) { min-block-size: calc(100vh - var(--header-height) - var(--space-7)); }
+
+/* ---- the educational-use notice ---------------------------------------
+   The safety meaning is unchanged and the full wording is one click away. What changed is its
+   footprint: it was consuming a third of the first screen, above the answer, on every visit. */
+.scope-notice {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); margin-bottom: var(--space-5);
+  background: var(--info-subtle); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); color: var(--info);
+  font: var(--text-meta);
+}
+.scope-notice .icon-sm { margin-top: 1px; color: var(--info); }
+.scope-notice summary { font-weight: 600; }
+.scope-notice details { min-inline-size: 0; }
+.scope-notice details p {
+  margin: var(--space-2) 0 0; color: var(--text-secondary); font-weight: 400;
+  max-inline-size: var(--measure); line-height: 1.6;
+}
+.scope-text { min-inline-size: 0; }
+
+.chat-thread {
+  flex: 1; display: flex; flex-direction: column; gap: var(--space-6);
+  /* Room for the sticky composer, which previously covered the end of the last answer. */
+  padding-block-end: var(--space-5);
+}
+.turn { display: flex; flex-direction: column; gap: var(--space-4); }
+
+/* ---- the empty state --------------------------------------------------- */
+.chat-empty { padding-block: var(--space-5) var(--space-2); max-inline-size: var(--measure); }
+.chat-empty h1 { margin-bottom: var(--space-3); }
+.chat-empty .intro { margin-bottom: var(--space-5); }
+.examples { list-style: none; padding: 0; margin: var(--space-2) 0 0; display: grid; gap: var(--space-2); }
+/* Suggestions, not commands: a quiet chip that fills the composer rather than a primary button
+   that looks like it will ask on the reader's behalf. */
+.example {
+  inline-size: 100%; text-align: start; background: var(--bg-surface); color: var(--text-primary);
+  border: 1px solid var(--border-subtle); padding: 10px var(--space-4);
+  border-radius: var(--radius-md); font: var(--text-secondary-size); font-weight: 400;
+}
+.example:hover:not(:disabled) {
+  background: var(--bg-surface); border-color: var(--accent-primary); color: var(--accent-primary);
+}
+
+/* ---- the question ------------------------------------------------------
+   White on the deep accent: 7.8:1. The previous bubble inherited a muted grey from a generic
+   `article p` rule and rendered grey-on-teal at roughly 1.5:1, which is why it was unreadable. */
+.bubble-user {
+  align-self: flex-end; max-inline-size: min(620px, 88%);
+  background: var(--accent-primary); color: var(--text-inverse);
+  padding: 10px var(--space-4); border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
+}
+.bubble-user p { color: var(--text-inverse); font: var(--text-body); font-size: 14.5px; margin: 0; }
+
+/* ---- the answer --------------------------------------------------------
+   Not a card. A verified answer is the page's subject, so it is set as text with a status line
+   above it, and only the states that need attention get a tinted surface. */
+.answer {
+  border: 0; background: none; padding: 0;
+  border-inline-start: 2px solid var(--border-subtle); padding-inline-start: var(--space-4);
+}
+.answer > h2 { margin-bottom: var(--space-2); }
+.answer-text { max-inline-size: var(--measure); font: var(--text-body); font-size: 15.5px; }
+.answer-text p { margin-bottom: var(--space-3); }
+/* On a verified answer the message is a subtitle — the answer itself is below it. On an outcome
+   that withheld an answer the message *is* the answer, so it is set as body text. */
+.answer .intro, .answer > p[role="status"] {
+  font: var(--text-meta); color: var(--text-muted); max-inline-size: var(--measure);
+  margin-bottom: var(--space-4);
+}
+.answer-exception > p[role="status"] {
+  font: var(--text-body); color: var(--text-primary); margin-bottom: var(--space-3);
+}
+.answer h3 {
+  font: 600 11px/1.4 var(--font-sans); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-muted); margin: var(--space-6) 0 var(--space-2);
+}
+
+/* The status line. Mark, word, and a colour — in that order of load-bearing. */
+.outcome-line {
+  display: flex; align-items: center; gap: var(--space-2);
+  font: 600 13px/1.3 var(--font-sans); margin: 0 0 var(--space-3);
+  letter-spacing: 0; text-transform: none;
+}
+.outcome-verified { border-inline-start-color: var(--success); }
+.outcome-verified .outcome-line { color: var(--success); }
+.outcome-caution { border-inline-start-color: var(--warning); }
+.outcome-caution .outcome-line { color: var(--warning); }
+.outcome-warning { border-inline-start-color: var(--warning); }
+.outcome-warning .outcome-line { color: var(--warning); }
+.outcome-error { border-inline-start-color: var(--danger); }
+.outcome-error .outcome-line { color: var(--danger); }
+.outcome-neutral { border-inline-start-color: var(--info); }
+.outcome-neutral .outcome-line { color: var(--info); }
+
+/* An outcome that withheld an answer is given a tinted surface, because it is an exception the
+   reader has to notice. A verified answer is not: it is the normal case. */
+.answer-exception {
+  padding: var(--space-4); border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle); border-inline-start-width: 3px;
+}
+.outcome-caution.answer-exception { background: var(--warning-subtle); }
+.outcome-warning.answer-exception { background: var(--warning-subtle); }
+.outcome-error.answer-exception { background: var(--danger-subtle); }
+.outcome-neutral.answer-exception { background: var(--info-subtle); }
+.answer-exception p { max-inline-size: var(--measure); color: var(--text-secondary); }
+.answer-exception > h2 { color: var(--text-primary); }
+
+/* The sources roll-up: which documents an answer rests on, before the excerpts themselves. */
+.source-list { list-style: none; padding: 0; margin: 0; }
+.source-list { max-inline-size: var(--measure); }
+.source-list li {
+  display: flex; justify-content: space-between; gap: var(--space-4); align-items: baseline;
+  padding: var(--space-2) 0; border-block-end: 1px solid var(--border-subtle);
+  font: var(--text-secondary-size);
+}
+.source-list li:last-child { border-block-end: 0; }
+
+/* ---- evidence ---------------------------------------------------------
+   Source, page, quote. That is the order a clinician reads in. Chunk type, authority level and
+   recorded regions are real provenance and stay on the page, but under a disclosure, because they
+   were competing with the excerpt for the same attention. */
+.evidence-card {
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); padding: var(--space-4); margin: var(--space-3) 0;
+}
+.evidence-card .eyebrow { color: var(--accent-primary); margin-bottom: var(--space-1); }
+.evidence-card h4 { font-size: 14.5px; }
+.evidence-where { font: var(--text-meta); color: var(--text-muted); margin: 0 0 var(--space-3); }
+.evidence-quote {
+  /* Capped at the same reading measure as the answer. A source excerpt set across a full
+     1040-pixel card runs past 110 characters a line, which is well outside the band a reader can
+     track comfortably. */
+  max-inline-size: var(--measure);
+  margin: 0 0 var(--space-3); padding: var(--space-3) var(--space-4);
+  border-inline-start: 3px solid var(--accent-primary); background: var(--bg-subtle);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font: var(--text-body); color: var(--text-primary);
+  /* A retrieved chunk can run to a full page of text. It stays complete in the DOM — selectable,
+     searchable and readable by a screen reader — and scrolls within the card rather than pushing
+     the rest of the answer off the screen. The fade at the foot is what makes it evident that
+     there is more, rather than leaving the reader to discover a scrollbar. */
+  max-block-size: 13em; overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
+  /* `black` here is an alpha stop in a mask, not a colour anyone sees — the mask reads only the
+     opacity of this gradient. It is the one place a literal belongs outside the token file. */
+  mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent);
+}
+/* Once it has focus the reader is inside it, so the fade would only obscure what they are on.
+   The excerpt scrolls, which makes it a keyboard stop in its own right — a keyboard user has to
+   be able to reach and scroll it — so it takes the application's focus ring rather than the
+   browser's thin default outline. */
+.evidence-quote:focus-visible, .evidence-quote:hover { mask-image: none; }
+.evidence-quote:focus-visible {
+  outline: 3px solid var(--focus-ring); outline-offset: 2px;
+}
+.evidence-detail { margin-block: var(--space-2) 0; }
+.evidence-detail > summary {
+  font: var(--text-meta); color: var(--text-muted); cursor: pointer; padding-block: var(--space-1);
+}
+.evidence-detail > summary:hover { color: var(--accent-primary); }
+.evidence-detail dl {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-1) var(--space-3);
+  margin: var(--space-2) 0 0;
+}
+.evidence-detail dt {
+  font: 600 10.5px/1.5 var(--font-sans); letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.evidence-detail dd { font: var(--text-meta); color: var(--text-secondary); margin: 0; overflow-wrap: anywhere; }
+.evidence-card .actions, .figure-card .actions {
+  display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-3);
+  font: var(--text-meta); font-weight: 500;
+}
+
+/* A recorded examiner answer is not, on its own, a medical reference. It keeps its own warning. */
+.assessment-note {
+  display: flex; gap: var(--space-2); align-items: flex-start;
+  padding: var(--space-2) var(--space-3); margin: 0 0 var(--space-3);
+  background: var(--warning-subtle); border-radius: var(--radius-sm);
+  font: var(--text-meta); color: var(--warning);
+}
+
+/* ---- source figures ----------------------------------------------------
+   Supplementary material, never evidence, and the card says so. */
+.figure-card {
+  display: flex; gap: var(--space-4); align-items: flex-start;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); padding: var(--space-4); margin: var(--space-3) 0;
+}
+.figure-thumb {
+  flex-shrink: 0; display: block; inline-size: 148px; overflow: hidden;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-subtle);
+}
+.figure-thumb:hover { border-color: var(--accent-primary); }
+.figure-thumb img { display: block; inline-size: 100%; block-size: auto; }
+.figure-body { min-inline-size: 0; }
+.figure-caption {
+  font: var(--text-meta); line-height: 1.6; color: var(--text-secondary); margin: 0 0 var(--space-2);
+  /* A legend in this corpus can run to a paragraph. It stays complete in the DOM and expands on
+     hover or keyboard focus; it is clamped only so the card stays scannable. */
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.figure-card:focus-within .figure-caption, .figure-caption:hover { -webkit-line-clamp: unset; }
+.figure-note {
+  display: flex; gap: var(--space-2); align-items: flex-start;
+  font: var(--text-meta); color: var(--warning); background: var(--warning-subtle);
+  border-radius: var(--radius-sm); padding: 6px var(--space-2); margin: 0 0 var(--space-2);
+}
+.figure-placeholder { display: block; inline-size: 100%; aspect-ratio: 4 / 3; background: var(--bg-subtle); }
+.figure-unavailable { font: var(--text-meta); color: var(--warning); margin: 0 0 var(--space-2); }
+
+/* ---- progress ----------------------------------------------------------
+   Every state here is announced by the server. Nothing below animates a stage forward or implies
+   a fraction; the only thing that moves on its own is the pulse on the running mark, and the row
+   beside it already says "Running now" in words. */
+.progress {
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); padding: var(--space-4);
+}
+.progress-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+}
+.progress-head h2 { margin: 0; font-size: 15px; }
+.progress-clock { font: var(--text-mono); font-size: 12.5px; color: var(--text-muted); }
+
+.stepper { list-style: none; padding: 0; margin: var(--space-4) 0 0; display: grid; gap: 0; }
+.step { display: flex; gap: var(--space-3); padding: 7px 0; align-items: flex-start; }
+/* A ring, with the mark inside it. Empty means "not announced", a filled dot means "running now",
+   and a tick, a dash or a cross mean what they say — each also spelled out on the row beneath. */
+.step-mark {
+  flex-shrink: 0; display: inline-grid; place-items: center; inline-size: 20px; block-size: 20px;
+  border-radius: 50%; border: 1.5px solid currentColor; margin-top: 1px;
+}
+.step-mark .icon-sm { inline-size: 12px; block-size: 12px; stroke-width: 2.5; }
+.step-dot { inline-size: 8px; block-size: 8px; border-radius: 50%; background: currentColor; }
+.step-title { font: 500 13.5px/1.4 var(--font-sans); margin: 0; }
+.step-state {
+  font: 600 10px/1.4 var(--font-sans); letter-spacing: .09em; text-transform: uppercase;
+  margin: 2px 0 0; color: var(--text-muted);
+}
+.step-detail { font: var(--text-meta); margin: var(--space-1) 0 0; color: var(--text-secondary); }
+.step-pending { color: var(--border-strong); }
+.step-pending .step-title { color: var(--text-muted); font-weight: 400; }
+.step-skipped { color: var(--text-muted); }
+.step-skipped .step-title { text-decoration: line-through; text-decoration-thickness: 1px; }
+.step-completed { color: var(--success); }
+.step-completed .step-title, .step-running .step-title, .step-failed .step-title { color: var(--text-primary); }
+.step-completed .step-state { color: var(--success); }
+.step-failed { color: var(--danger); }
+.step-failed .step-state { color: var(--danger); }
+.step-running { color: var(--accent-primary); }
+.step-running .step-title { font-weight: 600; }
+.step-running .step-state { color: var(--accent-primary); }
+.step-running .step-mark { animation: step-pulse 1.5s ease-in-out infinite; }
+@keyframes step-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+@media (prefers-reduced-motion: reduce) {
+  .step-running .step-mark { animation: none; border-width: 2px; }
+}
+.progress > .muted { margin-top: var(--space-3); display: block; }
+
+/* A finished request is a record, not a status. One disclosure row, no card. */
+.progress-summary {
+  background: none; border: 0; border-radius: 0; padding: 0;
+  border-block-end: 1px solid var(--border-subtle);
+}
+.progress-summary > summary {
+  display: flex; align-items: center; gap: var(--space-2);
+  font: 500 13px/1.3 var(--font-sans); color: var(--text-secondary);
+  padding-block: var(--space-2);
+}
+/* This row leads with the outcome mark, so it does not also need a chevron. */
+.progress-summary > summary::before { display: none; }
+.progress-summary > summary:hover { color: var(--text-primary); }
+.progress-summary .summary-hint {
+  margin-inline-start: auto; font: var(--text-meta); color: var(--accent-primary);
+}
+.progress-summary > summary:hover .summary-hint { text-decoration: underline; }
+.progress-summary .progress-clock { font-size: 12px; }
+.progress-summary[open] > summary { border-block-end: 1px solid var(--border-subtle); }
+.progress-summary[open] .stepper { margin-block: var(--space-2) var(--space-3); }
+.summary-verified { color: var(--success); }
+.summary-caution { color: var(--warning); }
+.summary-error { color: var(--danger); }
+.summary-neutral { color: var(--info); }
+
+/* ---- the composer ------------------------------------------------------
+   One field with the action inside it, sticky to the bottom of the thread. */
+.composer {
+  position: sticky; inset-block-end: 0; z-index: 5;
+  padding-block: var(--space-3) var(--space-4);
+  background: linear-gradient(to bottom, transparent, var(--bg-app) var(--space-3));
+}
+.composer-box {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  background: var(--bg-surface); border: 1px solid var(--border-control);
+  border-radius: var(--radius-lg); padding: var(--space-3) var(--space-3) var(--space-2);
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+/* The ring goes on the box, because the box is the control: the textarea inside it has no chrome
+   of its own. It is the same amber ring every other control uses — a border-colour change alone
+   is not a visible focus indicator, and the pale tint that was here first measured 1.1:1. */
+.composer-box:focus-within {
+  border-color: var(--accent-primary);
+  outline: 3px solid var(--focus-ring); outline-offset: 2px;
+}
+/* The textarea itself carries no chrome; the box around it is the control. It starts at roughly
+   two lines and grows with the text to a ceiling, after which it scrolls. */
+.composer textarea {
+  border: 0; padding: 0; margin: 0; background: none; resize: none;
+  min-block-size: 46px; max-block-size: 40vh; font: var(--text-body); color: var(--text-primary);
+}
+.composer textarea:focus-visible { outline: none; }
+.composer-actions {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+}
+.composer-note { font: var(--text-meta); color: var(--text-muted); min-inline-size: 0; }
+.composer-submit { display: inline-flex; align-items: center; gap: var(--space-2); }
+
+/* A short viewport — a phone in landscape, or a desktop at 200% zoom — must not give most of the
+   screen to the composer. It keeps every control; it simply stops reserving two lines it is not
+   using yet. */
+@media (max-height: 560px) {
+  .composer textarea { min-block-size: 24px; max-block-size: 25vh; }
+  .composer { padding-block: var(--space-2); }
+  .composer-box { padding: var(--space-2); }
+  .composer-note { display: none; }
+}
+
+@media (max-width: 900px) {
+  .chat:not(.chat-idle) { min-block-size: calc(100vh - var(--header-height) - var(--space-6)); }
+  .figure-card { flex-direction: column; }
+  .figure-thumb { inline-size: 100%; }
+  .bubble-user { max-inline-size: 92%; }
+  .answer { padding-inline-start: var(--space-3); }
+  .composer-note { display: none; }
+  .composer-actions { justify-content: flex-end; }
+  .evidence-detail dl { grid-template-columns: minmax(0, 1fr); gap: 0 0; }
+  .evidence-detail dd { margin-bottom: var(--space-2); }
+}

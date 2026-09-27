@@ -42,6 +42,10 @@ test('a real upload becomes retrievable and a candidate resolves to its source p
   });
   await page.screenshot({ path: testInfo.outputPath('retrieval-ready.png'), fullPage: true });
 
+  // The inspector is an advanced tool: it lives under a disclosure in the rail, folded away by
+  // default so the everyday three stay obvious. This has been true since 73eb049; the spec was
+  // still clicking the link as though it were a top-level entry.
+  await page.getByRole('button', { name: /Advanced tools/ }).click();
   await page.getByRole('link', { name: 'Retrieval inspector' }).click();
   await expect(page.getByRole('heading', { name: 'Retrieval inspector' })).toBeVisible();
   // The page states what it is before it states anything else.
@@ -113,7 +117,9 @@ test('the retrieval inspector never presents an answer, and Ask shows none unask
   // The Ask page is open from M9, but it answers nothing until asked, and the diagnostic view
   // never becomes an answering surface just because answering exists elsewhere.
   await page.getByRole('link', { name: 'Ask', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Educational use only' })).toBeVisible();
+  // The educational-use notice is a compact, persistent row now rather than a full-width card
+  // with its own heading. The full wording is still there, behind its disclosure.
+  await expect(page.getByText('Educational reference only')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ask with evidence' })).toBeDisabled();
   await expect(page.getByRole('heading', { name: 'Answer', exact: true })).toHaveCount(0);
   await expect(page.getByText(/confidence/i)).toHaveCount(0);

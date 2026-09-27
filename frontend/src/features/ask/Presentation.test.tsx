@@ -23,12 +23,12 @@ function show(result: Parameters<typeof Answer>[0]['result']) {
 
 describe('outcome severity', () => {
   it.each([
-    ['VERIFIED', 'outcome-verified', '✓'],
-    ['INSUFFICIENT_EVIDENCE', 'outcome-caution', '◍'],
-    ['CONFLICTING_EVIDENCE', 'outcome-caution', '◍'],
-    ['UNVERIFIED', 'outcome-warning', '!'],
-    ['FAILED', 'outcome-error', '✕'],
-    ['OUT_OF_SCOPE', 'outcome-neutral', 'i'],
+    ['VERIFIED', 'outcome-verified', 'verified'],
+    ['INSUFFICIENT_EVIDENCE', 'outcome-caution', 'no-answer'],
+    ['CONFLICTING_EVIDENCE', 'outcome-caution', 'conflict'],
+    ['UNVERIFIED', 'outcome-warning', 'unverified'],
+    ['FAILED', 'outcome-error', 'failed'],
+    ['OUT_OF_SCOPE', 'outcome-neutral', 'scope'],
   ])('%s carries its own severity class and mark', (outcome, severity, mark) => {
     const { container } = show({
       ...base,
@@ -38,7 +38,28 @@ describe('outcome severity', () => {
     });
     const panel = container.querySelector(`.${severity}`);
     expect(panel).toBeTruthy();
-    expect(panel!.textContent).toContain(mark);
+    // The mark is an icon rather than a typographic character now, so what is asserted is that
+    // the severity really does carry a non-colour marker of its own — `data-mark` names it —
+    // and that the marker is drawn.
+    const drawn = panel!.querySelector(`.outcome-mark[data-mark="${mark}"]`);
+    expect(drawn).toBeTruthy();
+    expect(drawn!.querySelector('svg')).toBeTruthy();
+  });
+
+  it('gives every severity a different mark, so the states are not told apart by colour', () => {
+    const marks = new Set<string>();
+    for (const outcome of ['VERIFIED', 'INSUFFICIENT_EVIDENCE', 'CONFLICTING_EVIDENCE', 'UNVERIFIED', 'FAILED', 'OUT_OF_SCOPE']) {
+      const { container, unmount } = show({
+        ...base, outcome: outcome as typeof base.outcome,
+        verified: outcome === 'VERIFIED',
+        answer: outcome === 'VERIFIED' ? 'A checked statement.' : null,
+      });
+      marks.add(container.querySelector('.outcome-mark')!.getAttribute('data-mark')!);
+      unmount();
+    }
+    // Five distinct marks across six outcomes: only the two "caution" states share a severity,
+    // and even those carry different marks and different words.
+    expect(marks.size).toBe(6);
   });
 
   it('never relies on colour alone: every state also differs in words', () => {
@@ -55,7 +76,7 @@ describe('outcome severity', () => {
   it('marks are decorative, so a screen reader hears the words and not the glyph', () => {
     const { container } = show({ ...base, outcome: 'FAILED' });
     expect(container.querySelector('.outcome-mark')).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.getByText(/SERVICE PROBLEM/)).toBeInTheDocument();
+    expect(screen.getByText(/Technical failure/)).toBeInTheDocument();
   });
 
   it('explains a reason code in plain words and keeps the code beside it', () => {

@@ -14,7 +14,9 @@ test('the Ask page answers only from verified evidence, and says so when it cann
   await page.goto('/ask');
   await page.getByLabel('Access key').fill(credentials());
   await page.getByRole('button', {name: 'Open workspace'}).click();
-  await expect(page.getByRole('heading', {name: 'Educational use only'})).toBeVisible();
+  // The educational-use notice is a compact, persistent row now rather than a full-width card
+  // with its own heading. The full wording is still there, behind its disclosure.
+  await expect(page.getByText('Educational reference only')).toBeVisible();
 
   await page.getByLabel('Your educational medical question').fill('Parameter Group Alpha Units');
   await page.getByRole('button', {name: 'Ask with evidence'}).click();

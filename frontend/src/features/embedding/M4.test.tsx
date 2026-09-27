@@ -103,7 +103,10 @@ async function show(path: string) {
     <MemoryRouter initialEntries={[path]}><App /></MemoryRouter></QueryClientProvider>);
   fireEvent.change(screen.getByLabelText('Access key'), { target: { value: 'local-test-key' } });
   fireEvent.click(screen.getByRole('button', { name: 'Open workspace' }));
-  await screen.findByText(/Local tester/);
+  // Signed in: the header offers the account control, which exists only once a principal is held.
+  // This used to wait for the principal's name, which the content area printed above every page;
+  // that line now lives inside the account menu in the header.
+  await screen.findByRole('button', { name: 'Account and workspace' });
 }
 
 describe('M4 embedding status on the document details page', () => {
