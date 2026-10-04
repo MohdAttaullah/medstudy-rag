@@ -5,6 +5,7 @@ import {
   SquarePen, Stethoscope, TriangleAlert, X,
   type LucideIcon,
 } from 'lucide-react';
+import { Archive, Eye, LoaderCircle } from 'lucide-react';
 
 /**
  * One icon set, at one size, with one stroke weight.
@@ -42,6 +43,10 @@ const ICONS = {
   document: FileText,
   figure: ImageIcon,
   info: Info,
+  // Document lifecycle. `processing` is the only icon that may move, and only while a stage runs.
+  processing: LoaderCircle,
+  archive: Archive,
+  inspect: Eye,
   'chevron-down': ChevronDown,
   'chevron-right': ChevronRight,
 

@@ -44,7 +44,7 @@ export function ParseSummaryPanel({ documentId, versionId }: { documentId: strin
       <p className="muted">{findingSummary(run.finding_counts)}</p>
       {run.error_code && <p role="alert" className="error">{run.error_code}: {run.error_message}</p>}
       <p className="muted">
-        Parsed structure is not searchable evidence. Embedding and retrieval are not implemented.
+        Parsed structure is not searchable on its own. It becomes searchable only after its passages are embedded and both indexes verify.
       </p>
       <Link className="button-link" to={`/documents/${documentId}/versions/${versionId}/parse/${run.id}`}>
         Open parse inspector

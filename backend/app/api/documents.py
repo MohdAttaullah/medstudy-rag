@@ -39,8 +39,11 @@ from app.schemas.documents import (
     VersionMetadata,
     VersionView,
 )
+from app.schemas.lifecycle import Lifecycle
 from app.security.auth import Principal
 from app.services.control import ControlPlane
+from app.services.lifecycle import lifecycle as read_lifecycle
+from app.services.lifecycle import summary as read_summary
 
 router = APIRouter(prefix="/api/v1")
 
@@ -252,6 +255,7 @@ def document_view(session: Any, document: Document) -> DocumentView:
     )
     if latest:
         result.latest_version = VersionView.model_validate(latest)
+    result.lifecycle = read_summary(session, document)
     return result
 
 
@@ -325,6 +329,32 @@ def update_document(
 @router.post("/documents/{document_id}/archive", status_code=204)
 def archive(document_id: UUID, request: Request, actor: Actor, service: Service) -> None:
     service.jobs.archive(actor, document_id, correlation(request))
+
+
+#: Each reprocessing action with the capability that may invoke it. The lifecycle response lists
+#: only the actions the caller holds, so a reader is never shown a control they cannot use.
+ACTION_PERMISSIONS = {
+    "retry": "ingestion:retry",
+    "reparse": "ingestion:reparse",
+    "rechunk": "ingestion:rechunk",
+    "reembed": "ingestion:reembed",
+    "reindex-sparse": "ingestion:reindex",
+    "cancel": "ingestion:cancel",
+}
+
+
+@router.get("/documents/{document_id}/lifecycle", response_model=Lifecycle)
+def document_lifecycle(document_id: UUID, actor: Actor, service: Service) -> Lifecycle:
+    """Where the document is in processing, read entirely from persisted state."""
+    actor.require("document:read")
+    with service.sessions() as session:
+        view = read_lifecycle(session, get_document(session, actor.tenant_id, document_id))
+    held = actor.permissions
+    return view.model_copy(
+        update={
+            "actions": [item for item in view.actions if ACTION_PERMISSIONS[item.action] in held]
+        }
+    )
 
 
 @router.get("/documents/{document_id}/versions", response_model=Page[VersionView])

@@ -35,9 +35,8 @@ test('a real upload is chunked and every chunk resolves to its source page', asy
 
   // Parsing loads model weights on a cold worker, so allow a generous wait. M4 embeds straight
   // after chunking, so the version may already have advanced past ready for embedding.
-  await expect(
-    page.locator('.version-card').getByText(/ready for (embedding|retrieval)/).first()
-  ).toBeVisible({ timeout: 1080000 });
+  await expect(page.locator('.lc-step', { hasText: 'Preparing searchable passages' })).toContainText('Completed', { timeout: 1080000 });
+  await page.locator('.version-card summary', { hasText: 'Findings and technical details' }).first().click();
   const chunking = page.locator('.panel', { hasText: 'Chunking' }).first();
   await expect(chunking.getByText(/medical-structure/)).toBeVisible();
   await expect(chunking.getByText(/chunking-m3-v1/)).toBeVisible();

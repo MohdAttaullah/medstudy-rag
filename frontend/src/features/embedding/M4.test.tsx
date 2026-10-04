@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../App';
+import { lifecycleView } from '../../test-lifecycle';
 
 const version = {
   id: 'version-1', document_id: 'doc-1', version_number: 1, edition: 'First',
@@ -91,6 +92,7 @@ beforeEach(() => {
       url.includes('/parse') ? { document_version_id: 'version-1', ingestion_status: 'READY_FOR_RETRIEVAL', parse_run: null, parse_runs: 0 } :
       url.includes('/chunk-runs') ? page([]) :
       url.includes('/versions') ? page([version]) :
+      url.includes('/lifecycle') ? lifecycleView() :
       url.includes('/documents/doc-1') ? document_ :
       page([]);
     return new Response(JSON.stringify(body), { status: 200 });
@@ -126,7 +128,7 @@ describe('M4 embedding status on the document details page', () => {
     await show('/documents/doc-1');
     await screen.findByText(/ncbi\/MedCPT-Article-Encoder/);
     const body = window.document.body.textContent ?? '';
-    expect(body).toContain('It does not mean this document can be answered from');
+    expect(body).toContain('available to Ask only once the keyword index has also verified');
     expect(body).toContain('Parent chunks are not indexed.');
     for (const absent of ['relevance score', 'ranked results', 'evidence available', 'ready to answer']) {
       expect(body.toLowerCase()).not.toContain(absent);
@@ -141,7 +143,8 @@ describe('M4 embedding status on the document details page', () => {
         url.includes('/parse') ? { document_version_id: 'version-1', ingestion_status: 'READY_FOR_EMBEDDING', parse_run: null, parse_runs: 0 } :
         url.includes('/chunk-runs') ? page([]) :
         url.includes('/versions') ? page([version]) :
-        url.includes('/documents/doc-1') ? document_ : page([]);
+        url.includes('/lifecycle') ? lifecycleView() :
+      url.includes('/documents/doc-1') ? document_ : page([]);
       return new Response(JSON.stringify(body), { status: 200 });
     }));
     await show('/documents/doc-1');

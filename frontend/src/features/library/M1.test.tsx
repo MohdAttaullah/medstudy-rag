@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../App';
+import { lifecycleView } from '../../test-lifecycle';
 import * as client from '../../api/client';
 
 const version = { id: 'version-1', document_id: 'doc-1', version_number: 1, edition: 'First',
@@ -31,7 +32,12 @@ beforeEach(() => {
         allowed_mime_types: ['application/pdf'], files_per_request: 1 } :
       url.includes('/ingestion/jobs/job-1') ? job :
       url.includes('/ingestion/jobs') ? page([job]) :
+      // The details page's per-version panels, each with nothing recorded yet.
+      url.includes('/parse') ? { document_version_id: 'version-1', ingestion_status: 'QUEUED', parse_run: null, parse_runs: 0 } :
+      url.includes('/chunk-runs') ? page([]) :
+      url.includes('/embedding') ? { document_version_id: 'version-1', ingestion_status: 'QUEUED', embedding_run: null, embedding_version: null, index_run: null, embedding_runs: 0, finding_counts: {}, chunk_types: {} } :
       url.includes('/versions') ? page([version]) :
+      url.includes('/lifecycle') ? lifecycleView() :
       url.includes('/documents/doc-1') ? document :
       page(uploaded ? [document] : []);
     return new Response(JSON.stringify(body), { status: 200 });

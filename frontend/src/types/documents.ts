@@ -1,3 +1,4 @@
+import type { LifecycleSummary } from './lifecycle';
 export type SourceType = 'GUIDELINE' | 'REFERENCE_BOOK' | 'TEXTBOOK' | 'COURSE_MATERIAL' | 'QUESTION_BANK' | 'QUESTION_PAPER' | 'ANSWER_KEY' | 'OTHER';
 export type Authority = 'UNREVIEWED' | 'ASSESSMENT' | 'REFERENCE' | 'HIGH';
 export interface Metadata { title: string; source_type: SourceType; authority_level: Authority; description?: string | null; specialty?: string | null; subject?: string | null; publisher?: string | null }
@@ -7,7 +8,11 @@ export interface Version {
   file_size_bytes: number; sha256: string; ingestion_status: string; searchable: boolean;
   created_by_user_id: string; created_at: string; archived_at: string | null;
 }
-export interface Document extends Metadata { id: string; created_by_user_id: string; created_at: string; archived_at: string | null; latest_version: Version | null }
+export interface Document extends Metadata {
+  id: string; created_by_user_id: string; created_at: string; archived_at: string | null; latest_version: Version | null;
+  /** Where the latest version is in its lifecycle. Optional: older payloads omit it. */
+  lifecycle?: LifecycleSummary | null;
+}
 export interface StageEvent { id: string; sequence: number; to_status: string; service_identity: string; retry_number: number; error_detail: string | null; created_at: string }
 export interface Job {
   id: string; document_version_id: string; document_id: string; document_title: string;

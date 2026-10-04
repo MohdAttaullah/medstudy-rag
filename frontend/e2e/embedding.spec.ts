@@ -34,16 +34,15 @@ test('a real upload is embedded and indexed, and every point resolves to its sou
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
 
   // Parsing loads model weights on a cold worker, so allow a generous wait for the whole path.
-  await expect(page.locator('.version-card').getByText(/^(ready for retrieval|retrieval ready)$/).first()).toBeVisible({
-    timeout: 1080000,
-  });
+  await expect(page.locator('.lc-step', { hasText: 'Building the semantic search index' })).toContainText('Completed', { timeout: 1080000 });
+  await page.locator('.version-card summary', { hasText: 'Findings and technical details' }).first().click();
   const embedding = page.locator('.panel', { hasText: 'Embedding and index' }).first();
   await expect(embedding.getByText(/ncbi\/MedCPT-Article-Encoder @ d05a736da4bb/)).toBeVisible();
   await expect(embedding.getByText(/768-dimensional · CLS pooling · unnormalized · DOT similarity/)).toBeVisible();
   await expect(embedding.getByText(/Index verified/)).toBeVisible();
   await expect(embedding.getByText(/Active vectors/)).toBeVisible();
   // The claim on the page is exactly what was verified, and no more.
-  await expect(embedding.getByText(/It does not mean this document can be answered from/)).toBeVisible();
+  await expect(embedding.getByText(/available to Ask only once the keyword index has also verified/)).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('embedding-summary.png'), fullPage: true });
 
   await embedding.getByRole('link', { name: 'Open index inspector' }).click();

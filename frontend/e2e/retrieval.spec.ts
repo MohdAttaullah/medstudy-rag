@@ -37,9 +37,7 @@ test('a real upload becomes retrievable and a candidate resolves to its source p
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
 
   // The whole pipeline runs for real: parse, chunk, embed, index, then build the lexical index.
-  await expect(page.locator('.version-card').getByText('retrieval ready').first()).toBeVisible({
-    timeout: 1080000,
-  });
+  await expect(page.getByRole('heading', { name: 'Ready for Ask', level: 2 })).toBeVisible({ timeout: 1080000 });
   await page.screenshot({ path: testInfo.outputPath('retrieval-ready.png'), fullPage: true });
 
   // The inspector is an advanced tool: it lives under a disclosure in the rail, folded away by

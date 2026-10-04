@@ -15,7 +15,7 @@ export function JobHistory({ jobId }: { jobId: string }) {
         {event.error_detail && <p className="error">{event.error_detail}</p>}</li>)}</ol>
       <p className="muted">Configuration: {job.data.configuration_version}</p>
       <p className="muted">{job.data.queue_received_at ? 'Worker receipt confirmed.' : 'Awaiting worker receipt; the job is durable in PostgreSQL.'}</p>
-      <p className="muted">Indexing ends at READY_FOR_RETRIEVAL, which means the vectors verified. Query retrieval, reranking and answering are not implemented.</p>
+      <p className="muted">READY_FOR_RETRIEVAL means the vectors verified; RETRIEVAL_READY means the keyword index verified too, and only then can Ask use this version.</p>
     </>}</section>;
 }
 /**

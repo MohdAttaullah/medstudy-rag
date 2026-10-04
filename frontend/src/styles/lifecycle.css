@@ -1,0 +1,179 @@
+/*
+ * Document lifecycle: the processing stepper, the review panel and Library chips.
+ *
+ * Every state is an icon, a title and a sentence first; colour only reinforces them. Motion is
+ * limited to one spinner on the stage that is genuinely running, and it stops for anyone who has
+ * asked for reduced motion.
+ */
+
+/* ---- tones ------------------------------------------------------------- */
+.tone-active  { --tone: var(--accent-primary); --tone-fill: var(--accent-subtle); --tone-edge: var(--accent-primary); }
+.tone-success { --tone: var(--success);        --tone-fill: var(--success-subtle); --tone-edge: var(--success-edge); }
+.tone-review  { --tone: var(--warning);        --tone-fill: var(--warning-subtle); --tone-edge: var(--warning-edge); }
+.tone-danger  { --tone: var(--danger);         --tone-fill: var(--danger-subtle);  --tone-edge: var(--danger-edge); }
+.tone-neutral { --tone: var(--text-secondary); --tone-fill: var(--bg-subtle);      --tone-edge: var(--border-control); }
+
+@keyframes lifecycle-spin { to { transform: rotate(360deg); } }
+.lifecycle.tone-active .lifecycle-mark svg,
+.lc-running .lc-step-icon svg,
+.chip-spin svg { animation: lifecycle-spin 1.2s linear infinite; }
+
+/* ---- the stepper ------------------------------------------------------- */
+.lifecycle-anchor { scroll-margin-top: calc(var(--header-height) + var(--space-4)); }
+.lifecycle {
+  padding: var(--space-5); background: var(--bg-surface); margin: var(--space-5) 0;
+  border: 1px solid var(--border-subtle); border-inline-start: 4px solid var(--tone-edge);
+  border-radius: var(--radius-md);
+}
+.lifecycle-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.lifecycle-title { display: flex; gap: var(--space-3); align-items: flex-start; min-inline-size: 0; }
+.lifecycle-title h2 { margin: 0; color: var(--text-primary); }
+.lifecycle-mark {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  inline-size: 34px; block-size: 34px; border-radius: 50%;
+  background: var(--tone-fill); color: var(--tone);
+}
+.lifecycle-activity { margin: var(--space-1) 0 0; font: var(--text-secondary-size); color: var(--text-secondary); }
+.lifecycle-clock { display: flex; gap: var(--space-5); margin: 0; }
+.lifecycle-clock dd { font: 600 14px/1.4 var(--font-sans); color: var(--text-primary); }
+.num { font-variant-numeric: tabular-nums; }
+.lifecycle-notes { margin-top: var(--space-3); }
+.lifecycle-notes p { margin: var(--space-1) 0; font: var(--text-meta); color: var(--text-secondary); }
+
+.lifecycle-steps { list-style: none; padding: 0; margin: var(--space-4) 0 0; }
+.lc-step {
+  position: relative; display: flex; gap: var(--space-3);
+  padding-block: var(--space-2); padding-inline-start: 2px;
+}
+/* The rail joining one mark to the next. */
+.lc-step:not(:last-child)::after {
+  content: ""; position: absolute; inset-inline-start: 13px; inset-block: 34px -6px;
+  border-inline-start: 2px solid var(--border-subtle);
+}
+.lc-completed:not(:last-child)::after { border-color: var(--success-edge); }
+.lc-step-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  inline-size: 24px; block-size: 24px; border-radius: 50%; margin-top: 1px;
+  border: 2px solid var(--border-strong); background: var(--bg-surface); color: var(--text-muted);
+}
+.lc-completed .lc-step-icon { border-color: var(--success-edge); background: var(--success-subtle); color: var(--success); }
+.lc-running .lc-step-icon { border-color: var(--accent-primary); background: var(--accent-subtle); color: var(--accent-primary); }
+.lc-blocked .lc-step-icon { border-color: var(--warning-edge); background: var(--warning-subtle); color: var(--warning); }
+.lc-failed .lc-step-icon { border-color: var(--danger-edge); background: var(--danger-subtle); color: var(--danger); }
+.lc-step-body { min-inline-size: 0; }
+.lc-step-name { margin: 0; font: 500 14px/1.45 var(--font-sans); color: var(--text-secondary); }
+.lc-completed .lc-step-name { color: var(--text-primary); }
+.lc-running .lc-step-name, .lc-blocked .lc-step-name, .lc-failed .lc-step-name { font-weight: 600; color: var(--text-primary); }
+.lc-step-meta, .lc-step-facts { margin: 2px 0 0; font: var(--text-meta); color: var(--text-muted); }
+.lc-step-word { font-weight: 600; }
+.lc-completed .lc-step-word { color: var(--success); }
+.lc-running .lc-step-word { color: var(--accent-primary); }
+.lc-blocked .lc-step-word { color: var(--warning); }
+.lc-failed .lc-step-word { color: var(--danger); }
+.lc-step-facts { color: var(--text-secondary); }
+
+.failure-panel { border-inline-start: 4px solid var(--danger-edge); }
+.failure-panel h2 { display: flex; gap: var(--space-2); align-items: center; color: var(--danger); }
+
+/* ---- review ------------------------------------------------------------ */
+.review-panel {
+  padding: var(--space-5); margin: var(--space-5) 0; background: var(--bg-surface);
+  border: 1px solid var(--warning-edge); border-inline-start-width: 6px; border-radius: var(--radius-md);
+}
+.review-head { display: flex; gap: var(--space-3); align-items: flex-start; }
+.review-head h2 { margin: 0; color: var(--warning); }
+.review-head p { margin: var(--space-1) 0 0; font: var(--text-secondary-size); color: var(--text-primary); max-inline-size: var(--measure); }
+.review-mark {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  inline-size: 36px; block-size: 36px; border-radius: 50%;
+  background: var(--warning-subtle); color: var(--warning);
+}
+.review-counts { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; padding: 0; margin: var(--space-4) 0 0; }
+.review-counts li {
+  display: inline-flex; gap: var(--space-2); align-items: center; padding: 4px var(--space-3);
+  border-radius: 999px; font: 600 12.5px/1.4 var(--font-sans); border: 1px solid;
+}
+.count-blocking { background: var(--danger-subtle); color: var(--danger); border-color: var(--danger-edge); }
+.count-warning { background: var(--warning-subtle); color: var(--warning); border-color: transparent; }
+.review-panel h3 { font-size: 14px; }
+
+.issue-list { display: grid; gap: var(--space-2); }
+.issue { border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface); }
+.issue-blocking { border-color: var(--danger-edge); border-inline-start-width: 4px; }
+.issue > summary {
+  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+  padding: var(--space-3); font: 600 14px/1.4 var(--font-sans);
+}
+.issue-blocking > summary { background: var(--danger-subtle); color: var(--danger); }
+.issue-warning > summary { color: var(--text-primary); }
+.issue-mark { display: inline-flex; }
+.issue-warning .issue-mark { color: var(--warning); }
+.issue-title { flex: 1 1 12rem; min-inline-size: 0; }
+.issue-count { font: var(--text-meta); color: var(--text-secondary); }
+.issue-severity {
+  font: 700 10.5px/1.4 var(--font-sans); letter-spacing: .06em; text-transform: uppercase;
+  padding: 2px var(--space-2); border-radius: var(--radius-sm); border: 1px solid currentColor;
+}
+.sev-critical, .sev-error { color: var(--danger); background: var(--bg-surface); }
+.sev-warning { color: var(--warning); }
+.sev-info { color: var(--info); }
+.issue-body { padding: var(--space-3) var(--space-4) var(--space-4); }
+.issue-body p { margin: 0 0 var(--space-2); font: var(--text-secondary-size); color: var(--text-primary); max-inline-size: var(--measure); }
+.issue-body .issue-source { font: var(--text-meta); color: var(--text-secondary); overflow-wrap: anywhere; }
+.issue-inspect { display: inline-flex; gap: var(--space-2); align-items: center; }
+
+.review-steps { padding-inline-start: var(--space-5); margin: 0; font: var(--text-secondary-size); }
+.review-steps > li { margin-bottom: var(--space-3); max-inline-size: var(--measure); }
+.review-repeat {
+  display: flex; gap: var(--space-2); align-items: flex-start; margin: var(--space-2) 0;
+  padding: var(--space-3); background: var(--info-subtle); color: var(--text-primary);
+  border-radius: var(--radius-sm); font: var(--text-meta); max-inline-size: var(--measure);
+}
+.review-repeat svg { color: var(--info); margin-top: 2px; }
+.review-actions { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
+.review-action { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
+.review-action span { font: var(--text-meta); color: var(--text-secondary); flex: 1 1 14rem; }
+.review-warnings { margin-top: var(--space-4); }
+.review-warnings > summary { font: 600 13px/1.4 var(--font-sans); color: var(--text-secondary); padding-block: var(--space-2); }
+.review-warnings .issue-list { margin-top: var(--space-2); }
+
+/* ---- Library chips ----------------------------------------------------- */
+.lifecycle-chip-cell { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); }
+.lifecycle-chip {
+  display: inline-flex; gap: 6px; align-items: center; padding: 3px var(--space-2);
+  border-radius: var(--radius-sm); background: var(--tone-fill); color: var(--tone);
+  border: 1px solid var(--tone-fill); font: 600 12px/1.4 var(--font-sans);
+}
+.lifecycle-chip.tone-review, .lifecycle-chip.tone-danger { border-color: var(--tone-edge); }
+.lifecycle-chip > span { display: inline-flex; align-items: center; }
+.chip-detail { font-weight: 500; white-space: pre; }
+.chip-link { font: 600 12px/1.4 var(--font-sans); }
+.library-table th { text-align: start; }
+/* Visually hidden labels are absolutely positioned; anchoring them here keeps them inside the
+   scroller instead of widening the page. */
+.table-scroll { position: relative; }
+
+/* ---- disclosures on the details page ------------------------------------ */
+.technical { margin-top: var(--space-4); }
+.technical > summary { font: 600 13px/1.4 var(--font-sans); color: var(--accent-primary); padding-block: var(--space-2); }
+.diagnostics {
+  margin: var(--space-5) 0; padding: var(--space-3) var(--space-5); background: var(--bg-surface);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+}
+.diagnostics > .panel { border: 0; padding: 0; margin: var(--space-3) 0 0; }
+.success-note {
+  background: var(--success-subtle); color: var(--success); border-inline-start: 3px solid var(--success-edge);
+  padding: var(--space-3); font: 600 13px/1.4 var(--font-sans); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+@media (max-width: 600px) {
+  .lifecycle, .review-panel { padding: var(--space-4); }
+  .lifecycle-clock { inline-size: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lifecycle.tone-active .lifecycle-mark svg, .lc-running .lc-step-icon svg, .chip-spin svg { animation: none; }
+}

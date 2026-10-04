@@ -61,6 +61,10 @@
   --warning: #8a5a0f;        --warning-subtle: #fbf2e0;
   --danger: #9b332a;         --danger-subtle: #fbeae7;
   --info: #2d5c8e;           --info-subtle: #e9f1f8;
+  /* Edges for state panels: the band that says "this needs you" before a word is read. Held to the
+     3:1 of WCAG 1.4.11 since the edge carries meaning (and always repeats a word): on white
+     4.1, 5.5 and 5.3:1; warning on its own fill 3.7:1, danger on its own fill 4.7:1. */
+  --warning-edge: #b06f12;   --danger-edge: #b8402f;   --success-edge: #2b7a4f;
 
   --bg-disabled: #e6eaeb;
   --focus-ring: #b47719;     /* 3.8:1 on white, 4.1:1 on the sidebar */

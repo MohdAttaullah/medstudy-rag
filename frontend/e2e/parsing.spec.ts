@@ -33,14 +33,12 @@ test('a real upload is parsed and its structure is inspectable in the UI', async
   await page.getByRole('link', { name: 'Open uploaded document' }).click();
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
 
-  // The worker loads parser weights on its first document, so allow a generous wait.
+  // The worker loads parser weights on its first document, so allow a generous wait. The
+  // lifecycle reports the stage done from the server's own state; M3 chunks straight after.
+  await expect(page.locator('.lc-step', { hasText: 'Reading the document' })).toContainText('Completed', { timeout: 600000 });
+  await page.locator('.version-card summary', { hasText: 'Findings and technical details' }).first().click();
   const parsing = page.locator('.parse-summary');
-  await expect(parsing.getByText(/^docling /)).toBeVisible({ timeout: 480000 });
-  // The version badge shows the state. M3 chunks straight after parsing, so the version may
-  // already have advanced past ready for chunking by the time this assertion runs.
-  await expect(page.locator('.version-card').getByText(/ready for (chunking|embedding|retrieval)/).first()).toBeVisible({
-    timeout: 120000,
-  });
+  await expect(parsing.getByText(/^docling /)).toBeVisible();
   await expect(parsing.getByText('parsing-m2-v1', { exact: false })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('parse-summary.png'), fullPage: true });
 

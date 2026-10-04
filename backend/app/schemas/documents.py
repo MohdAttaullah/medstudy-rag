@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.enums import Authority, SourceType, Status
+from app.schemas.lifecycle import LifecycleSummary
 
 
 class DocumentMetadata(BaseModel):
@@ -68,6 +69,8 @@ class DocumentView(DocumentMetadata, ORMView):
     updated_at: datetime
     archived_at: datetime | None
     latest_version: VersionView | None = None
+    # Where the latest version is in its lifecycle, compactly. Additive: older clients ignore it.
+    lifecycle: LifecycleSummary | None = None
 
 
 class StageView(ORMView):

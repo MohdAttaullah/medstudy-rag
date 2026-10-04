@@ -27,6 +27,7 @@ test('authorized PDF upload reaches QUEUED, worker receipt and visible provenanc
   await page.getByRole('link', { name: 'Open uploaded document' }).click();
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
   await expect(page.getByText(/SHA-256:/)).toBeVisible();
+  await page.getByText('Ingestion diagnostics', { exact: true }).click();
   await page.getByRole('button', { name: 'Inspect history' }).click();
   const history = page.locator('.history');
   await expect(history.getByText('uploaded', { exact: true })).toBeVisible();

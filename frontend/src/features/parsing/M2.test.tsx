@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../App';
+import { lifecycleView } from '../../test-lifecycle';
 
 const version = {
   id: 'version-1', document_id: 'doc-1', version_number: 1, edition: 'First',
@@ -120,6 +121,7 @@ beforeEach(() => {
       url.includes('/chunk-runs') ? page([]) :
       url.includes('/embedding') ? { document_version_id: 'version-1', ingestion_status: 'READY_FOR_CHUNKING', embedding_run: null, embedding_version: null, index_run: null, embedding_runs: 0, finding_counts: {}, chunk_types: {} } :
       url.includes('/versions') ? page([version]) :
+      url.includes('/lifecycle') ? lifecycleView() :
       url.includes('/documents/doc-1') ? document_ :
       url.includes('/ingestion/jobs') ? page([]) :
       page([]);
@@ -157,7 +159,7 @@ describe('M2 parse status on the document details page', () => {
     for (const absent of ['chunks retrieved', 'vectors indexed', 'evidence available', 'embedding complete']) {
       expect(body.toLowerCase()).not.toContain(absent.toLowerCase());
     }
-    expect(body).toContain('Embedding and retrieval are not implemented.');
+    expect(body).toContain('Parsed structure is not searchable on its own.');
     expect(body).toContain('This version is not searchable.');
   });
 

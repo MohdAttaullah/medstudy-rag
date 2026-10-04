@@ -28,7 +28,7 @@ export function EmbeddingSummaryPanel({ documentId, versionId }: { documentId: s
     refetchInterval: 5000,
   });
   return <section className="panel"><h3>Embedding and index</h3>
-    <p className="muted">A verified index means the vectors were loaded and reconciled. It does not mean this document can be answered from: retrieval and answering are not implemented.</p>
+    <p className="muted">A verified index means the vectors were loaded and reconciled. The document is available to Ask only once the keyword index has also verified and its status is Ready.</p>
     {result.isPending ? <p>Loading embedding state...</p>
       : result.isError ? <p role="alert">Embedding state unavailable.</p>
       : !result.data.embedding_run ? <p>This version has not been embedded yet. Embedding requires an active, validated chunk dataset.</p>
