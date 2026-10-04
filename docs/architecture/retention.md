@@ -1,6 +1,7 @@
 # Data retention and deletion
 
-What this system stores, how long it keeps it, and — stated plainly — what it cannot yet delete.
+What this system stores, how long it keeps it, how a document is deleted, and — stated plainly —
+what it still cannot delete.
 
 **No legal or regulatory retention requirement is asserted here.** Retention periods are a
 deployment's policy decision. This document describes the *control surface* that exists and the
@@ -10,12 +11,13 @@ gaps that remain, so a policy can be written against reality rather than against
 
 | Data | Location | Current behaviour |
 |---|---|---|
-| Original uploaded documents | Object store | Retained indefinitely. Authoritative evidence. |
+| Original uploaded documents | Object store | Retained until permanently deleted (ADR-026). Authoritative evidence. |
 | Document and version metadata | PostgreSQL | Retained indefinitely |
 | Parses, pages, elements, tables, figures, formulas | PostgreSQL + object store | Retained; superseded runs kept for provenance |
 | Chunks and BM25 postings | PostgreSQL | Retained per chunk run |
 | Vectors | Qdrant | Retained per index run |
-| Conversations, turns, verified answers, citations | PostgreSQL | Retained indefinitely |
+| Conversations, turns, verified answers, citations | PostgreSQL | Retained indefinitely; citations to a deleted document are redacted |
+| Deletion tombstones | PostgreSQL | Retained; no title or content |
 | Configuration revisions | PostgreSQL | **Immutable and append-only.** Never deleted. |
 | Audit events | PostgreSQL | Retained indefinitely |
 | Evaluation artifacts | `docs/evals/` | Committed; regenerable |
@@ -27,35 +29,42 @@ that failed verification, verifier reasoning, request-scoped EvidenceSets, and a
 value. A verified answer stores the citation text it was verified against rather than re-resolving
 it, so a later re-parse cannot silently change what a stored answer appears to cite.
 
-## Deletion today
+## Archive and permanent deletion
 
-`document:manage` allows a document to be withdrawn from the active corpus. **This is a state
-change, not an erasure.** After it:
+There are two ways to take a document out of use, and they are deliberately different.
 
-* The document no longer participates in retrieval.
-* Its rows, artifacts, vectors, postings and original object remain.
+**Archive** (`document:manage`) is a state change, not an erasure. The document leaves retrieval;
+its rows, artifacts, vectors, postings and original object remain. It is the right tool for a
+mistaken upload or a superseded edition.
 
-That is the honest description. It is adequate for correcting a mistaken upload; **it is not a
-right-to-erasure implementation**, and it must not be represented as one.
+**Permanent deletion** (`document:delete`, admin only — ADR-026) erases the document and everything
+derived from it:
 
-## What a complete deletion workflow would require
+1. Object store — every object *version and delete marker* under `documents/{document_id}/`: the
+   original, page previews and figure crops. The bucket is versioned, so removing only the current
+   version would not be an erasure.
+2. PostgreSQL — the document, versions, upload intents, jobs and their stage events, parse runs and
+   everything under them, review decisions and findings, chunk runs, chunks and their links,
+   questions, embeddings and embedding/index runs, the lexical index and its postings, outbox rows.
+3. Qdrant — every point carrying the document's tenant and document id, in every collection its
+   index runs used, confirmed by a count of zero.
 
-Deletion has to reach every derived surface, or content remains recoverable through a path nobody
-was watching. The full set:
+The workflow is withdraw → external cleanup → purge, and is resumable: if a step fails, the
+document stays withdrawn from search and repeating the request completes it. A document still
+being processed cannot be deleted. Deletion is refused across tenants with the same `404` as a
+document that does not exist.
 
-1. Object store — original plus every derived artifact (page previews, figure crops).
-2. PostgreSQL — document, versions, parse runs, pages, elements, tables, figures, formulas, chunks,
-   questions, BM25 postings, embedding run metadata.
-3. Qdrant — every point for the document's chunks, across every index run that included it.
-4. Any cached artifact.
-5. Conversations that cited the document — **and here the requirements conflict.** A verified
-   answer is bound by database CHECK constraints to the citations it was verified against.
-   Deleting the source while keeping the answer would leave a verified answer whose evidence no
-   longer exists; deleting the turn destroys a user's history. Which is correct is a policy
-   decision, not a technical one, and it must be decided before the workflow is built.
+**Conversations that cited a deleted document** (the conflict this document previously left
+undecided) keep their turns and answer text. Each citation to the deleted document is redacted —
+excerpt, title, pages, spans and artifacts removed — and marked `source_deleted`; the interface
+shows "Source deleted". The deleted text is not kept anywhere to keep a citation readable.
 
-**None of this is implemented.** Stating the design without the code is the point: it makes the gap
-reviewable rather than invisible.
+**What remains** is contentless: a `document_deletions` tombstone (document id, who, when, attempts,
+counts of what was removed — no title or filename) and the audit events `DOCUMENT_DELETE_REQUESTED`,
+`DOCUMENT_DELETED` and `DOCUMENT_DELETE_FAILED`.
+
+**Not reached by deletion:** backups taken before it, and any copy outside this system (a
+downloaded original, a screenshot). Removing a document from backups is a backup-retention policy.
 
 ## Audit and configuration history are exempt
 
@@ -75,9 +84,8 @@ under a hardening milestone.
 
 * No configurable retention period for any data class.
 * No scheduled purge.
-* No complete deletion workflow; withdrawal is a state change only.
+* Deletion reaches the live stores, not backups taken before it.
 * No cryptographic erasure.
-* The verified-answer-versus-source-deletion conflict is undecided.
 
 These are **known operational limitations**, not production blockers for a deployment whose policy
 does not yet require deletion — but they are blockers for one that does, and that determination

@@ -1,5 +1,8 @@
 # Ingestion architecture
 
+How this pipeline is presented to people — stages, review guidance, honest timing — is in
+`document-lifecycle.md`. Permanent deletion of a document is ADR-026.
+
 ## Implemented boundary
 
 Authorized PDF uploads create an immutable original, DocumentVersion, IngestionJob, ordered stage

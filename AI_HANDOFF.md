@@ -62,8 +62,8 @@ proxied through the public origin** — they are internal surfaces.
 
 Run Alembic as a **pre-deploy job**, never from application startup; replicas would race. Never
 downgrade a production schema automatically. **M12 added no migration**, which is correct for a
-hardening milestone; the two post-M12 migrations are `parse_review_decisions` and
-`out_of_scope_outcome`, which is the current head.
+hardening milestone; the post-M12 migrations are `parse_review_decisions`,
+`out_of_scope_outcome` and `document_purge` (ADR-026), which is the current head.
 
 ## Model provisioning
 
@@ -552,6 +552,67 @@ shouted constants (`SERVICE PROBLEM`) to concise sentence case (`Technical failu
 functionality assertion was weakened; the outcome-severity test was strengthened, asserting that
 each of the six outcomes carries a distinct non-colour marker rather than one glyph per severity.
 
+## Document lifecycle UX and permanent deletion (post-M12)
+
+Product work, no milestone. **No validation, chunking, embedding, retrieval, evidence or Ask rule
+was weakened**; nothing accepts or bypasses a chunk finding. See
+`docs/architecture/document-lifecycle.md` and `docs/adr/026-permanent-document-deletion.md`.
+
+**Lifecycle.** `GET /documents/{id}/lifecycle` (`app/services/lifecycle.py`, schema
+`app/schemas/lifecycle.py`) derives seven user-facing stages, overall state, real counts, review
+findings (grouped, blocking vs warning, identical-earlier-attempt detection) and which reprocessing
+actions can succeed — all from persisted rows; the endpoint drops actions the caller lacks. Library
+rows carry a `lifecycle` summary. Frontend: `features/documents/` — `ProcessingLifecycle`,
+`ReviewPanel`, `LifecycleChip`, `RowMenu`, `DeleteDocumentDialog`, rules in `lifecycle.ts`, polling
+in `useLifecycle.ts` (3 s, stops on any terminal/waiting state), styles in `styles/lifecycle.css`.
+Document Details is reordered: overview → lifecycle → failure/review → versions (technical panels
+folded) → diagnostics (folded) → danger zone.
+
+**No fake progress or ETA.** No percentage anywhere. ETA only from ≥ 8 comparable completed runs
+(interquartile range); this server has 4 parse samples, so it says why there is none. Telemetry that
+would improve it is listed in the lifecycle doc (per-page parse progress, OCR pre-scan, embedding
+batch progress during the run, machine id per run).
+
+**Permanent deletion** (ADR-026). `DELETE /documents/{id}` body `{"confirm":"DELETE"}`, permission
+`document:delete` (admin only), `GET /documents/{id}/deletion-preview`. Service
+`app/services/deletion.py`: withdraw → MinIO versions+markers and Qdrant points → one purge
+transaction through guards that admit a single document via transaction-local
+`medrag.purge_document`. Migration `document_purge` (down_revision `out_of_scope_outcome`) adds
+`document_deletions`, `turn_citations.source_deleted_at`, drops the citation→document FK, and
+re-points history triggers to `document_history_append_only`. Citing answers stay; their citations
+are redacted and shown as "Source deleted". Blocked while processing (409). Failure → 503
+`DOCUMENT_DELETE_INCOMPLETE`, document stays withdrawn, retry resumes. Audit:
+`DOCUMENT_DELETE_REQUESTED` / `DOCUMENT_DELETED` / `DOCUMENT_DELETE_FAILED`.
+
+**Known defect found, not fixed (out of scope):** "Head and Neck: Muscle Charts" (tenant
+`ba3d8361…`) stops at NEEDS_REVIEW on `CHUNK_OVERSIZED` — a `TABLE_PART` of 396 tokens against the
+384-token budget (page 10, rows 2–9, part 2 of 2) — on two attempts with chunker 1.0.0. The table
+splitter can emit a part over budget; the fix belongs in the chunker, not in validation. The review
+page now tells the user that repeating rechunk will most likely reproduce it.
+
+**Live QA (2026-10-04, workspace "Clean testing 2", tenant `ba3d8361…`).** Dev DB backed up to
+`.local/pre-document-purge.dump`, then migrated to `document_purge`; stack rebuilt with
+`docker compose --profile app --profile workers up -d --build --force-recreate`. Head and Neck
+review page checked read-only at desktop/tablet/mobile/150%/200% (no overflow, keyboard path
+through the ⋯ menu and dialog, reader sees no controls, other tenant 404). Two disposable uploads —
+"DISPOSABLE delete test a8638847" (`687d7ccd…`) and "DISPOSABLE delete test 0a2b88f8"
+(`bb6b49d2…`) — were followed to Ready and deleted through the UI; afterwards 0 rows, 0 object
+versions, 0 Qdrant points, 0 retrieval candidates, API 404, repeat delete 204, tombstone COMPLETED,
+audit REQUESTED + DELETED. Nothing else was deleted. Scripts: `.local/lifecycle-qa.mjs`,
+`.local/disposable-qa.mjs`, `.local/verify_deleted.py` (ignored, tokens never printed).
+
+Tests: backend `test_document_lifecycle_units.py`, `test_document_lifecycle_integration.py`,
+`test_document_delete_integration.py` (22, real Postgres/MinIO/Qdrant); frontend
+`features/documents/Lifecycle.test.tsx` (28); live E2E `e2e/lifecycle.spec.ts` (needs
+`MEDRAG_E2E_LIVE=1`, optional `MEDRAG_E2E_TENANT`, `MEDRAG_E2E_REVIEW_DOCUMENT`; 2 passed live).
+Full backend suite with integration enabled: 1486 passed, 1 skipped.
+
+Commits: `2019537` (processing and review guidance) and `636a79a` (permanent deletion), each
+verified on its own tree in a scratch worktree before committing (commit 1: frontend 196 tests,
+backend 159; commit 2: frontend 204, backend 241 focused incl. all 22 deletion tests), then this
+documentation commit. A separate, uncommitted Ask declared-error fix in the working tree was
+deliberately kept out of all three.
+
 ## RAG v1 freeze (post-M12)
 
 Retrieval, reranking, sufficiency, generation and verification are **frozen**. The acceptance gates
@@ -590,8 +651,8 @@ tag not digest; no token-revocation check; audit tamper-evidence stops at the da
 `MEDRAG_ENVIRONMENT` can be wrongly set to `development`; prompt-layer injection defence is
 probabilistic (the structural guarantee is M8's deterministic checks).
 
-Operational: no backup scheduling, PITR or cross-region replication; no RPO/RTO; no complete
-deletion workflow (its central policy conflict is undecided); no CI config or Kubernetes manifests
+Operational: no backup scheduling, PITR or cross-region replication; no RPO/RTO; deletion does
+not reach backups taken before it (ADR-026); no CI config or Kubernetes manifests
 ship; no OTel exporter or alerting deployed; worker is one parse per pod — scale by adding workers,
 never by raising concurrency. Container memory limits and restart policies **are** now set from
 measured peaks (worker 6G against 4.74 GiB observed). Four

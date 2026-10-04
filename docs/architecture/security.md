@@ -10,7 +10,16 @@ insufficient permission returns 403; cross-tenant resource lookups return 404.
 |---|---|
 | reader | document:read, ingestion:read |
 | curator | Reader plus document:upload, document:manage, ingestion:retry, ingestion:reparse, ingestion:rechunk, ingestion:reembed, ingestion:reindex, ingestion:cancel, ingestion:accept |
-| admin | Curator plus audit:read |
+| admin | Curator plus audit:read, document:delete (and settings:read/settings:write, below) |
+
+`document:delete` permanently erases a document and everything derived from it (ADR-026). It is
+deliberately admin-only: archive (`document:manage`) covers every everyday need to stop using a
+document, and erasure cannot be undone. The server — not only the dialog — requires the body
+`{"confirm": "DELETE"}`. Another tenant's document answers `404` exactly as a missing one does, and
+the purge is scoped to one document of the caller's tenant at three levels: the service lookup,
+the vector delete filter (`tenant_id` and `document_id`), and a transaction-local database marker
+that the dataset and history guards check row by row. Deletion failures surface only a code, never
+an object key, collection name or stack trace.
 
 Queries and service actions apply tenant constraints, backed by composite database foreign keys.
 Opaque UUIDs and hidden buttons are not controls. The UI mirrors permissions but the API enforces
