@@ -89,9 +89,29 @@ caller lacks permission for, so a reader sees the findings and no controls. Noth
 accepts or bypasses a chunk finding; there is no acceptance path for a chunk dataset.
 
 When identical earlier attempts exist, the page says that repeating the step will most likely give
-the same result and spend a retry. (Example: "Head and Neck: Muscle Charts" stops on a table part of
-396 tokens against a 384-token budget on two attempts with chunker 1.0.0. That is a table-splitting
-defect in the chunker; the remedy is a chunker fix, not a retry.)
+the same result and spend a retry — unless the chunker has changed since the run under review
+(`reviewed_chunker_version` vs `current_chunker_version`), in which case it says so and recommends
+rechunking. (Example: "Head and Neck: Muscle Charts" stopped on a 396-token table part against a
+384-token budget on two attempts with chunker 1.0.0; chunker 1.1.0 fixes the table splitter,
+ADR-027, so rechunking is the recommended remedy.)
+
+### Remediation guidance
+
+Each reprocessing action is explained before it is used — what it does, when to use it, its pros
+and cons — in one shared component used by the review panel and the Chunk Inspector:
+
+| Action | Use when | Note |
+|---|---|---|
+| Rechunk | extraction correct, passages wrong | recommended for chunk-construction findings; new passage IDs; a deterministic defect recurs if nothing changed |
+| Reparse | extraction itself wrong (OCR, missing text, malformed table) | slower; may change extraction; does not fix a size problem in a correct extraction |
+| Retry | a transient failure | not for a validation result — unchanged input gives the same result |
+| Re-embed | valid active passages need new embeddings | never offered for passages that failed validation |
+| Rebuild keyword index | valid passages, broken keyword index | never offered for passages that failed validation |
+
+The recommended action is the first remedy the finding's guidance lists among those the server
+allows, and none is recommended when an identical attempt already failed with unchanged code.
+Unavailable actions are listed with the reason rather than offered as buttons. Passages are never
+accepted as they are. Readers receive no actions from the server and see an explanation only.
 
 ## Library
 

@@ -64,6 +64,18 @@ groups, and every part repeats the identical header rows and keeps its caption, 
 its selected cells in metadata. Footnotes linked to the table element are attached. A parser-flagged
 continuation is recorded, never destructively merged.
 
+Rows joined by a merged cell stay in one part **when they fit**. A merged-row group that cannot fit
+even on its own (chunker 1.1.0, ADR-027) is split at row boundaries instead, and each later part
+carries the merged cell once, at the top, named by its column header and marked as a merged cell —
+`Innervation (merged cell, also applies to these rows): …` — so no row loses a value that the
+source printed only on an earlier row, and the value is never copied into each row as if it were
+separate cells. Such parts record the carried cells in `carried_cells`. A single row too large for
+any part is divided by cells: each fragment repeats the table context and the row's first cell, and
+writes the rest as `Column: value`, cutting an over-long value at sentence and then token boundaries
+and marking the pieces as continued (`row_fragment` in metadata). Nothing is truncated or dropped.
+If the table context alone leaves too little room for that to mean anything, the row is emitted
+whole and validation stops it rather than shredding it into meaningless pieces.
+
 **Formulas** are atomic `FORMULA` chunks carrying the expression exactly as parsed plus only the
 neighbouring elements M2 explicitly linked. No model interprets, completes or corrects a formula.
 
@@ -100,7 +112,10 @@ added context as not being source evidence.
 
 `retrieval_text` is what the encoder receives as its input body, so it — not `normalized_text` — is
 what the retrieval budget bounds and what chunk validation measures when deciding whether a chunk
-could be embedded at all. The source text is only a lower bound on it: the hierarchy prefix, and a
+could be embedded at all. Since chunker 1.1.0 every construction path budgets on it too: text
+children, lists, term/definition pairs, question explanations, preambles, figures and table parts
+all leave room for the hierarchy prefix they will be emitted with, measured with the pinned
+tokenizer. Validation remains the fail-closed backstop. The source text is only a lower bound on it: the hierarchy prefix, and a
 figure's no-text placeholder, are embedded but are part of no source text.
 
 ## Identity and reuse
@@ -169,11 +184,20 @@ and a phase with no source material is never announced.
 ## Inspection
 
 Tenant-authorized read APIs expose chunk runs, chunks (filterable by type, page, parent, question,
-table, figure, formula and findings), chunk detail, ordered source mappings, question artifacts and
-validation findings. No endpoint returns a storage key, a lease token or any vector field. The
+table, figure, formula and validation state — `status=blocking|warning|clean|findings`), chunk
+detail, ordered source mappings, question artifacts, validation findings and a review summary
+(`/chunk-runs/{id}/review-summary`: chunk, question and finding counts, blocking vs warning, and how
+many chunks are in each state). Each listed chunk carries its own findings, worst first, so its
+state is visible without a second request; a chunk is in the state of its worst finding.
+`CHUNK_OVERSIZED` findings record the measured and allowed token counts. No endpoint returns a storage key, a lease token or any vector field. The
 Chunk Inspector shows the source text, the retrieval representation, tokens, hash, hierarchy,
 parent/child relations, artifact relationships, the structured table view and a link back to the
-exact source page in the Parse Inspector.
+exact source page in the Parse Inspector. A stopped dataset opens on its findings; the views carry
+counts, and the findings view is flagged with its blocking count when another view is open. Each
+chunk shows its state in words (Blocking, Warning, No findings) with the measurement for size
+findings (`396 / 384 retrieval tokens`). "Inspect this issue" deep-links to the affected chunk with
+the list filtered to blocking chunks, and a blocking chunk shows a short decision guide and the
+reprocessing actions the server allows (see `document-lifecycle.md`).
 
 ## Deliberately not in M3
 

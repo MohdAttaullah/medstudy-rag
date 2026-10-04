@@ -631,11 +631,9 @@ are redacted and shown as "Source deleted". Blocked while processing (409). Fail
 `DOCUMENT_DELETE_INCOMPLETE`, document stays withdrawn, retry resumes. Audit:
 `DOCUMENT_DELETE_REQUESTED` / `DOCUMENT_DELETED` / `DOCUMENT_DELETE_FAILED`.
 
-**Known defect found, not fixed (out of scope):** "Head and Neck: Muscle Charts" (tenant
-`ba3d8361…`) stops at NEEDS_REVIEW on `CHUNK_OVERSIZED` — a `TABLE_PART` of 396 tokens against the
-384-token budget (page 10, rows 2–9, part 2 of 2) — on two attempts with chunker 1.0.0. The table
-splitter can emit a part over budget; the fix belongs in the chunker, not in validation. The review
-page now tells the user that repeating rechunk will most likely reproduce it.
+**Chunker defect found here, since fixed (ADR-027):** "Head and Neck: Muscle Charts" stopped at
+NEEDS_REVIEW on a 396-token table part against the 384-token budget. Fixed in chunker 1.1.0 and the
+document rebuilt — see "Chunk safety and actionable review" below.
 
 **Live QA (2026-10-04, workspace "Clean testing 2", tenant `ba3d8361…`).** Dev DB backed up to
 `.local/pre-document-purge.dump`, then migrated to `document_purge`; stack rebuilt with
@@ -659,6 +657,54 @@ verified on its own tree in a scratch worktree before committing (commit 1: fron
 backend 159; commit 2: frontend 204, backend 241 focused incl. all 22 deletion tests), then this
 documentation commit. A separate, uncommitted Ask declared-error fix in the working tree was
 deliberately kept out of all three.
+
+## Chunk safety and actionable review (post-M12)
+
+No milestone. **No budget, threshold, validator rule, embedding contract or evidence/Ask rule was
+changed or weakened**; nothing is truncated and no finding can be accepted. See
+`docs/adr/027-retrieval-units-are-budgeted-as-embedded.md`.
+
+**Root cause.** Page 10's innervation cell spans rows 2–9 (`row_span = 8`, and the parser wrote its
+value eight times). The table splitter closed row groups over spans, so rows 2–9 were one unit, and
+it compared the budget only when appending to a non-empty part — the unit alone (396 tokens) was
+emitted whole. Budget: 384 retrieval tokens = max(table, child, explanation targets); + 128 context
+reserve = MedCPT's 512, enforced at startup; the encoder rejects, never truncates. 384 stays.
+
+**Fix (chunker 1.1.0, `backend/app/ingestion/chunking/builder.py`).** Every path budgets on the
+retrieval representation it emits (`Builder.room()`: target minus hierarchy-prefix tokens); merged
+rows stay together when they fit; a merged-row group that cannot fit is split at row boundaries and
+each later part carries the merged cell once, named by its column (`carried_cells`); a row that
+fits no part is divided by cells (`row_fragment`), else emitted whole for validation to stop; list
+items and question+explanation are budgeted too. Version bump prevents reuse of 1.0.0 runs. Proved
+offline: three healthy real documents (atlas chapter, question bank, 932-page textbook, 4,278
+chunks) rebuild byte-identically; only Head and Neck's two page-10 parts change.
+
+**Inspector (`frontend/src/features/chunking/`).** Tabs are a real tablist with counts; a stopped
+set opens on Findings, and Findings shows "N blocking · start here" from other tabs. Each chunk
+shows Blocking / Warning / No findings in words with the measurement (`396 / 384 retrieval
+tokens`, from the finding's new `details` or, for older findings, the chunk and run policy).
+Status filter All / Blocking / Warnings / No findings. "Inspect this issue" deep-links
+`/chunk-runs/{run}?status=blocking&chunk={id}`, opens and focuses the chunk with a "What should I
+do?" guide. Shared `RemediationActions` (review panel + inspector) explains every action — does,
+when, pros, cons — recommends the guidance's first available remedy (none when an identical attempt
+already failed with unchanged code; lifecycle now reports `reviewed_chunker_version` vs
+`current_chunker_version`), lists unavailable actions with reasons, and shows readers no buttons.
+New API (additive): `GET /chunk-runs/{id}/review-summary`, `status=` filter and per-chunk
+`findings` on chunk lists/detail. Also fixed: the inspector's table grid drew an empty cell under
+merged cells (shifting rows), and a bounding-box line overflowed on mobile.
+
+**Live (2026-10-05, Clean testing 2).** Head and Neck rechunked through the inspector's Rechunk
+button (retry budget 1 → 2 of 3): run generation 2, chunker 1.1.0, 34 chunks, max 375 retrieval
+tokens (was 396), 0 blocking, 13 warnings, active; embedding 33/33, dense 33/33 verified, lexical
+33 passages / 807 terms; **RETRIEVAL_READY** in ~45 s. Page 10 → rows 1–6 (366) and 7–9 (223, with
+the carried innervation cell). Ask "What nerve innervates the thyroarytenoid muscle?" → VERIFIED,
+citing that part's carried line. Live E2E upload → Ready → delete passed on the new chunker
+(disposable `9e4863e3…`, erased from every store).
+
+Tests: backend `test_chunk_budget_units.py`, `test_chunk_review_integration.py`,
+`test_m3_units.py::test_merged_rows_stay_together_when_they_fit` (replaces the test that asserted
+the defective behaviour); full backend with integration 1525 passed, 1 skipped. Frontend
+`features/chunking/ChunkReview.test.tsx`; 233/233.
 
 ## RAG v1 freeze (post-M12)
 
