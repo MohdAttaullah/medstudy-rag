@@ -35,6 +35,9 @@ def input_fingerprint(source: ChunkInput) -> str:
 
 
 class Builder:
+    #: The least room a table-row fragment must have for its cell text to mean anything.
+    MIN_FRAGMENT_TOKENS = 16
+
     def __init__(
         self,
         source: ChunkInput,
@@ -147,6 +150,15 @@ class Builder:
             return ""
         return "Context: " + " > ".join(self.elements[e].text for e in hierarchy) + "\n\n"
 
+    def room(self, hierarchy: tuple[UUID, ...], target: int) -> int:
+        """What a body may cost once the hierarchy prefix it will be emitted with is paid for.
+
+        Every retrieval unit is embedded as `representation`, prefix included, and validated the
+        same way, so a split decided on the source text alone holds only until a document has a
+        hierarchy. The prefix ends at a whitespace boundary, so its tokens and the body's add.
+        """
+        return max(target - self.tokens.count(self.prefix(hierarchy)), 1)
+
     def representation(self, kind: str, text: str, hierarchy: tuple[UUID, ...]) -> str:
         """Exactly the retrieval text `emit` will store for this body.
 
@@ -239,9 +251,7 @@ class Builder:
         carry it, and the contradiction only surfaced two stages later.
         """
         budget = self.config.retrieval_budget_tokens
-        # What is left for the body once the hierarchy prefix is paid for. That prefix ends at a
-        # whitespace boundary, so it cannot merge with the body into shared word pieces.
-        room = max(budget - self.tokens.count(self.prefix(hierarchy)), 1)
+        room = self.room(hierarchy, budget)
         groups: list[tuple[Span, ...]] = []
         current: list[Span] = []
         for original in spans:
@@ -404,6 +414,20 @@ class Builder:
         prefix = (caption + "\n" if caption else "") + (header + "\n" if header else "")
         footnotes = self.text(tuple(s for s in spans if s.role == "RELATED_CONTEXT"))
         suffix = "\n" + footnotes if footnotes else ""
+        ordered = sorted(cells, key=lambda c: (c["row"], c["column"]))
+
+        def label(column: int) -> str:
+            """The column's header text, to name a value that appears outside its own row."""
+            names = [
+                str(c.get("text", "")).strip()
+                for c in ordered
+                if c["row"] in header_rows and c["column"] <= column < c["column"] + span_of(c)
+            ]
+            return " / ".join(n for n in names if n) or f"Column {column + 1}"
+
+        def span_of(cell: dict[str, Any]) -> int:
+            return int(cell.get("col_span", cell.get("column_span", 1)))
+
         groups: list[list[int]] = []
         r = 0
         while r < rows:
@@ -421,6 +445,29 @@ class Builder:
             groups.append([i for i in range(r, end) if i not in header_rows])
             r = end
 
+        def carried(indexes: list[int]) -> list[dict[str, Any]]:
+            """Merged cells that describe rows in this part but are printed on an earlier row.
+
+            A cell spanning rows 2–9 is written once, on row 2. When those rows cannot share one
+            part, the later rows would otherwise lose the value entirely — a muscle without its
+            innervation. Such a cell is carried, once, into each later part it covers, named by
+            its column header and marked as a merged cell, so the part says what the source says
+            and nothing more: the value is not copied into each row as if it were separate cells.
+            """
+            present = set(indexes)
+            return [
+                c
+                for c in ordered
+                if c["row"] not in present
+                and c["row"] not in header_rows
+                and any(c["row"] < i < c["row"] + c.get("row_span", 1) for i in present)
+            ]
+
+        def carried_text(indexes: list[int]) -> str:
+            note = "(merged cell, also applies to these rows)"
+            lines = [f"{label(c['column'])} {note}: {c.get('text', '')}" for c in carried(indexes)]
+            return "\n".join(lines) + "\n" if lines else ""
+
         def rendered(indexes: list[int]) -> str:
             """Exactly what a part will contain, so the budget and the emit cannot diverge.
 
@@ -430,31 +477,67 @@ class Builder:
             exactly the 105 tokens of its footnote legend, and over the encoder's 512-token input
             limit, which failed the whole embedding run two stages later.
             """
-            return prefix + "\n".join(row_text(i) for i in indexes) + suffix
+            return prefix + carried_text(indexes) + "\n".join(row_text(i) for i in indexes) + suffix
+
+        budget = self.config.table_max_tokens
+
+        def cost(text: str) -> int:
+            # The retrieval representation, hierarchy prefix included: that is what is embedded.
+            return self.tokens.count(self.representation("TABLE_PART", text, hierarchy))
+
+        # Merged rows stay together whenever they fit. A row group that cannot fit even on its
+        # own is the case that produced a 396-token part against a 384-token budget: one cell
+        # spanned eight rows, so the group was indivisible and was emitted whole. Such a group is
+        # split at row boundaries instead, with its merged cells carried (see `carried`).
+        units: list[list[int]] = []
+        for group in groups:
+            if len(group) > 1 and cost(rendered(group)) > budget:
+                units.extend([i] for i in group)
+            else:
+                units.append(group)
 
         parts: list[list[int]] = []
         current: list[int] = []
-        for group in groups:
-            if (
-                current
-                and self.tokens.count(rendered(current + group)) > self.config.table_max_tokens
-            ):
+        for unit in units:
+            if current and cost(rendered(current + unit)) > budget:
                 parts.append(current)
                 current = []
-            current.extend(group)
+            current.extend(unit)
         if current or not parts:
             parts.append(current)
-        for i, part in enumerate(parts):
+
+        # A single row too large for any part is divided by cells rather than emitted whole.
+        pieces: list[tuple[list[int], str, dict[str, Any]]] = []
+        for part in parts:
+            text = rendered(part)
+            if len(part) == 1 and cost(text) > budget:
+                pieces.extend(
+                    self.table_row_fragments(
+                        part[0],
+                        text,
+                        prefix,
+                        carried(part),
+                        suffix,
+                        ordered,
+                        label,
+                        cost,
+                        budget,
+                    )
+                )
+            else:
+                pieces.append((part, text, {}))
+
+        for i, (part, text, extra) in enumerate(pieces):
             selected = [c for c in cells if c["row"] in set(part) | header_rows]
             self.emit(
-                "TABLE" if len(parts) == 1 else "TABLE_PART",
+                "TABLE" if len(pieces) == 1 else "TABLE_PART",
                 spans,
-                source_text=rendered(part),
+                source_text=text,
                 artifact_ids=(a.id,),
                 hierarchy=hierarchy,
                 metadata={
                     "part_number": i + 1,
-                    "part_count": len(parts),
+                    "part_count": len(pieces),
                     "row_indexes": part,
                     "header_rows": sorted(header_rows),
                     "headers": header,
@@ -463,8 +546,107 @@ class Builder:
                     "table_group_id": a.data.get("table_group_id"),
                     "possible_continuation": a.data.get("possible_continuation", False),
                     "continuation_of_id": a.data.get("continuation_of_id"),
+                    # Absent unless a merged cell had to be repeated, so an ordinary table's
+                    # chunk identity is unchanged by the mechanism that handles this case.
+                    **(
+                        {"carried_cells": [dict(c) for c in carried(part)]} if carried(part) else {}
+                    ),
+                    **extra,
                 },
             )
+
+    def table_row_fragments(
+        self,
+        row: int,
+        whole: str,
+        head: str,
+        merged: list[dict[str, Any]],
+        suffix: str,
+        ordered: list[dict[str, Any]],
+        label: Callable[[int], str],
+        cost: Callable[[str], int],
+        budget: int,
+    ) -> list[tuple[list[int], str, dict[str, Any]]]:
+        """Divide one row that no part can hold, keeping every cell and its column name.
+
+        `head` is the table context (caption and header rows). Each fragment repeats it and the
+        row's first cell, which names the row, and writes everything else as `Column: value` —
+        including merged cells carried from an earlier row, which can be long enough on their own
+        to fill a part — so a value never stands without its header. A value too long even for
+        that is cut at sentence boundaries where possible and at token boundaries otherwise, each
+        piece marked as continued. All the text appears, in order, in exactly one fragment.
+
+        When the context alone leaves too little room to say anything, the row is emitted whole
+        and chunk validation refuses it (CHUNK_OVERSIZED): shredding it into near-empty pieces
+        would satisfy the budget while making every piece meaningless.
+        """
+        cells = [c for c in ordered if c["row"] == row]
+        anchor = ""
+        body = cells
+        if len(cells) > 1:
+            anchor = f"{label(cells[0]['column'])}: {cells[0].get('text', '')}\n"
+            body = cells[1:]
+        lead = head + anchor
+        if budget - cost(lead + "Column (continued): " + suffix) < self.MIN_FRAGMENT_TOKENS:
+            return [([row], whole, {})]
+        lines: list[str] = []
+        named = [
+            (f"{label(c['column'])} (merged cell, also applies to this row)", c) for c in merged
+        ]
+        for name, cell in named + [(label(c["column"]), c) for c in body]:
+            room = budget - cost(lead + f"{name} (continued): " + suffix)
+            for index, piece in enumerate(self.slice_text(str(cell.get("text", "")), room)):
+                lines.append(f"{name}{' (continued)' if index else ''}: {piece}")
+        fragments: list[list[str]] = []
+        current: list[str] = []
+        for line in lines:
+            if current and cost(lead + "\n".join(current + [line]) + suffix) > budget:
+                fragments.append(current)
+                current = []
+            current.append(line)
+        if current:
+            fragments.append(current)
+        return [
+            (
+                [row],
+                lead + "\n".join(fragment) + suffix,
+                {"row_fragment": {"number": n + 1, "count": len(fragments)}},
+            )
+            for n, fragment in enumerate(fragments)
+        ]
+
+    def slice_text(self, text: str, budget: int) -> list[str]:
+        """Cut `text` into pieces of at most `budget` tokens, in order, losing no word.
+
+        Sentence boundaries first, then tokenizer offsets into the original string — the same
+        order of preference as `split_span`, for text that lives in a table cell rather than in
+        an element's own offsets.
+        """
+        if self.tokens.count(text) <= budget:
+            return [text]
+        pieces: list[str] = []
+        boundaries = [m.end() for m in re.finditer(r"(?<=[.!?;,])\s+", text)] + [len(text)]
+        start = 0
+        current = 0
+        for end in boundaries:
+            if self.tokens.count(text[current:end]) <= budget:
+                start = end
+                continue
+            if start > current:
+                pieces.append(text[current:start])
+                current = start
+            while self.tokens.count(text[current:end]) > budget:
+                self.checkpoint()
+                offsets = self.tokens.offsets(text[current:end])
+                stop = current + offsets[budget][0]
+                if stop <= current:
+                    stop = current + max(offsets[budget - 1][1], 1)
+                pieces.append(text[current:stop])
+                current = stop
+            start = end
+        if current < len(text):
+            pieces.append(text[current:])
+        return [p for p in pieces if p.strip()] or [text]
 
     def generic(self, elements: list[SourceElement]) -> None:
         if elements:
@@ -486,6 +668,8 @@ class Builder:
             regions.append(region)
         for region in regions:
             units: list[tuple[str, tuple[Span, ...]]] = []
+            # A region shares one ancestry, so every child in it is emitted with the same prefix.
+            room = self.room(self.ancestry(region[0].id), self.config.child_target_tokens)
             i = 0
             while i < len(region):
                 e = region[i]
@@ -503,8 +687,15 @@ class Builder:
                     while i < len(region) and bullet(region[i].text):
                         group.append(self.whole(region[i].id))
                         i += 1
-                    # List items stay atomic; a large list splits only between complete items.
-                    pieces = self.pack(tuple(group), self.config.child_target_tokens, split=False)
+                    # A large list splits only between complete items. An item too large for any
+                    # chunk on its own is split at sentence boundaries rather than emitted whole,
+                    # and parts after the first repeat the heading, so it is budgeted for here.
+                    repeated = (
+                        self.tokens.count(self.text((group[0],)))
+                        if e.text.rstrip().endswith(":")
+                        else 0
+                    )
+                    pieces = self.pack(tuple(group), max(room - repeated, 1))
                     for part_index, part in enumerate(pieces):
                         if (
                             part_index
@@ -516,10 +707,12 @@ class Builder:
                     continue
                 # Preserve an explicit term label plus following definition.
                 if e.text.rstrip().endswith(":") and i + 1 < len(region):
-                    units.append(("TEXT_CHILD", (self.whole(e.id), self.whole(region[i + 1].id))))
+                    pair = (self.whole(e.id), self.whole(region[i + 1].id))
+                    # Kept as one unit when it fits; otherwise the label leads the first part.
+                    units.extend(("TEXT_CHILD", part) for part in self.pack(pair, room))
                     i += 2
                     continue
-                packed = self.pack((self.whole(e.id),), self.config.child_target_tokens)
+                packed = self.pack((self.whole(e.id),), room)
                 units.extend(("TEXT_CHILD", s) for s in packed)
                 i += 1
             children: list[tuple[str, tuple[Span, ...]]] = []
@@ -527,8 +720,7 @@ class Builder:
                 if (
                     children
                     and kind == children[-1][0] == "TEXT_CHILD"
-                    and self.tokens.count(self.text(children[-1][1] + spans))
-                    <= self.config.child_target_tokens
+                    and self.tokens.count(self.text(children[-1][1] + spans)) <= room
                 ):
                     children[-1] = (kind, children[-1][1] + spans)
                 else:
@@ -588,7 +780,11 @@ class Builder:
                 for s in question.source_spans:
                     used[s.element_id].append(s)
                 hierarchy = self.ancestry(body[0].element_id)
-                if self.tokens.count(self.text(explanation)) <= self.config.explanation_max_tokens:
+                room = self.room(hierarchy, self.config.explanation_max_tokens)
+                # The explanation joins the question only if the joined chunk still fits. Fitting
+                # on its own was not enough: question plus explanation could then exceed the budget
+                # together, an atomic chunk that no valid embedding input can carry.
+                if explanation and self.tokens.count(self.text(body + explanation)) <= room:
                     body = body + explanation
                     explanation = ()
                 parent = self.emit(
@@ -601,7 +797,7 @@ class Builder:
                         "authority": authority,
                     },
                 )
-                for part in self.pack(explanation, self.config.explanation_max_tokens):
+                for part in self.pack(explanation, room):
                     self.emit(
                         "QUESTION_EXPLANATION",
                         part,
@@ -627,11 +823,11 @@ class Builder:
                 elif min(s.start for s in used[e.id]) > 0:
                     end = min(s.start for s in used[e.id])
                     # Generic uses full source offsets; emit any partial preamble directly.
-                    self.emit(
-                        "OTHER_STRUCTURED",
-                        (Span(element_id=e.id, end=end),),
-                        hierarchy=self.ancestry(e.id),
-                    )
+                    hierarchy = self.ancestry(e.id)
+                    preamble = (Span(element_id=e.id, end=end),)
+                    room = self.room(hierarchy, self.config.child_target_tokens)
+                    for part in self.pack(preamble, room):
+                        self.emit("OTHER_STRUCTURED", part, hierarchy=hierarchy)
             candidates = remaining
         self.generic(candidates)
         # Order complete parent/child groups by source reading order, keeping parents first.

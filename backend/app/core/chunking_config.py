@@ -19,7 +19,10 @@ class ChunkingConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     version: str = Field(default="chunking-m3-v1", min_length=1, max_length=80)
     chunker_name: Literal["medical-structure"] = "medical-structure"
-    chunker_version: Literal["1.0.0"] = "1.0.0"
+    #: 1.1.0 budgets every retrieval unit on the representation it is embedded as, and splits a
+    #: merged-row table group that cannot fit on its own (carrying its merged cells) instead of
+    #: emitting it whole. Bumped so no run built by 1.0.0 is reused as if it were current.
+    chunker_version: Literal["1.1.0"] = "1.1.0"
     tokenizer_name: Literal["ncbi/MedCPT-Article-Encoder"] = "ncbi/MedCPT-Article-Encoder"
     tokenizer_revision: Literal["d05a736da4bb84ee4057b7f7999485be6ed85465"] = (
         "d05a736da4bb84ee4057b7f7999485be6ed85465"

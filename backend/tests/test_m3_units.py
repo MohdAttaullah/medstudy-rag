@@ -138,7 +138,11 @@ def test_invalid_table_fails_without_synthetic_repair(tokenizer):
         Builder(source, ChunkingConfig(), tokenizer).build()
 
 
-def test_merged_rows_are_not_split(tokenizer):
+def test_merged_rows_stay_together_when_they_fit(tokenizer):
+    # Merged rows are split only when they cannot fit at all; that case is covered, with its
+    # carried merged cell, in test_chunk_budget_units.py. At 32 tokens this block cannot fit, and
+    # this test used to assert it was emitted whole anyway — the defect that put a 396-token table
+    # part in front of a 384-token budget.
     source = case("large-table")
     a = source.artifacts[0]
     cells = [dict(c) for c in a.data["cells"]]
@@ -146,9 +150,10 @@ def test_merged_rows_are_not_split(tokenizer):
     source = source.model_copy(
         update={"artifacts": (a.model_copy(update={"data": {**a.data, "cells": cells}}),)}
     )
-    output = Builder(source, ChunkingConfig(table_max_tokens=32), tokenizer).build()
+    output = Builder(source, ChunkingConfig(table_max_tokens=48), tokenizer).build()
     part = next(c for c in output.chunks if 1 in c.metadata["row_indexes"])
     assert {1, 2, 3, 4} <= set(part.metadata["row_indexes"])
+    assert "carried_cells" not in part.metadata
 
 
 def test_validation_detects_missing_mapping_and_wrong_token_count(tokenizer):
