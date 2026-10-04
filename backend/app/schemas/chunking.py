@@ -44,6 +44,16 @@ class ChunkRunView(ORMView):
     created_at: datetime
 
 
+class ChunkFindingView(ORMView):
+    """A validation finding attached to one chunk, carried with the chunk so its state is visible
+    in a list without a second request."""
+
+    severity: str
+    code: str
+    message: str
+    details: dict[str, Any]
+
+
 class ChunkView(ORMView):
     id: UUID
     chunk_run_id: UUID
@@ -61,6 +71,7 @@ class ChunkView(ORMView):
     page_end: int | None
     chunk_hash: str
     chunk_metadata: dict[str, Any]
+    findings: list[ChunkFindingView] = Field(default_factory=list)
 
 
 class SourceView(BaseModel):
@@ -112,3 +123,23 @@ class FindingView(ORMView):
     code: str
     message: str
     details: dict[str, Any]
+
+
+class ChunkReviewSummary(BaseModel):
+    """Counts for the inspector's views, so a reviewer can see where to start before opening any.
+
+    Blocking means CRITICAL or ERROR — the severities that stop a dataset from becoming active.
+    A chunk is counted once, under its worst finding.
+    """
+
+    chunks: int
+    questions: int
+    findings: int
+    blocking_findings: int
+    warning_findings: int
+    info_findings: int
+    blocking_chunks: int
+    warning_chunks: int
+    clean_chunks: int
+    # Findings about the dataset as a whole rather than one chunk (for example a coverage ratio).
+    dataset_findings: int

@@ -1,6 +1,6 @@
 """Read-only chunk/provenance inspection and explicit audited rechunk requests."""
 
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
@@ -24,6 +24,8 @@ from app.repositories.parsing import scoped_version
 from app.schemas.chunking import (
     ArtifactLinkView,
     ChunkDetailView,
+    ChunkFindingView,
+    ChunkReviewSummary,
     ChunkRunView,
     ChunkView,
     FindingView,
@@ -36,6 +38,29 @@ from app.schemas.documents import JobView, Page
 from app.schemas.parsing import ElementView, box
 
 router = APIRouter(prefix="/api/v1")
+
+#: The severities that stop a chunk dataset from becoming active.
+BLOCKING = ("CRITICAL", "ERROR")
+
+
+def attach_findings(session: Any, run_id: UUID, items: list[Any]) -> None:
+    """Give each listed chunk its own findings, worst first, in one query for the page."""
+    if not items:
+        return
+    rows = session.scalars(
+        select(ChunkValidationFinding)
+        .where(
+            ChunkValidationFinding.chunk_run_id == run_id,
+            ChunkValidationFinding.chunk_id.in_([item.id for item in items]),
+        )
+        .order_by(ChunkValidationFinding.id)
+    )
+    rank = {"CRITICAL": 0, "ERROR": 1, "WARNING": 2, "INFO": 3}
+    by_chunk: dict[UUID, list[ChunkFindingView]] = {}
+    for row in rows:
+        by_chunk.setdefault(row.chunk_id, []).append(ChunkFindingView.model_validate(row))
+    for item in items:
+        item.findings = sorted(by_chunk.get(item.id, []), key=lambda f: rank.get(f.severity, 9))
 
 
 def page(session: Any, query: Any, schema: Any, offset: int, limit: int) -> Any:
@@ -106,6 +131,7 @@ def chunks(
     figure_id: UUID | None = None,
     formula_id: UUID | None = None,
     warnings: bool = False,
+    status: Literal["findings", "blocking", "warning", "clean"] | None = None,
 ) -> Any:
     actor.require("document:read")
     with service.sessions() as session:
@@ -128,22 +154,32 @@ def chunks(
                 query = query.where(
                     Chunk.id.in_(select(ChunkArtifactRelation.chunk_id).where(column == value))
                 )
-        if warnings:
-            query = query.where(
-                Chunk.id.in_(
-                    select(ChunkValidationFinding.chunk_id).where(
-                        ChunkValidationFinding.chunk_run_id == run_id
-                    )
-                )
-            )
-        return page(session, query, ChunkView, offset, limit)
+        flagged = select(ChunkValidationFinding.chunk_id).where(
+            ChunkValidationFinding.chunk_run_id == run_id,
+            ChunkValidationFinding.chunk_id.is_not(None),
+        )
+        blocking = flagged.where(ChunkValidationFinding.severity.in_(BLOCKING))
+        if warnings or status == "findings":
+            query = query.where(Chunk.id.in_(flagged))
+        elif status == "blocking":
+            query = query.where(Chunk.id.in_(blocking))
+        elif status == "warning":
+            # A chunk counts under its worst finding, so one that also blocks is not a warning.
+            query = query.where(Chunk.id.in_(flagged), Chunk.id.not_in(blocking))
+        elif status == "clean":
+            query = query.where(Chunk.id.not_in(flagged))
+        result = page(session, query, ChunkView, offset, limit)
+        attach_findings(session, run_id, result.items)
+        return result
 
 
 @router.get("/chunks/{chunk_id}", response_model=ChunkDetailView)
 def chunk(chunk_id: UUID, actor: Actor, service: Service) -> ChunkDetailView:
     actor.require("document:read")
     with service.sessions() as session:
-        result = ChunkDetailView.model_validate(get_chunk(session, actor.tenant_id, chunk_id))
+        row = get_chunk(session, actor.tenant_id, chunk_id)
+        result = ChunkDetailView.model_validate(row)
+        attach_findings(session, row.chunk_run_id, [result])
         result.artifacts = [
             ArtifactLinkView.model_validate(row)
             for row in session.scalars(
@@ -244,4 +280,51 @@ def findings(
             FindingView,
             offset,
             limit,
+        )
+
+
+@router.get("/chunk-runs/{run_id}/review-summary", response_model=ChunkReviewSummary)
+def review_summary(run_id: UUID, actor: Actor, service: Service) -> ChunkReviewSummary:
+    """Counts for each inspector view, so the one that needs attention is visible at once."""
+    actor.require("document:read")
+    with service.sessions() as session:
+        get_run(session, actor.tenant_id, run_id)
+        severities = {
+            str(getattr(key, "value", key)): int(n)
+            for key, n in session.execute(
+                select(ChunkValidationFinding.severity, func.count())
+                .where(ChunkValidationFinding.chunk_run_id == run_id)
+                .group_by(ChunkValidationFinding.severity)
+            ).all()
+        }
+        flagged = select(ChunkValidationFinding.chunk_id).where(
+            ChunkValidationFinding.chunk_run_id == run_id,
+            ChunkValidationFinding.chunk_id.is_not(None),
+        )
+        blocking = flagged.where(ChunkValidationFinding.severity.in_(BLOCKING))
+
+        def chunks_where(*conditions: Any) -> int:
+            query = select(func.count()).select_from(Chunk).where(Chunk.chunk_run_id == run_id)
+            return int(session.scalar(query.where(*conditions)) or 0)
+
+        def total(model: Any, *conditions: Any) -> int:
+            return int(
+                session.scalar(select(func.count()).select_from(model).where(*conditions)) or 0
+            )
+
+        return ChunkReviewSummary(
+            chunks=chunks_where(),
+            questions=total(QuestionArtifact, QuestionArtifact.chunk_run_id == run_id),
+            findings=sum(severities.values()),
+            blocking_findings=severities.get("CRITICAL", 0) + severities.get("ERROR", 0),
+            warning_findings=severities.get("WARNING", 0),
+            info_findings=severities.get("INFO", 0),
+            blocking_chunks=chunks_where(Chunk.id.in_(blocking)),
+            warning_chunks=chunks_where(Chunk.id.in_(flagged), Chunk.id.not_in(blocking)),
+            clean_chunks=chunks_where(Chunk.id.not_in(flagged)),
+            dataset_findings=total(
+                ChunkValidationFinding,
+                ChunkValidationFinding.chunk_run_id == run_id,
+                ChunkValidationFinding.chunk_id.is_(None),
+            ),
         )

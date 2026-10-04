@@ -91,6 +91,11 @@ class Review(Frozen):
     # Earlier attempts at this stage that used the same code and settings and stopped on the same
     # blocking findings. When this is non-zero, repeating the attempt unchanged will not help.
     identical_earlier_attempts: int = 0
+    # The chunker that produced the run under review, and the one installed now. When they
+    # differ, rechunking runs different code, so an earlier identical failure no longer
+    # predicts the next attempt.
+    reviewed_chunker_version: str | None = None
+    current_chunker_version: str | None = None
     retries_left: int
     max_retries: int
 

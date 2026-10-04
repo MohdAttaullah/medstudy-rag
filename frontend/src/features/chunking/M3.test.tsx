@@ -108,6 +108,9 @@ beforeEach(() => {
       url.includes('/chunk-runs/chunk-run-1/chunks') ? page([textChunk, tableChunk]) :
       url.includes('/chunk-runs/chunk-run-1/questions') ? page([withAnswer, withoutAnswer]) :
       url.includes('/chunk-runs/chunk-run-1/validation-findings') ? page([]) :
+      url.includes('/chunk-runs/chunk-run-1/review-summary') ? { chunks: 2, questions: 2, findings: 0,
+        blocking_findings: 0, warning_findings: 0, info_findings: 0, blocking_chunks: 0,
+        warning_chunks: 0, clean_chunks: 2, dataset_findings: 0 } :
       url.includes('/chunk-runs/chunk-run-1') ? chunkRun :
       url.includes('/chunk-runs') ? page([chunkRun]) :
       url.includes('/embedding') ? { document_version_id: 'version-1', ingestion_status: 'READY_FOR_EMBEDDING', embedding_run: null, embedding_version: null, index_run: null, embedding_runs: 0, finding_counts: {}, chunk_types: {} } :
@@ -161,7 +164,7 @@ describe('M3 chunk inspector', () => {
   it('shows source text, retrieval representation, tokens and hash for a chunk', async () => {
     await show(path);
     fireEvent.click(await screen.findByRole('button', { name: 'Inspect chunk 1' }));
-    const detail = await screen.findByLabelText('Selected chunk');
+    const detail = await screen.findByRole('region', { name: /^Selected chunk/ });
     expect(await within(detail).findByText('Synthetic source paragraph retained verbatim.')).toBeInTheDocument();
     expect(within(detail).getByText(/Context: Section one/)).toBeInTheDocument();
     expect(within(detail).getByText(/SHA-256: hash-text/)).toBeInTheDocument();
@@ -171,7 +174,7 @@ describe('M3 chunk inspector', () => {
   it('links a chunk back to its exact source element and page', async () => {
     await show(path);
     fireEvent.click(await screen.findByRole('button', { name: 'Inspect chunk 1' }));
-    const detail = await screen.findByLabelText('Selected chunk');
+    const detail = await screen.findByRole('region', { name: /^Selected chunk/ });
     expect(await within(detail).findByText(/SOURCE \/ page 4 \/ reading order 7 \/ offsets 0–45/)).toBeInTheDocument();
     expect(await within(detail).findByRole('link', { name: 'Open source page' }))
       .toHaveAttribute('href', '/documents/doc-1/versions/version-1/parse/run-1?page=4');
@@ -180,7 +183,7 @@ describe('M3 chunk inspector', () => {
   it('renders a table part with its repeated headers and source artifact', async () => {
     await show(path);
     fireEvent.click(await screen.findByRole('button', { name: 'Inspect chunk 2' }));
-    const detail = await screen.findByLabelText('Selected chunk');
+    const detail = await screen.findByRole('region', { name: /^Selected chunk/ });
     const grid = await within(detail).findByRole('table');
     expect(within(grid).getByRole('columnheader', { name: 'Marker' })).toBeInTheDocument();
     expect(within(grid).getByRole('cell', { name: '131.5' })).toBeInTheDocument();
@@ -190,7 +193,7 @@ describe('M3 chunk inspector', () => {
 
   it('shows an explicit source answer and says plainly when there is none', async () => {
     await show(path);
-    fireEvent.click(await screen.findByRole('button', { name: 'questions' }));
+    fireEvent.click(await screen.findByRole('tab', { name: /^Questions/ }));
     expect(await screen.findByText(/Synthetic option two/)).toBeInTheDocument();
     expect(screen.getByText('B')).toBeInTheDocument();
     expect(screen.getByText('Absent; no answer inferred')).toBeInTheDocument();

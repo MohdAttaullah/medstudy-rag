@@ -314,3 +314,123 @@ export function repeatWarning(review: Review): string | null {
     'was extracted correctly, it needs a change to the chunking settings or code.'
   );
 }
+/**
+ * The chunker changed since the run under review was built. Rechunking then runs different code,
+ * so an earlier identical failure no longer predicts the next attempt.
+ */
+export function chunkerChanged(review: Review): boolean {
+  return Boolean(
+    review.stage === 'CHUNK'
+    && review.reviewed_chunker_version
+    && review.current_chunker_version
+    && review.reviewed_chunker_version !== review.current_chunker_version,
+  );
+}
+
+/** The note beside the remedies: a reason to expect a different result, or a warning not to. */
+export function attemptNote(review: Review): { tone: 'info' | 'caution'; text: string } | null {
+  if (chunkerChanged(review)) {
+    return {
+      tone: 'info',
+      text: `The chunker has been updated since this attempt (${review.reviewed_chunker_version} → `
+        + `${review.current_chunker_version}). Rechunking will build new passages with the updated `
+        + 'version, so it is the expected fix if the extracted source is correct.',
+    };
+  }
+  const warning = repeatWarning(review);
+  return warning ? { tone: 'caution', text: warning } : null;
+}
+
+/** The action to recommend first for a review, or null when no available action fits. */
+export function recommended(review: Review, offered: ReprocessAction[]): ReprocessAction | null {
+  if (!offered.length) return null;
+  // A repeat of the same deterministic step is not recommended unless the code has changed.
+  if (review.identical_earlier_attempts && !chunkerChanged(review)) return null;
+  return offered[0];
+}
+
+export interface Remediation {
+  label: string;
+  /** What it does, in one sentence. */
+  does: string;
+  /** When it is the right tool. */
+  when: string;
+  pros: string[];
+  cons: string[];
+}
+
+/**
+ * Every reprocessing action, explained before it is used. Shown as guidance, never as a reason to
+ * press a button: which actions are available is decided by the server for the job's real state.
+ */
+export const REMEDIATION: Record<ReprocessAction, Remediation> = {
+  rechunk: {
+    label: 'Rechunk',
+    does: 'Builds a new set of passages from the existing extraction, then continues to embedding.',
+    when: 'The extracted text and tables are correct, but how they were divided into passages is not.',
+    pros: [
+      'Faster than reparsing; the document is not read or OCR’d again.',
+      'Keeps the extraction you have inspected.',
+      'The right tool for a passage-construction defect.',
+    ],
+    cons: [
+      'Creates new passage IDs and may move passage boundaries.',
+      'If neither the chunker nor its settings changed, a deterministic problem will recur.',
+    ],
+  },
+  reparse: {
+    label: 'Reparse',
+    does: 'Extracts the document again from the original PDF, then rebuilds passages and indexes.',
+    when: 'The extraction itself is wrong — missing or garbled text, a table read incorrectly, bad OCR.',
+    pros: [
+      'Can fix OCR, missing text and malformed tables.',
+      'Rebuilds everything downstream from a fresh extraction.',
+    ],
+    cons: [
+      'Slower: the whole document is read again.',
+      'May change how tables, figures and text are extracted.',
+      'Does not fix a passage-size problem when the extraction is already correct.',
+    ],
+  },
+  retry: {
+    label: 'Retry',
+    does: 'Runs the stage that failed again, unchanged.',
+    when: 'A stage failed for a temporary reason — a worker restart, a timeout, a provider outage.',
+    pros: ['Simple, and right for a transient failure.'],
+    cons: ['A validation result is deterministic: unchanged input gives the same result again.'],
+  },
+  reembed: {
+    label: 'Re-embed',
+    does: 'Rebuilds the search representations and both indexes from the current passages.',
+    when: 'The passages are valid and active, but their embeddings or index need rebuilding.',
+    pros: ['Leaves the extraction and passages untouched.'],
+    cons: ['Needs a valid passage set; it cannot repair passages that failed validation.'],
+  },
+  'reindex-sparse': {
+    label: 'Rebuild keyword index',
+    does: 'Rebuilds only the keyword index from the current passages.',
+    when: 'The passages and vectors are valid, but the keyword index needs repair.',
+    pros: ['Fast, and touches nothing else.'],
+    cons: ['Needs a valid passage set; it cannot repair passages that failed validation.'],
+  },
+  cancel: {
+    label: 'Cancel processing',
+    does: 'Stops processing this document.',
+    when: 'The document should not be processed further.',
+    pros: ['Stops further work immediately.'],
+    cons: ['The document will not become available to Ask until it is reprocessed.'],
+  },
+};
+
+/** Why an action the server marked unavailable cannot be used now, in plain words. */
+export function unavailableReason(action: ReprocessAction, reason: string | null, review: Review | null) {
+  if (reason === 'NO_RETRIES_LEFT') return 'The retry budget for this document is used up.';
+  if (review?.stage === 'CHUNK' && (action === 'reembed' || action === 'reindex-sparse')) {
+    return 'Needs a valid passage set; these passages failed validation.';
+  }
+  if (action === 'retry') return 'Only for a stage that failed; this one stopped for review.';
+  if (review?.stage === 'PARSE' && (action === 'rechunk' || action === 'reembed')) {
+    return 'Needs an accepted extraction first.';
+  }
+  return 'Not applicable to the document’s current state.';
+}

@@ -26,6 +26,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.chunking_config import ChunkingConfig
 from app.ingestion.state import (
     RECHUNK_ORIGINS,
     REEMBED_ORIGINS,
@@ -83,6 +84,8 @@ READY_INDEX = len(STAGES) - 1
 #: dressed as a measurement; the response says how many exist instead.
 MIN_ESTIMATE_SAMPLES = 8
 BLOCKING = frozenset({"CRITICAL", "ERROR"})
+#: The chunker this code installs. A Literal in the policy, so configuration cannot change it.
+CURRENT_CHUNKER: str = ChunkingConfig.model_fields["chunker_version"].default
 
 
 @dataclass(frozen=True)
@@ -321,6 +324,7 @@ def _review(session: Session, job: IngestionJob, stop_stage: int | None) -> Revi
     )
     groups: list[FindingGroup] = []
     run_id: UUID | None = None
+    reviewed_chunker: str | None = None
     identical = 0
     if stage == "PARSE":
         run = session.scalar(
@@ -356,6 +360,7 @@ def _review(session: Session, job: IngestionJob, stop_stage: int | None) -> Revi
         if runs:
             latest = runs[0]
             run_id = latest.id
+            reviewed_chunker = latest.chunker_version
             chunk_rows = session.execute(
                 select(
                     ChunkValidationFinding.code,
@@ -393,6 +398,8 @@ def _review(session: Session, job: IngestionJob, stop_stage: int | None) -> Revi
         info_count=sum(group.count for group in groups if group.severity == "INFO"),
         groups=groups,
         identical_earlier_attempts=identical,
+        reviewed_chunker_version=reviewed_chunker,
+        current_chunker_version=CURRENT_CHUNKER if stage == "CHUNK" else None,
         retries_left=max(0, job.max_retries - job.retry_count),
         max_retries=job.max_retries,
     )

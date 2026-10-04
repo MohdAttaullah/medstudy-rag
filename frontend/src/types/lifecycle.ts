@@ -50,6 +50,9 @@ export interface Review {
   info_count: number;
   groups: FindingGroup[];
   identical_earlier_attempts: number;
+  /** The chunker that built the run under review, and the one installed now. */
+  reviewed_chunker_version?: string | null;
+  current_chunker_version?: string | null;
   retries_left: number;
   max_retries: number;
 }

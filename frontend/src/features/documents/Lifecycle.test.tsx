@@ -214,7 +214,7 @@ describe('review required', () => {
     lifecycles = [needsReview];
     await show('/documents/doc-1');
     expect(await screen.findByRole('link', { name: 'Inspect this issue' }))
-      .toHaveAttribute('href', '/chunk-runs/chunk-run-9?chunk=chunk-77');
+      .toHaveAttribute('href', '/chunk-runs/chunk-run-9?status=blocking&chunk=chunk-77');
   });
 
   it('never offers re-embedding a chunk set that failed review, and warns before repeating', async () => {
@@ -242,7 +242,7 @@ describe('review required', () => {
     const panel = (await screen.findByRole('heading', { name: 'Review required' })).closest<HTMLElement>('section.review-panel')!;
     expect(within(panel).getByText('A passage is too large to search')).toBeVisible();
     expect(within(panel).queryAllByRole('button')).toHaveLength(0);
-    expect(panel).toHaveTextContent('A curator can resolve this.');
+    expect(panel).toHaveTextContent('A curator can resolve this by reprocessing the document.');
   });
 });
 

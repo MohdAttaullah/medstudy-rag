@@ -1,13 +1,8 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { api } from '../../api/client';
-import { useSession } from '../library/Session';
 import { Icon } from '../navigation/icons';
-import {
-  ACTION_COPY, ACTION_PATH, guidanceFor, remedies, repeatWarning, STAGE_LABEL,
-} from './lifecycle';
-import type { FindingGroup, Lifecycle, ReprocessAction } from '../../types/lifecycle';
+import { guidanceFor, STAGE_LABEL } from './lifecycle';
+import { RemediationActions } from './RemediationActions';
+import type { FindingGroup, Lifecycle } from '../../types/lifecycle';
 
 /**
  * Why processing stopped, and what to do about it.
@@ -34,7 +29,11 @@ function inspectHref(lifecycle: Lifecycle, group: FindingGroup, target: 'chunk' 
   const review = lifecycle.review!;
   const sample = group.samples[0];
   if (target === 'chunk' && review.stage === 'CHUNK' && review.run_id) {
-    return `/chunk-runs/${review.run_id}${sample?.chunk_id ? `?chunk=${sample.chunk_id}` : ''}`;
+    // Opens the inspector on this chunk, with the list filtered to what blocks, so the reviewer
+    // lands on the problem rather than at the top of every passage.
+    const query = new URLSearchParams({ status: group.blocking ? 'blocking' : 'warning' });
+    if (sample?.chunk_id) query.set('chunk', sample.chunk_id);
+    return `/chunk-runs/${review.run_id}?${query}`;
   }
   // The parse inspector serves both: parse findings, and chunk findings that start in extraction.
   if (!lifecycle.version_id) return null;
@@ -74,39 +73,13 @@ function Issue({ lifecycle, group, open }: { lifecycle: Lifecycle; group: Findin
 }
 
 export function ReviewPanel({ lifecycle }: { lifecycle: Lifecycle }) {
-  const { token } = useSession();
-  const queries = useQueryClient();
-  const [busy, setBusy] = useState<ReprocessAction | ''>('');
-  const [error, setError] = useState('');
   const review = lifecycle.review;
   if (!review) return null;
 
   const blocking = review.groups.filter(group => group.blocking);
   const warnings = review.groups.filter(group => !group.blocking);
-  const available = new Set(lifecycle.actions.filter(item => item.available).map(item => item.action));
-  const offered = remedies(review, available);
   const exhausted = lifecycle.actions.some(item => item.reason === 'NO_RETRIES_LEFT');
-  const repeat = repeatWarning(review);
   const next = lifecycle.stages.find(stage => stage.state === 'PENDING');
-
-  async function run(action: ReprocessAction) {
-    if (!lifecycle.job_id) return;
-    setBusy(action); setError('');
-    try {
-      await api(token, `/ingestion/jobs/${lifecycle.job_id}/${ACTION_PATH[action]}`, {
-        method: 'POST',
-        ...(action === 'rechunk' || action === 'reembed'
-          ? { body: JSON.stringify({ force: true }) }
-          : action === 'reindex-sparse' ? { body: '{}' } : {}),
-      });
-      // Restarts polling: the lifecycle is no longer terminal.
-      await queries.invalidateQueries({ queryKey: ['document'] });
-      await queries.invalidateQueries({ queryKey: ['jobs'] });
-      await queries.invalidateQueries({ queryKey: ['documents'] });
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The action failed.');
-    } finally { setBusy(''); }
-  }
 
   return <section className="review-panel" aria-labelledby="review-title">
     <div className="review-head">
@@ -143,31 +116,22 @@ export function ReviewPanel({ lifecycle }: { lifecycle: Lifecycle }) {
     <ol className="review-steps">
       <li><strong>Inspect the issue.</strong> Open it above and check whether the source was extracted
         correctly. That decides which of the steps below can fix it.</li>
-      {offered.length > 0 && <li>
+      <li>
         <strong>Then, if needed, reprocess.</strong>
-        {repeat && <p className="review-repeat" role="note"><Icon name="info" small />{repeat}</p>}
-        <div className="review-actions">
-          {offered.map(action => <div key={action} className="review-action">
-            <button type="button" className="secondary" disabled={busy !== ''}
-              onClick={() => void run(action)}>
-              {busy === action ? 'Starting…' : ACTION_COPY[action].label}
-            </button>
-            <span>{ACTION_COPY[action].explanation}</span>
-          </div>)}
-        </div>
-      </li>}
-      {offered.length === 0 && lifecycle.actions.length === 0 && <li>
-        A curator can resolve this. You can still inspect the issue to see what was found.
-      </li>}
+        <RemediationActions lifecycle={lifecycle} />
+      </li>
       {review.stage === 'PARSE' && lifecycle.actions.length > 0 && <li>
         If the extraction is correct despite the findings, a curator can accept it from the
         parse inspector using the reviewed-acceptance workflow.
+      </li>}
+      {review.stage === 'CHUNK' && <li className="muted">
+        Passages cannot be accepted as they are. A passage too large to embed would have to be cut
+        off to be searchable, so it is rebuilt instead.
       </li>}
     </ol>
     {exhausted && <p className="review-repeat" role="note"><Icon name="info" small />
       The retry budget for this document is used up ({review.max_retries} of {review.max_retries}).
       Upload a corrected file as a new version, or ask an administrator.</p>}
-    {error && <p role="alert" className="error">{error}</p>}
 
     {warnings.length > 0 && <details className="review-warnings">
       <summary>

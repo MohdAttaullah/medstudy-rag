@@ -24,7 +24,7 @@ export function useLifecycle(documentId: string) {
       // When the answer arrived, so a clock can keep counting between polls from server time.
       receivedAt: Date.now(),
     }),
-    enabled: Boolean(token),
+    enabled: Boolean(token && documentId),
     refetchInterval: query => (query.state.data?.view.terminal ? false : POLL_MS),
   });
 }

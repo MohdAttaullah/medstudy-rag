@@ -1,0 +1,148 @@
+/*
+ * Chunk review: the inspector's views, per-chunk validation state, findings and remediation.
+ *
+ * A chunk's validation state is always a word and an icon first; the colour repeats it. "No
+ * findings" is deliberately neutral rather than green — it means no validator objected, not that
+ * a person has approved the passage. Selection is a separate, stronger outline so it can never be
+ * mistaken for a validation colour.
+ */
+
+/* ---- run header -------------------------------------------------------- */
+.run-header { border-inline-start: 4px solid var(--tone-edge, var(--border-control)); }
+.run-header-head { display: flex; gap: var(--space-3); align-items: flex-start; }
+.run-header-head h2 { margin: 0; }
+.run-header .lifecycle-mark { background: var(--tone-fill); color: var(--tone); }
+.run-review {
+  display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; justify-content: space-between;
+  margin: var(--space-4) 0; padding: var(--space-3) var(--space-4);
+  background: var(--warning-subtle); border-radius: var(--radius-sm);
+}
+.run-review p { margin: 0; font: var(--text-secondary-size); color: var(--text-primary); flex: 1 1 18rem; }
+.run-review button { display: inline-flex; gap: var(--space-2); align-items: center; }
+
+/* ---- tabs ------------------------------------------------------------- */
+.inspector-tabs {
+  display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-5) 0 0;
+  border-block-end: 1px solid var(--border-strong);
+}
+.inspector-tab {
+  display: inline-flex; flex-wrap: wrap; gap: var(--space-2); align-items: center;
+  background: transparent; color: var(--text-secondary); border: 1px solid transparent;
+  border-block-end: 3px solid transparent; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  padding: var(--space-2) var(--space-3); font: 600 14px/1.4 var(--font-sans);
+}
+.inspector-tab:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-primary); }
+.inspector-tab[aria-selected="true"] {
+  color: var(--accent-primary); border-block-end-color: var(--accent-primary); background: var(--bg-surface);
+}
+.tab-count {
+  display: inline-block; min-inline-size: 1.6em; padding: 0 6px; border-radius: 999px;
+  background: var(--bg-subtle); color: var(--text-secondary); font: 600 12px/1.6 var(--font-sans);
+  text-align: center;
+}
+.tab-flag {
+  display: inline-flex; gap: 4px; align-items: center; padding: 1px var(--space-2); border-radius: 999px;
+  background: var(--danger-subtle); color: var(--danger); border: 1px solid var(--danger-edge);
+  font: 700 12px/1.5 var(--font-sans);
+}
+.tab-sub { font: 500 12px/1.5 var(--font-sans); color: var(--warning); }
+.tab-attention:not([aria-selected="true"]) { border-color: var(--danger-edge); border-block-end-color: var(--danger-edge); }
+.inspector-panel { padding-top: var(--space-3); }
+.tab-help { font: var(--text-secondary-size); color: var(--text-secondary); max-inline-size: var(--measure); margin: var(--space-2) 0 0; }
+
+/* ---- status filter ------------------------------------------------------ */
+.status-filter { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin: 0; }
+.status-filter legend { font: 600 13px/1.4 var(--font-sans); margin-inline-end: var(--space-2); float: inline-start; }
+.status-option {
+  display: inline-flex; gap: var(--space-2); align-items: center; margin: 0; cursor: pointer;
+  padding: 5px var(--space-3); border: 1px solid var(--border-control); border-radius: 999px;
+  font: 500 13px/1.4 var(--font-sans); background: var(--bg-surface); color: var(--text-primary);
+}
+.status-option input { position: absolute; opacity: 0; inline-size: 1px; block-size: 1px; margin: 0; }
+.status-option:has(input:focus-visible) { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.status-option.is-on { background: var(--accent-subtle); border-color: var(--accent-primary); color: var(--accent-hover); font-weight: 700; }
+.status-blocking.is-on { background: var(--danger-subtle); border-color: var(--danger-edge); color: var(--danger); }
+.status-warning.is-on { background: var(--warning-subtle); border-color: var(--warning-edge); color: var(--warning); }
+
+/* ---- chunk cards ---------------------------------------------------------- */
+.chunk-list { list-style: none; padding: 0; margin: var(--space-4) 0 0; display: grid; gap: var(--space-3); }
+.chunk-card {
+  border: 1px solid var(--border-subtle); border-inline-start: 4px solid var(--border-subtle);
+  border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); background: var(--bg-surface);
+}
+.chunk-card h3 { margin: 0; font-size: 14px; }
+.chunk-card .muted { margin: var(--space-1) 0; }
+.chunk-card-head { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; justify-content: space-between; }
+.chunk-blocking { border-inline-start-color: var(--danger-edge); }
+.chunk-warning { border-inline-start-color: var(--warning-edge); }
+.chunk-selected { outline: 3px solid var(--accent-primary); outline-offset: 2px; }
+.chunk-state {
+  display: inline-flex; gap: 4px; align-items: center; padding: 2px var(--space-2);
+  border-radius: var(--radius-sm); font: 700 11px/1.4 var(--font-sans); letter-spacing: .04em;
+  text-transform: uppercase; border: 1px solid;
+}
+.chunk-state-blocking { color: var(--danger); background: var(--danger-subtle); border-color: var(--danger-edge); }
+.chunk-state-warning { color: var(--warning); background: var(--warning-subtle); border-color: var(--warning-edge); }
+.chunk-state-clean { color: var(--text-secondary); background: var(--bg-subtle); border-color: var(--border-strong); }
+
+.finding-line { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; margin: var(--space-1) 0; font: var(--text-meta); }
+.finding-sev { font-weight: 700; }
+.finding-blocking .finding-sev { color: var(--danger); }
+.finding-warning .finding-sev { color: var(--warning); }
+.finding-measure { font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+/* ---- findings view and detail --------------------------------------------- */
+.findings-heading { display: flex; gap: var(--space-2); align-items: center; }
+.findings-blocking { color: var(--danger); }
+.findings-warning { color: var(--warning); margin-top: var(--space-6); }
+.finding-cards { list-style: none; padding: 0; margin: var(--space-3) 0; display: grid; gap: var(--space-3); }
+.finding-card {
+  border: 1px solid var(--border-subtle); border-inline-start: 4px solid; border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4); background: var(--bg-surface); margin: var(--space-2) 0;
+}
+.finding-card h3 { margin: var(--space-1) 0; font-size: 14px; }
+.finding-card p { font: var(--text-secondary-size); margin: var(--space-1) 0; max-inline-size: var(--measure); }
+.finding-card button { display: inline-flex; gap: var(--space-2); align-items: center; margin-top: var(--space-2); }
+.finding-card-blocking { border-inline-start-color: var(--danger-edge); background: var(--danger-subtle); }
+.finding-card-warning { border-inline-start-color: var(--warning-edge); }
+.findings-remedies { margin-top: var(--space-4); }
+.chunk-detail { border-inline-start: 4px solid var(--border-subtle); scroll-margin-top: calc(var(--header-height) + var(--space-4)); }
+.chunk-detail.chunk-blocking { border-inline-start-color: var(--danger-edge); }
+.chunk-detail.chunk-warning { border-inline-start-color: var(--warning-edge); }
+.chunk-detail h2:focus { outline: none; }
+.chunk-detail h2:focus-visible { outline: 3px solid var(--focus-ring); }
+
+.decision-guide {
+  margin: var(--space-4) 0; padding: var(--space-4); border-radius: var(--radius-md);
+  background: var(--info-subtle); border: 1px solid var(--info);
+}
+.decision-guide h3 { display: flex; gap: var(--space-2); align-items: center; margin-top: 0; color: var(--info); }
+.decision-guide ol { padding-inline-start: var(--space-5); margin: 0 0 var(--space-3); font: var(--text-secondary-size); }
+.decision-guide li { margin-bottom: var(--space-2); max-inline-size: var(--measure); }
+
+/* ---- remediation ---------------------------------------------------------- */
+.remedies { margin-top: var(--space-2); }
+.remedy { padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface); }
+.remedy-recommended { border-color: var(--accent-primary); box-shadow: inset 4px 0 0 var(--accent-primary); }
+.remedy-head { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.remedy-badge {
+  display: inline-flex; gap: 4px; align-items: center; font: 700 12px/1.4 var(--font-sans);
+  color: var(--accent-hover); background: var(--accent-subtle); padding: 2px var(--space-2); border-radius: 999px;
+}
+.remedy-does { margin: var(--space-2) 0 0; font: var(--text-meta); color: var(--text-primary); max-inline-size: var(--measure); }
+.remedy-when { color: var(--text-secondary); }
+.remedy-tradeoffs > summary { font: 600 12.5px/1.4 var(--font-sans); color: var(--accent-primary); margin-top: var(--space-2); }
+.tradeoffs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin-top: var(--space-2); }
+.tradeoffs ul { margin: 0; padding-inline-start: var(--space-5); font: var(--text-meta); }
+.tradeoffs ul:first-child::before { content: "Pros"; display: block; font-weight: 700; color: var(--success); margin-inline-start: calc(-1 * var(--space-5)); }
+.tradeoffs ul:last-child::before { content: "Cons"; display: block; font-weight: 700; color: var(--danger); margin-inline-start: calc(-1 * var(--space-5)); }
+.remedy-unavailable { margin-top: var(--space-3); font: var(--text-meta); color: var(--text-secondary); }
+.remedy-unavailable ul { padding-inline-start: var(--space-5); }
+.remedy-reader { display: flex; gap: var(--space-2); align-items: flex-start; font: var(--text-meta); color: var(--text-secondary); }
+.note-info { background: var(--info-subtle); }
+.note-caution { background: var(--warning-subtle); }
+
+@media (max-width: 600px) {
+  .tradeoffs { grid-template-columns: 1fr; }
+  .inspector-tab { flex: 1 1 auto; justify-content: center; }
+}

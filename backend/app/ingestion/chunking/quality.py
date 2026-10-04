@@ -44,8 +44,18 @@ def validate(
     elements = {e.id: e for e in source.elements}
     artifacts = {a.id: a for a in source.artifacts}
 
-    def add(code: str, message: str, key: str | None = None, severity: str = "CRITICAL") -> None:
-        findings.append(Finding(severity=severity, code=code, message=message, chunk_key=key))
+    def add(
+        code: str,
+        message: str,
+        key: str | None = None,
+        severity: str = "CRITICAL",
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        findings.append(
+            Finding(
+                severity=severity, code=code, message=message, chunk_key=key, details=details or {}
+            )
+        )
 
     if not chunks:
         add("CHUNK_EMPTY_DATASET", "The parse produced no usable chunk dataset.")
@@ -175,6 +185,13 @@ def validate(
                 "A retrieval unit is too large to be embedded without truncation.",
                 chunk.key,
                 "ERROR",
+                # The measurement the decision was made on, so a reviewer sees 396 / 384 rather
+                # than having to recount: retrieval tokens of the embedded representation.
+                {
+                    "measured_tokens": chunk.retrieval_token_count,
+                    "limit_tokens": config.retrieval_budget_tokens,
+                    "measured_on": "retrieval_text",
+                },
             )
         elif chunk.token_count > limit:
             oversized += 1
@@ -183,6 +200,11 @@ def validate(
                 "An atomic source unit exceeds the configured target.",
                 chunk.key,
                 "WARNING",
+                {
+                    "measured_tokens": chunk.token_count,
+                    "limit_tokens": limit,
+                    "measured_on": "normalized_text",
+                },
             )
         if chunk.token_count > config.thresholds.max_atomic_tokens and chunk.kind != "TEXT_PARENT":
             add(
