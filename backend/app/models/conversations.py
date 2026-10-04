@@ -121,7 +121,9 @@ class TurnCitation(UUIDTimestampMixin, Base):
     The cited text is stored rather than re-resolved at read time. A verified answer was verified
     against the exact words below; if the document were later re-parsed, re-resolution would quietly
     change what a stored answer appears to cite, which is precisely the drift provenance exists to
-    prevent. The identifiers alongside it still resolve to the live document for inspection.
+    prevent. The identifiers alongside it still resolve to the live document for inspection —
+    unless that document was permanently deleted, in which case `source_deleted_at` is set and the
+    excerpt is gone with it (ADR-026).
     """
 
     __tablename__ = "turn_citations"
@@ -130,7 +132,8 @@ class TurnCitation(UUIDTimestampMixin, Base):
         ForeignKeyConstraint(
             ["turn_id", "tenant_id"], ["conversation_turns.id", "conversation_turns.tenant_id"]
         ),
-        ForeignKeyConstraint(["document_id", "tenant_id"], ["documents.id", "documents.tenant_id"]),
+        # No foreign key to `documents`: a permanently deleted document leaves its citations in
+        # place as history, with their source content removed (ADR-026).
         UniqueConstraint("turn_id", "evidence_id", name="uq_citation_evidence"),
     )
     tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
@@ -154,3 +157,7 @@ class TurnCitation(UUIDTimestampMixin, Base):
     source_spans: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     artifacts: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     cited_text: Mapped[str] = mapped_column(Text)
+    # Set when the cited document was permanently deleted. The citation then keeps its identifiers
+    # and the answer keeps its text, but the excerpt, regions and title are gone: a deleted source
+    # is not retained merely to keep an old citation clickable.
+    source_deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

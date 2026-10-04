@@ -17,6 +17,10 @@ PERMISSIONS = frozenset(
         "document:read",
         "document:upload",
         "document:manage",
+        # Permanent deletion of a document and everything derived from it (ADR-026). Separate from
+        # `document:manage`, which only withdraws a document: archiving is reversible in substance
+        # because nothing is destroyed; this is not, so it is not a curator capability.
+        "document:delete",
         # --- Ingestion operation. These are the operate-the-pipeline capabilities; §5 of the M12
         # brief calls this shape "operations:admin", and rather than duplicate it under a second
         # name the existing scopes keep theirs and the mapping is documented in security.md.
@@ -72,7 +76,9 @@ _CURATOR = _READER | frozenset(
         "generation:verify",
     }
 )
-_ADMIN = _CURATOR | frozenset({"settings:read", "settings:write", "audit:read", "operations:read"})
+_ADMIN = _CURATOR | frozenset(
+    {"settings:read", "settings:write", "audit:read", "operations:read", "document:delete"}
+)
 
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "reader": _READER,

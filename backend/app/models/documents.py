@@ -176,3 +176,33 @@ class OutboxMessage(UUIDTimestampMixin, Base):
     received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attempts: Mapped[int] = mapped_column(default=0)
     last_error_code: Mapped[str | None] = mapped_column(String(80))
+
+
+class DocumentDeletion(UUIDTimestampMixin, Base):
+    """The record that a document was permanently deleted, and the state of that deletion.
+
+    It is also the workflow's memory. Deletion reaches three stores that share no transaction —
+    object storage, the vector index and PostgreSQL — so a request can fail between them. While a
+    row here is not COMPLETED the document stays withdrawn from retrieval and a retry resumes the
+    work; once COMPLETED it is the only trace left, and it holds identifiers, timestamps, the
+    deleting principal and counts — never a title, text or storage key — so keeping it retains none
+    of the deleted content. See ADR-026.
+    """
+
+    __tablename__ = "document_deletions"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "document_id", name="uq_document_deletion"),
+        CheckConstraint("status IN ('REQUESTED', 'COMPLETED', 'FAILED')", name="deletion_status"),
+        CheckConstraint("attempts >= 1", name="deletion_attempts"),
+    )
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    # Not a foreign key: this row outlives the document it records.
+    document_id: Mapped[UUID]
+    requested_by_user_id: Mapped[UUID]
+    status: Mapped[str] = mapped_column(String(16))
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer)
+    last_error_code: Mapped[str | None] = mapped_column(String(64))
+    correlation_id: Mapped[UUID]
+    removed: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)

@@ -9,7 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
-from pydantic import ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import func, select
 from starlette.concurrency import run_in_threadpool
 
@@ -39,7 +39,7 @@ from app.schemas.documents import (
     VersionMetadata,
     VersionView,
 )
-from app.schemas.lifecycle import Lifecycle
+from app.schemas.lifecycle import DeletionPreview, Lifecycle
 from app.security.auth import Principal
 from app.services.control import ControlPlane
 from app.services.lifecycle import lifecycle as read_lifecycle
@@ -355,6 +355,31 @@ def document_lifecycle(document_id: UUID, actor: Actor, service: Service) -> Lif
             "actions": [item for item in view.actions if ACTION_PERMISSIONS[item.action] in held]
         }
     )
+
+
+@router.get("/documents/{document_id}/deletion-preview", response_model=DeletionPreview)
+def deletion_preview(document_id: UUID, actor: Actor, service: Service) -> DeletionPreview:
+    return service.deletions.preview(actor, document_id)
+
+
+class DeleteConfirmation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    confirm: str
+
+
+@router.delete("/documents/{document_id}", status_code=204)
+def delete_document(
+    document_id: UUID, body: DeleteConfirmation, request: Request, actor: Actor, service: Service
+) -> None:
+    """Permanently delete a document and everything derived from it (ADR-026).
+
+    The confirmation is checked here as well as in the interface: a mistaken or replayed API call
+    must not be able to destroy content that a person did not explicitly confirm destroying.
+    """
+    actor.require("document:delete")
+    if body.confirm != "DELETE":
+        raise DomainError("DELETE_NOT_CONFIRMED", "Type DELETE to confirm permanent deletion.", 400)
+    service.deletions.delete(actor, document_id, correlation(request))
 
 
 @router.get("/documents/{document_id}/versions", response_model=Page[VersionView])

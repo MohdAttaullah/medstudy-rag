@@ -2,7 +2,7 @@
 
 export type LifecycleState =
   | 'PROCESSING' | 'REVIEW_REQUIRED' | 'FAILED' | 'CANCELLED' | 'READY' | 'ARCHIVED'
-  | 'NOT_STARTED';
+  | 'DELETING' | 'DELETION_INCOMPLETE' | 'NOT_STARTED';
 
 export type LifecycleStageCode =
   | 'RECEIVED' | 'READING' | 'PASSAGES' | 'EMBEDDING' | 'SEMANTIC_INDEX' | 'KEYWORD_INDEX' | 'READY';
@@ -91,4 +91,14 @@ export interface LifecycleSummary {
   server_time: string;
   blocking_count: number;
   warning_count: number;
+}
+
+export interface DeletionPreview {
+  document_id: string;
+  versions: number;
+  pages: number;
+  chunks: number;
+  vectors: number;
+  citing_answers: number;
+  blocked_reason: 'PROCESSING' | null;
 }

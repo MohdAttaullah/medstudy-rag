@@ -54,6 +54,16 @@ export function sourceHref(citation: AskCitation) {
  * excerpt, competing with it for the attention of a reader who came to read the source sentence.
  */
 function Citation({ citation }: {citation: AskCitation}) {
+  // The document this answer cited has since been permanently deleted. Its text went with it, so
+  // there is nothing left to quote or open — only the fact that a source once stood here.
+  if (citation.source_deleted) return <article className="evidence-card evidence-deleted">
+    <p className="eyebrow">SOURCE [{citation.ordinal}]</p>
+    <h4><Icon name="delete" small />Source deleted</h4>
+    <p className="muted">
+      The document this citation pointed to was permanently deleted after this answer was given.
+      Its text is no longer kept, so this statement can no longer be checked against it.
+    </p>
+  </article>;
   const assessment = ASSESSMENT.has(citation.source_type);
   const box = citation.spans.find(span => span.bbox && span.bbox.every(v => v !== null));
   const page = citation.pages.length
@@ -196,6 +206,8 @@ export function Answer({ result }: {result: AnswerRecord}) {
     </section>;
   }
 
+  const deleted = new Set(result.citations
+    .filter(citation => citation.source_deleted).map(citation => citation.document_version_id));
   return <section className="answer outcome outcome-verified" aria-labelledby="ask-answer">
     <OutcomeLine state={OUTCOMES.VERIFIED} />
     <h2 id="ask-answer">Answer</h2>
@@ -206,7 +218,7 @@ export function Answer({ result }: {result: AnswerRecord}) {
     <h3>Sources</h3>
     <ul className="source-list">{result.sources.map(source =>
       <li key={source.document_version_id}>
-        <span>{source.title}</span>
+        <span>{deleted.has(source.document_version_id) ? 'Source deleted' : source.title}</span>
         {/* Plain metadata, not code: a monospaced face here made an authority level read like an
             identifier. The genuinely technical values keep the monospaced face. */}
         <span className="muted">{human(source.authority_level)} · {source.citation_ids.length} citation{source.citation_ids.length === 1 ? '' : 's'}</span>

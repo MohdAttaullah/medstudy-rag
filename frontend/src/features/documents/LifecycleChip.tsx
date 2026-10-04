@@ -27,7 +27,7 @@ export function LifecycleChip({ documentId, title, summary, receivedAt, now }: {
   }
   const link = summary.state === 'PROCESSING' ? 'View progress'
     : summary.state === 'REVIEW_REQUIRED' ? 'Review'
-      : summary.state === 'FAILED' ? 'Details' : '';
+      : summary.state === 'FAILED' || summary.state === 'DELETION_INCOMPLETE' ? 'Details' : '';
   return <span className="lifecycle-chip-cell">
     <span className={`lifecycle-chip tone-${state.tone}`}>
       <span className={summary.state === 'PROCESSING' ? 'chip-spin' : undefined} aria-hidden="true">

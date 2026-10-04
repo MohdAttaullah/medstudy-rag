@@ -213,6 +213,8 @@ export interface AskCitation {
   parse_run_id: string; chunk_run_id: string; document_title: string; source_type: string;
   authority_level: string; chunk_type: string; pages: number[];
   spans: CitationSpan[]; artifacts: CitationArtifact[]; cited_text: string;
+  /** The cited document was permanently deleted after this answer was verified (ADR-026). */
+  source_deleted?: boolean;
 }
 export interface AskSource {
   document_id: string; document_version_id: string; parse_run_id: string; title: string;

@@ -86,6 +86,9 @@ class AskCitation(BaseModel):
     spans: list[CitationSpan]
     artifacts: list[CitationArtifact]
     cited_text: str
+    # The cited document was permanently deleted after this answer was verified (ADR-026). The
+    # excerpt, regions and title are gone with it; only the identifiers remain, as history.
+    source_deleted: bool = False
 
 
 class AskFigure(BaseModel):

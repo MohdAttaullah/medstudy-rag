@@ -12,6 +12,7 @@ from app.security.auth import AuthProvider, Principal, build_auth_provider
 from app.services.ask import AskService
 from app.services.chunking import ChunkService
 from app.services.configuration import ConfigurationService
+from app.services.deletion import DocumentDeletionService
 from app.services.embedding import EmbeddingService
 from app.services.evidence import EvidenceService
 from app.services.generation import GenerationService
@@ -76,6 +77,12 @@ class ControlPlane:
         self.verification = VerificationService(self.generation, settings)
         self.ask = AskService(self.verification, settings)
         self.jobs = JobService(sessions, storage)
+        self.deletions = DocumentDeletionService(
+            sessions,
+            storage,
+            vector_index,
+            self.embeddings.schema if vector_index is not None else None,
+        )
         self.reviews = ReviewService(sessions)
         self.configuration = ConfigurationService(sessions, settings)
 

@@ -11,7 +11,7 @@ export const POLL_MS = 3000;
  * The lifecycle of one document, refreshed from the server while it is moving.
  *
  * Polling stops as soon as the server reports a terminal or waiting state — ready, review,
- * failure, cancellation, archive — because nothing will change there until a person
+ * failure, cancellation, archive, deletion — because nothing will change there until a person
  * acts, and an action invalidates this query, which starts it again. The response is all the
  * state there is: a reload reconstructs exactly the same picture.
  */

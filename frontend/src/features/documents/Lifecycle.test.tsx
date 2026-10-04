@@ -3,13 +3,16 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../App';
+import { Answer } from '../ask/Answer';
 import { lifecycleView, stages } from '../../test-lifecycle';
 import { duration, estimateText, factLine, guidanceFor, remedies, repeatWarning } from './lifecycle';
 import { POLL_MS } from './useLifecycle';
 import type { Lifecycle, Review } from '../../types/lifecycle';
+import type { AskCitation } from '../../types/retrieval';
 
 /**
- * The document lifecycle as a person sees it: real stages, honest time and actionable review.
+ * The document lifecycle as a person sees it: real stages, honest time, actionable review and a
+ * permanent delete that cannot happen by accident.
  *
  * Every state shown here is the server's. The tests feed the page a lifecycle response and assert
  * what the page says about it — including what it must never say: a percentage, a guessed
@@ -55,12 +58,14 @@ const needsReview: Lifecycle = lifecycleView({
   ],
 });
 
-const ADMIN = ['document:read', 'document:upload', 'document:manage', 'ingestion:read',
+const ADMIN = ['document:read', 'document:upload', 'document:manage', 'document:delete', 'ingestion:read',
   'ingestion:retry', 'ingestion:reparse', 'ingestion:rechunk', 'ingestion:reembed', 'ingestion:reindex', 'ingestion:cancel'];
 const READER = ['document:read', 'ingestion:read'];
 
 let permissions = ADMIN;
 let lifecycles: Lifecycle[] = [];
+let preview = { document_id: 'doc-1', versions: 1, pages: 12, chunks: 40, vectors: 40, citing_answers: 2, blocked_reason: null as 'PROCESSING' | null };
+let deleteStatus = 204;
 let summary: Record<string, unknown> | null = null;
 let calls: { url: string; method: string; body: string | null }[] = [];
 
@@ -72,15 +77,21 @@ function documentRow() {
 }
 
 beforeEach(() => {
-  permissions = ADMIN; lifecycles = [running]; summary = null; calls = [];
+  permissions = ADMIN; lifecycles = [running]; deleteStatus = 204; summary = null; calls = [];
+  preview = { document_id: 'doc-1', versions: 1, pages: 12, chunks: 40, vectors: 40, citing_answers: 2, blocked_reason: null };
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
     calls.push({ url, method, body: typeof init?.body === 'string' ? init.body : null });
+    if (method === 'DELETE') {
+      return deleteStatus === 204 ? new Response(null, { status: 204 })
+        : new Response(JSON.stringify({ error: { code: 'DOCUMENT_PROCESSING', message: 'This document is still being processed.' } }), { status: deleteStatus });
+    }
     const body =
       url.includes('/auth/me') ? { user_id: 'user-1', display_name: 'Local tester', role: permissions === ADMIN ? 'admin' : 'reader', permissions } :
       url.includes('/health/ready') ? { status: 'ready', dependencies: {} } :
       url.includes('/uploads/limits') ? { max_upload_bytes: 1024, max_upload_mib: 1, allowed_mime_types: ['application/pdf'], files_per_request: 1 } :
       url.includes('/lifecycle') ? (lifecycles.length > 1 ? lifecycles.shift() : lifecycles[0]) :
+      url.includes('/deletion-preview') ? preview :
       url.includes('/ingestion/jobs/job-1/') ? { id: 'job-1', status: 'CHUNKING' } :
       url.includes('/parse') ? { document_version_id: 'version-1', ingestion_status: 'CHUNKING', parse_run: null, parse_runs: 0 } :
       url.includes('/chunk-runs') ? page([]) :
@@ -253,6 +264,102 @@ describe('library status', () => {
     const row = (await screen.findByRole('link', { name: 'Synthetic reference' })).closest('tr')!;
     expect(row).toHaveTextContent('Review required · 1 blocking');
     expect(within(row).getByRole('link', { name: /^Review ?: Synthetic reference$/ })).toBeVisible();
+  });
+});
+
+describe('permanent delete', () => {
+  async function openDialog() {
+    await show('/library');
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions for Synthetic reference' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete permanently' }));
+    return screen.findByRole('dialog', { name: /Delete “Synthetic reference” permanently/ });
+  }
+
+  it('is not offered to a reader', async () => {
+    permissions = READER;
+    await show('/library');
+    await screen.findByRole('link', { name: 'Synthetic reference' });
+    expect(screen.queryByRole('button', { name: 'More actions for Synthetic reference' })).toBeNull();
+  });
+
+  it('lists what will be removed and what stays, counted by the server', async () => {
+    const dialog = await openDialog();
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(await within(dialog).findByText(/40 searchable passages and 40 search vectors/)).toBeVisible();
+    expect(dialog).toHaveTextContent('from 12 pages');
+    expect(dialog).toHaveTextContent('2 earlier answers that cited this document stay');
+    expect(dialog).toHaveTextContent('“Source deleted”');
+    expect(dialog).toHaveTextContent('This cannot be undone.');
+  });
+
+  it('requires typing DELETE, then sends the confirmation and reports success', async () => {
+    const dialog = await openDialog();
+    const button = await within(dialog).findByRole('button', { name: 'Delete permanently' });
+    expect(within(dialog).getByLabelText(/Type DELETE to confirm/)).toHaveFocus();
+    expect(button).toBeDisabled();
+    fireEvent.change(within(dialog).getByLabelText(/Type DELETE to confirm/), { target: { value: 'delete' } });
+    expect(button).toBeDisabled();
+    fireEvent.change(within(dialog).getByLabelText(/Type DELETE to confirm/), { target: { value: 'DELETE' } });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const sent = calls.find(call => call.method === 'DELETE')!;
+    expect(sent.url).toBe('/api/v1/documents/doc-1');
+    expect(sent.body).toBe('{"confirm":"DELETE"}');
+    expect(await screen.findByText('“Synthetic reference” was permanently deleted.')).toBeVisible();
+  });
+
+  it('cannot be confirmed while the document is processing', async () => {
+    preview = { ...preview, blocked_reason: 'PROCESSING' };
+    const dialog = await openDialog();
+    expect(await within(dialog).findByText(/still being processed/)).toBeVisible();
+    fireEvent.change(within(dialog).getByLabelText(/Type DELETE to confirm/), { target: { value: 'DELETE' } });
+    expect(within(dialog).getByRole('button', { name: 'Delete permanently' })).toBeDisabled();
+  });
+
+  it('shows the server’s refusal and keeps the dialog open', async () => {
+    deleteStatus = 409;
+    const dialog = await openDialog();
+    await within(dialog).findByText(/40 searchable passages/);
+    fireEvent.change(within(dialog).getByLabelText(/Type DELETE to confirm/), { target: { value: 'DELETE' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('This document is still being processed.');
+    expect(screen.getByRole('dialog')).toBeVisible();
+  });
+
+  it('closes on Escape without deleting anything', async () => {
+    const dialog = await openDialog();
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(calls.some(call => call.method === 'DELETE')).toBe(false);
+  });
+
+  it('is offered on the document page in a separate danger zone', async () => {
+    lifecycles = [lifecycleView()];
+    await show('/documents/doc-1');
+    const zone = (await screen.findByRole('heading', { name: 'Delete permanently' })).closest('section')!;
+    fireEvent.click(within(zone).getByRole('button', { name: 'Delete permanently…' }));
+    expect(await screen.findByRole('dialog')).toBeVisible();
+  });
+});
+
+describe('citations of a deleted source', () => {
+  it('say the source was deleted and keep none of its text or links', () => {
+    const citation: AskCitation = {
+      citation_id: 'ct1', ordinal: 1, document_id: 'd1', document_version_id: 'v1', parse_run_id: 'pr1',
+      chunk_run_id: 'cr1', document_title: 'Deleted source', source_type: 'TEXTBOOK', authority_level: 'REFERENCE',
+      chunk_type: 'TEXT_CHILD', pages: [], spans: [], artifacts: [], cited_text: '', source_deleted: true,
+    };
+    render(<MemoryRouter><Answer result={{
+      outcome: 'VERIFIED', verified: true, answer: 'An earlier answer.', message: 'Checked.', reason_codes: [],
+      citations: [citation], figures: [],
+      sources: [{ document_id: 'd1', document_version_id: 'v1', parse_run_id: 'pr1', title: 'Deleted source',
+        source_type: 'TEXTBOOK', authority_level: 'REFERENCE', pages: [], citation_ids: ['ct1'] }],
+    }} /></MemoryRouter>);
+    const card = screen.getByText('Source deleted', { selector: 'h4' }).closest('article')!;
+    expect(within(card).queryByRole('link')).toBeNull();
+    expect(card.querySelector('blockquote')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Open source page' })).toBeNull();
   });
 });
 

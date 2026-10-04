@@ -24,6 +24,7 @@ class ObjectStorage(Protocol):
     def stat(self, key: str, version_id: str | None = None) -> ObjectStat: ...
     def exists(self, key: str, version_id: str | None = None) -> bool: ...
     def delete(self, key: str) -> None: ...
+    def delete_prefix(self, prefix: str) -> int: ...
     def open(self, key: str, version_id: str) -> Any: ...
     def read(self, key: str, version_id: str | None = None) -> bytes: ...
     def download(self, key: str, version_id: str, destination: Any) -> None: ...
@@ -37,6 +38,15 @@ def object_key(document_id: UUID, version_id: UUID) -> str:
 def parse_prefix(document_id: UUID, version_id: UUID, run_id: UUID) -> str:
     """All artifacts of one ParseRun live under a single immutable, UUID-addressed prefix."""
     return f"documents/{document_id}/{version_id}/parsing/{run_id}"
+
+
+def document_prefix(document_id: UUID) -> str:
+    """Everything one document owns in object storage: its originals and every parse artifact.
+
+    The trailing slash is load-bearing. Without it a prefix listing would also match any other key
+    that merely begins with the same characters.
+    """
+    return f"documents/{document_id}/"
 
 
 def raw_parse_key(document_id: UUID, version_id: UUID, run_id: UUID) -> str:
@@ -151,6 +161,45 @@ class S3ObjectStorage:
                     self.client.abort_multipart_upload(
                         Bucket=self.bucket, Key=key, UploadId=item["UploadId"]
                     )
+
+    def delete_prefix(self, prefix: str) -> int:
+        """Permanently remove every object version and delete marker under ``prefix``.
+
+        The bucket is versioned, so an ordinary delete only adds a delete marker and leaves the
+        bytes recoverable. Permanent deletion has to remove each version by id. Re-running it is
+        harmless: an empty listing deletes nothing and returns 0.
+        """
+        if not prefix.endswith("/") or prefix.count("/") < 2:
+            # A short or unterminated prefix could reach another document's objects.
+            raise ValueError("Refusing an unscoped prefix delete")
+        removed = 0
+        for page in self.client.get_paginator("list_object_versions").paginate(
+            Bucket=self.bucket, Prefix=prefix
+        ):
+            versions = [
+                {"Key": item["Key"], "VersionId": item["VersionId"]}
+                for field in ("Versions", "DeleteMarkers")
+                for item in page.get(field, [])
+                if item["Key"].startswith(prefix)
+            ]
+            # DeleteObjects accepts at most 1,000 keys per request; a listing page never exceeds
+            # that, but versions and markers are combined, so batch defensively.
+            for start in range(0, len(versions), 1000):
+                batch = versions[start : start + 1000]
+                result = self.client.delete_objects(
+                    Bucket=self.bucket, Delete={"Objects": batch, "Quiet": True}
+                )
+                if result.get("Errors"):
+                    raise RuntimeError("Object deletion incomplete")
+                removed += len(batch)
+        for page in self.client.get_paginator("list_multipart_uploads").paginate(
+            Bucket=self.bucket, Prefix=prefix
+        ):
+            for item in page.get("Uploads", []):
+                self.client.abort_multipart_upload(
+                    Bucket=self.bucket, Key=item["Key"], UploadId=item["UploadId"]
+                )
+        return removed
 
     def open(self, key: str, version_id: str) -> Any:
         return self.client.get_object(Bucket=self.bucket, Key=key, VersionId=version_id)["Body"]

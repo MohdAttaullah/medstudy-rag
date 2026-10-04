@@ -65,6 +65,7 @@
      3:1 of WCAG 1.4.11 since the edge carries meaning (and always repeats a word): on white
      4.1, 5.5 and 5.3:1; warning on its own fill 3.7:1, danger on its own fill 4.7:1. */
   --warning-edge: #b06f12;   --danger-edge: #b8402f;   --success-edge: #2b7a4f;
+  --danger-hover: #7f2920;   /* the filled delete button on hover; white text 9.4:1 */
 
   --bg-disabled: #e6eaeb;
   --focus-ring: #b47719;     /* 3.8:1 on white, 4.1:1 on the sidebar */

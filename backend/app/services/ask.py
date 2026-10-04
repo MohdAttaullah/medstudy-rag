@@ -527,6 +527,7 @@ class AskService:
                 for a in row.artifacts or []
             ],
             cited_text=row.cited_text,
+            source_deleted=row.source_deleted_at is not None,
         )
 
     @staticmethod

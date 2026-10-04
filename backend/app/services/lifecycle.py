@@ -35,6 +35,7 @@ from app.ingestion.state import (
 from app.models.chunking import Chunk, ChunkRun, ChunkValidationFinding
 from app.models.documents import (
     Document,
+    DocumentDeletion,
     DocumentVersion,
     IngestionJob,
     IngestionStageEvent,
@@ -164,7 +165,11 @@ def stage_states(status: str, derived: Derived) -> list[str]:
     ]
 
 
-def overall_state(status: str | None, archived: bool) -> str:
+def overall_state(status: str | None, archived: bool, deletion_status: str | None) -> str:
+    if deletion_status == "REQUESTED":
+        return "DELETING"
+    if deletion_status == "FAILED":
+        return "DELETION_INCOMPLETE"
     if archived:
         return "ARCHIVED"
     if status is None:
@@ -559,12 +564,24 @@ def _job(session: Session, version: DocumentVersion) -> IngestionJob | None:
     )
 
 
+def deletion_status(session: Session, document: Document) -> str | None:
+    return session.scalar(
+        select(DocumentDeletion.status).where(
+            DocumentDeletion.tenant_id == document.tenant_id,
+            DocumentDeletion.document_id == document.id,
+        )
+    )
+
+
 def lifecycle(session: Session, document: Document, now: datetime | None = None) -> Lifecycle:
     """The full lifecycle of a document's latest version, as one consistent read."""
     now = now or datetime.now(UTC)
     version = _latest_version(session, document)
     job = _job(session, version) if version is not None else None
-    state = overall_state(str(job.status) if job else None, document.archived_at is not None)
+    deleting = deletion_status(session, document)
+    state = overall_state(
+        str(job.status) if job else None, document.archived_at is not None, deleting
+    )
     if version is None or job is None:
         return Lifecycle(
             document_id=document.id,
@@ -632,7 +649,7 @@ def lifecycle(session: Session, document: Document, now: datetime | None = None)
         status=status,
         current_stage=STAGES[stop_or_current][0] if stop_or_current is not None else None,  # type: ignore[arg-type]
         activity=status if not terminal else None,
-        terminal=terminal or state in {"ARCHIVED"},
+        terminal=terminal or state in {"ARCHIVED", "DELETING", "DELETION_INCOMPLETE"},
         run_started_at=derived.run_started_at,
         finished_at=finished,
         current_stage_started_at=(
@@ -660,6 +677,7 @@ def summary(session: Session, document: Document, now: datetime | None = None) -
     state = overall_state(
         str(job.status) if job else None,
         document.archived_at is not None,
+        deletion_status(session, document),
     )
     if job is None:
         return LifecycleSummary(

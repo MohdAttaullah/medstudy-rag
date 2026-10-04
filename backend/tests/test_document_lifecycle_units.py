@@ -18,6 +18,7 @@ from uuid import uuid4
 
 import pytest
 from app.schemas.lifecycle import Lifecycle, LifecycleStage, LifecycleSummary
+from app.security.auth import ROLE_PERMISSIONS
 from app.services.lifecycle import (
     MIN_ESTIMATE_SAMPLES,
     STAGES,
@@ -162,25 +163,27 @@ def test_a_reprocess_sent_back_without_a_stop_resets_only_the_later_stages():
 
 
 @pytest.mark.parametrize(
-    ("status", "archived", "expected"),
+    ("status", "archived", "deletion", "expected"),
     [
-        ("PARSING", False, "PROCESSING"),
-        ("QUEUED", False, "PROCESSING"),
-        ("RETRIEVAL_READY", False, "READY"),
-        ("NEEDS_REVIEW", False, "REVIEW_REQUIRED"),
-        ("FAILED", False, "FAILED"),
-        ("QUARANTINED", False, "FAILED"),
-        ("CANCELLED", False, "CANCELLED"),
-        ("CANCELLED", True, "ARCHIVED"),
-        (None, False, "NOT_STARTED"),
+        ("PARSING", False, None, "PROCESSING"),
+        ("QUEUED", False, None, "PROCESSING"),
+        ("RETRIEVAL_READY", False, None, "READY"),
+        ("NEEDS_REVIEW", False, None, "REVIEW_REQUIRED"),
+        ("FAILED", False, None, "FAILED"),
+        ("QUARANTINED", False, None, "FAILED"),
+        ("CANCELLED", False, None, "CANCELLED"),
+        ("CANCELLED", True, None, "ARCHIVED"),
+        ("RETRIEVAL_READY", True, "REQUESTED", "DELETING"),
+        ("CANCELLED", True, "FAILED", "DELETION_INCOMPLETE"),
+        (None, False, None, "NOT_STARTED"),
     ],
 )
-def test_overall_state(status, archived, expected):
-    assert overall_state(status, archived) == expected
+def test_overall_state(status, archived, deletion, expected):
+    assert overall_state(status, archived, deletion) == expected
 
 
 def test_review_is_never_reported_as_a_technical_failure():
-    assert overall_state("NEEDS_REVIEW", False) != "FAILED"
+    assert overall_state("NEEDS_REVIEW", False, None) != "FAILED"
 
 
 # ---------------------------------------------------------------------------- no percentages
@@ -299,3 +302,11 @@ def test_retry_is_only_for_a_failure():
 
 
 # --------------------------------------------------------------------------------- permission
+
+
+def test_only_an_administrator_may_permanently_delete():
+    assert "document:delete" in ROLE_PERMISSIONS["admin"]
+    assert "document:delete" not in ROLE_PERMISSIONS["curator"]
+    assert "document:delete" not in ROLE_PERMISSIONS["reader"]
+    # Archiving stays a curator capability; the two are deliberately separate authorities.
+    assert "document:manage" in ROLE_PERMISSIONS["curator"]

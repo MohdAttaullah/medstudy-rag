@@ -53,6 +53,10 @@ export const STATE: Record<LifecycleState, { tone: Tone; icon: IconName; title: 
   CANCELLED: { tone: 'neutral', icon: 'stage-skipped', title: 'Processing stopped', short: 'Stopped' },
   READY: { tone: 'success', icon: 'verified', title: 'Ready for Ask', short: 'Ready' },
   ARCHIVED: { tone: 'neutral', icon: 'archive', title: 'Archived', short: 'Archived' },
+  DELETING: { tone: 'neutral', icon: 'processing', title: 'Deleting', short: 'Deleting' },
+  DELETION_INCOMPLETE: {
+    tone: 'danger', icon: 'failed', title: 'Deletion incomplete', short: 'Deletion incomplete',
+  },
   NOT_STARTED: { tone: 'neutral', icon: 'stage-skipped', title: 'Not processed', short: 'Not processed' },
 };
 

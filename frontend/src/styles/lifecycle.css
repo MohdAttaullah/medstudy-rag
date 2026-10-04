@@ -1,5 +1,5 @@
 /*
- * Document lifecycle: the processing stepper, the review panel and Library chips.
+ * Document lifecycle: the processing stepper, the review panel, Library chips and deletion.
  *
  * Every state is an icon, a title and a sentence first; colour only reinforces them. Motion is
  * limited to one spinner on the stage that is genuinely running, and it stops for anyone who has
@@ -152,9 +152,31 @@
 .chip-detail { font-weight: 500; white-space: pre; }
 .chip-link { font: 600 12px/1.4 var(--font-sans); }
 .library-table th { text-align: start; }
+.library-table td.row-actions { inline-size: 1%; text-align: end; }
 /* Visually hidden labels are absolutely positioned; anchoring them here keeps them inside the
    scroller instead of widening the page. */
 .table-scroll { position: relative; }
+
+/* ---- row menu ---------------------------------------------------------- */
+.row-menu { position: relative; display: inline-block; }
+.icon-button {
+  display: inline-flex; align-items: center; justify-content: center; padding: 6px;
+  min-inline-size: 36px; min-block-size: 36px;
+  background: transparent; color: var(--text-secondary); border: 1px solid transparent;
+}
+.icon-button:hover:not(:disabled), .icon-button[aria-expanded="true"] { background: var(--bg-hover); color: var(--text-primary); }
+.row-menu-list {
+  position: absolute; inset-inline-end: 0; inset-block-start: calc(100% + 4px); z-index: 20;
+  min-inline-size: 200px; padding: var(--space-1); background: var(--bg-surface);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-overlay);
+}
+.row-menu-list button {
+  display: flex; gap: var(--space-2); align-items: center; inline-size: 100%; text-align: start;
+  background: transparent; color: var(--text-primary); font: 500 14px/1.4 var(--font-sans); padding: var(--space-2) var(--space-3);
+}
+.row-menu-list button:hover:not(:disabled), .row-menu-list button:focus-visible { background: var(--bg-hover); }
+.row-menu-list .menu-danger { color: var(--danger); }
+.row-menu-list .menu-danger:hover:not(:disabled) { background: var(--danger-subtle); }
 
 /* ---- disclosures on the details page ------------------------------------ */
 .technical { margin-top: var(--space-4); }
@@ -169,11 +191,52 @@
   padding: var(--space-3); font: 600 13px/1.4 var(--font-sans); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
+/* ---- deletion ---------------------------------------------------------- */
+button.danger { background: var(--danger); color: var(--text-inverse); display: inline-flex; gap: var(--space-2); align-items: center; }
+button.danger:hover:not(:disabled) { background: var(--danger-hover); }
+button.danger:disabled { background: var(--bg-disabled); color: var(--text-disabled); }
+.danger-zone { border-color: var(--danger-edge); }
+.danger-zone h2 { color: var(--danger); }
+
+.dialog-scrim {
+  position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+  padding: var(--space-4); background: var(--scrim); overflow-y: auto;
+}
+.dialog {
+  inline-size: min(560px, 100%); max-block-size: calc(100dvh - 2 * var(--space-4)); overflow-y: auto;
+  background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-overlay);
+  padding: var(--space-5); border-block-start: 6px solid var(--danger-edge);
+}
+.dialog-head { display: flex; gap: var(--space-3); align-items: flex-start; }
+.dialog-head h2 { margin: 0; overflow-wrap: anywhere; }
+.dialog-mark {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  inline-size: 36px; block-size: 36px; border-radius: 50%; background: var(--danger-subtle); color: var(--danger);
+}
+.dialog p { font: var(--text-secondary-size); color: var(--text-primary); }
+.dialog h3 { font-size: 14px; margin-top: var(--space-4); }
+.delete-list { margin: 0; padding-inline-start: var(--space-5); font: var(--text-secondary-size); color: var(--text-primary); }
+.delete-list li { margin-bottom: var(--space-1); }
+.keep-list { color: var(--text-secondary); }
+.notice-danger {
+  display: flex; gap: var(--space-2); align-items: flex-start; padding: var(--space-3);
+  background: var(--danger-subtle); color: var(--danger); border-radius: var(--radius-sm); font: 600 13px/1.5 var(--font-sans);
+}
+.dialog form { margin-top: var(--space-4); }
+.dialog input[aria-invalid="true"] { border-color: var(--danger-edge); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-4); }
+
 @media (max-width: 600px) {
   .lifecycle, .review-panel { padding: var(--space-4); }
   .lifecycle-clock { inline-size: 100%; }
+  .dialog { padding: var(--space-4); }
+  .dialog-actions > button { flex: 1 1 auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .lifecycle.tone-active .lifecycle-mark svg, .lc-running .lc-step-icon svg, .chip-spin svg { animation: none; }
 }
+
+/* A citation whose document was permanently deleted: a record that a source stood here, no more. */
+.evidence-deleted { background: var(--bg-subtle); border-style: dashed; }
+.evidence-deleted h4 { display: flex; gap: var(--space-2); align-items: center; color: var(--text-secondary); }

@@ -20,6 +20,8 @@ LifecycleState = Literal[
     "CANCELLED",
     "READY",
     "ARCHIVED",
+    "DELETING",
+    "DELETION_INCOMPLETE",
     "NOT_STARTED",
 ]
 StageCode = Literal[
@@ -141,3 +143,15 @@ class LifecycleSummary(Frozen):
     server_time: datetime
     blocking_count: int = 0
     warning_count: int = 0
+
+
+class DeletionPreview(Frozen):
+    """What a permanent deletion will remove, counted before anything is touched."""
+
+    document_id: UUID
+    versions: int
+    pages: int
+    chunks: int
+    vectors: int
+    citing_answers: int
+    blocked_reason: Literal["PROCESSING"] | None = None

@@ -1,7 +1,7 @@
 import { ChunkSummaryPanel } from '../chunking/ChunkSummaryPanel';
 import { EmbeddingSummaryPanel } from '../embedding/EmbeddingSummaryPanel';
 import { useEffect, useState, type FormEvent } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import type { Document, Metadata, Page, Version } from '../../types/documents';
@@ -11,6 +11,7 @@ import { label, MetadataFields, UploadForm } from '../library/UploadForm';
 import { Icon } from '../navigation/icons';
 import { Jobs } from '../operations/Jobs';
 import { ParseSummaryPanel } from '../parsing/ParseSummaryPanel';
+import { DeleteDocumentDialog } from './DeleteDocumentDialog';
 import { ProcessingLifecycle } from './ProcessingLifecycle';
 import { ReviewPanel } from './ReviewPanel';
 import { useLifecycle } from './useLifecycle';
@@ -26,11 +27,13 @@ export function DocumentDetails() {
 function Detail({ id }: { id: string }) {
   const { token, identity } = useSession();
   const queries = useQueryClient();
+  const navigate = useNavigate();
   const location = useLocation();
   const [offset, setOffset] = useState(0);
   const [editing, setEditing] = useState<Metadata | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const lifecycle = useLifecycle(id);
   // Only the lifecycle polls; these follow it, so a stage change refreshes the panels below once.
   const moving = lifecycle.data ? !lifecycle.data.view.terminal : false;
@@ -66,6 +69,7 @@ function Detail({ id }: { id: string }) {
   if (doc.isError) return <p role="alert">Document unavailable or access denied.</p>;
   const value = doc.data;
   const view = lifecycle.data?.view;
+  const canDelete = Boolean(identity?.permissions.includes('document:delete'));
   return <>
     {/* 1. Overview */}
     <section className="panel"><div className="section-heading"><h2>{value.title}</h2><span>{value.archived_at ? 'Archived' : 'Active publication'}</span></div>
@@ -118,5 +122,16 @@ function Detail({ id }: { id: string }) {
       <Jobs documentId={id} />
     </details>
 
+    {canDelete && <section className="panel danger-zone" aria-labelledby="danger-title">
+      <h2 id="danger-title">Delete permanently</h2>
+      <p>Erase this document, every version, its extracted content and its search entries. This
+        cannot be undone. To stop using it but keep it, archive it instead.</p>
+      <button type="button" className="danger" onClick={() => setDeleting(true)}>
+        <Icon name="delete" small />Delete permanently…
+      </button>
+    </section>}
+    {deleting && <DeleteDocumentDialog documentId={id} title={value.title}
+      onClose={() => setDeleting(false)}
+      onDeleted={() => navigate('/library', { replace: true, state: { deleted: value.title } })} />}
   </>;
 }
