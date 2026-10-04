@@ -41,6 +41,10 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    # The engine's default grace period here is about one second, which is not enough for a fast
+    # shutdown to finish its checkpoint: Postgres was killed mid-shutdown and had to run crash
+    # recovery on the next start. The image's SIGINT already requests a fast shutdown.
+    stop_grace_period: 30s
 
     restart: unless-stopped
   qdrant:
