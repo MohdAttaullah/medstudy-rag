@@ -1,7 +1,8 @@
 import {
   Activity, ChartNoAxesColumn, Check, ChevronDown, ChevronRight, CircleAlert, CircleSlash,
   CircleUser, FileText, Image as ImageIcon, Info, Library, LogOut, Menu, MessageSquareText,
-  Minus, PanelLeftClose, PanelLeftOpen, Quote, ScrollText, Search, Settings, SlidersHorizontal,
+  Minus, PanelLeftClose, PanelLeftOpen, PencilLine, Quote, ScrollText, Search, Settings,
+  SlidersHorizontal,
   SquarePen, Stethoscope, TriangleAlert, X,
   type LucideIcon,
 } from 'lucide-react';
@@ -60,6 +61,8 @@ const ICONS = {
   unverified: TriangleAlert,
   failed: CircleAlert,
   scope: Info,
+  // A request the question itself made impossible: the reader's next step is to rephrase it.
+  rephrase: PencilLine,
   'stage-done': Check,
   'stage-skipped': Minus,
   'stage-failed': X,

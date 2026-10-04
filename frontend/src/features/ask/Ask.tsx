@@ -190,7 +190,8 @@ function Conversation() {
       {result && <article className="turn">
         <Question text={result.question} />
         <Answer result={result} />
-        <ProgressStepper events={stages} active={false} outcome={result.outcome} />
+        <ProgressStepper events={stages} active={false} outcome={result.outcome}
+          reasons={result.reason_codes} />
         <Timing stages={result.stages} />
       </article>}
 

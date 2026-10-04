@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { expect, it, describe } from 'vitest';
 import { Answer } from './Answer';
+import { questionRefusal } from './refusals';
 
 /**
  * Outcome presentation.
@@ -93,5 +94,74 @@ describe('outcome severity', () => {
   it('shows no draft text for an unverified outcome', () => {
     show({ ...base, outcome: 'UNVERIFIED' });
     expect(screen.queryByRole('heading', { name: 'Answer' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * What a reader is told when the request did not produce an answer.
+ *
+ * Found in manual testing: a 49-word clinical vignette exceeded the query encoder's limit and was
+ * refused — deliberately, never truncated — and the page said "Technical failure / The answering
+ * service failed". Nothing had failed. These pin the three cases apart: a question the reader can
+ * fix, a real outage, and an abstention about the evidence.
+ */
+describe('refusals, failures and abstentions are told apart', () => {
+  it('matches only the closed set of refusal codes, never an inherited name', () => {
+    expect(questionRefusal('FAILED', ['QUERY_TOO_LONG'])?.label).toBe('Question too long');
+    expect(questionRefusal('FAILED', ['constructor', 'toString'])).toBeNull();
+    expect(questionRefusal('INSUFFICIENT_EVIDENCE', ['QUERY_TOO_LONG'])).toBeNull();
+  });
+  it('names a question refused for its length, and does not call it a technical failure', () => {
+    show({
+      ...base, outcome: 'FAILED',
+      message: 'This question is longer than the search can accept, so it was not answered.',
+      reason_codes: ['QUERY_TOO_LONG'],
+    });
+    expect(screen.getByText('Question too long')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Please ask a shorter question' })).toBeInTheDocument();
+    expect(screen.queryByText(/Technical failure/)).toBeNull();
+    expect(screen.queryByText(/answering service failed/i)).toBeNull();
+    // Why it was refused is readable in plain words, with the code beside it.
+    expect(screen.getByText(/refused rather than shortened/)).toBeInTheDocument();
+    expect(screen.getByText('QUERY_TOO_LONG')).toBeInTheDocument();
+  });
+
+  it('draws the refusal as something to act on, not as a broken service', () => {
+    const { container } = show({ ...base, outcome: 'FAILED', reason_codes: ['QUERY_TOO_LONG'] });
+    expect(container.querySelector('.outcome-caution')).toBeTruthy();
+    expect(container.querySelector('.outcome-error')).toBeNull();
+    expect(container.querySelector('.outcome-mark[data-mark="rephrase"] svg')).toBeTruthy();
+  });
+
+  it('still calls a genuine provider failure a technical failure', () => {
+    const { container } = show({
+      ...base, outcome: 'FAILED', reason_codes: ['GENERATION_PROVIDER_UNAVAILABLE'],
+    });
+    expect(screen.getByText('Technical failure')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'The answering service failed' })).toBeInTheDocument();
+    expect(container.querySelector('.outcome-error')).toBeTruthy();
+  });
+
+  it('still calls a failure with no declared reason a technical failure', () => {
+    show({ ...base, outcome: 'FAILED', reason_codes: [] });
+    expect(screen.getByText('Technical failure')).toBeInTheDocument();
+  });
+
+  it.each([
+    [['ASSESSMENT_ONLY_EVIDENCE', 'ADVISORY_CONTEXT_OMISSION']],
+    [['RETRIEVAL_CORPUS_EMPTY']],
+  ])('never presents an abstention (%s) as a technical failure', reasons => {
+    const { container } = show({ ...base, outcome: 'INSUFFICIENT_EVIDENCE', reason_codes: reasons });
+    expect(screen.getByText('Not enough evidence')).toBeInTheDocument();
+    expect(screen.queryByText(/Technical failure/)).toBeNull();
+    expect(container.querySelector('.outcome-error')).toBeNull();
+  });
+
+  it('shows no answer text on any of them', () => {
+    for (const reason_codes of [['QUERY_TOO_LONG'], ['GENERATION_PROVIDER_UNAVAILABLE']]) {
+      const { unmount } = show({ ...base, outcome: 'FAILED', reason_codes });
+      expect(screen.queryByRole('heading', { name: 'Answer' })).toBeNull();
+      unmount();
+    }
   });
 });

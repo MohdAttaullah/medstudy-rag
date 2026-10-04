@@ -69,6 +69,55 @@ MESSAGES = {
     ),
 }
 
+# A few declared codes are not "the service broke" at all, and reporting them with the FAILED
+# sentence above told a reader something false. Each gets its own sentence, keyed by code rather
+# than by outcome so that a stored turn reads the same when its conversation is reloaded.
+#
+# The set is deliberately small and closed. A code belongs here only when its cause is provable
+# from the request alone; anything else keeps the technical wording, because softening a real
+# outage into advice would be the worse error.
+REASON_MESSAGES = {
+    # M5 rejects rather than truncates, because a shortened question would retrieve evidence for a
+    # different question than the one asked. The outcome stays FAILED — nothing was searched, so
+    # calling it an abstention about the evidence would be untrue — but the reader is told the
+    # real cause and the one thing that will help.
+    "QUERY_TOO_LONG": (
+        "This question is longer than the search can accept, so it was not answered. It was not "
+        "shortened automatically, because a shortened question could find evidence for a "
+        "different question than the one you asked. Please ask it more briefly — for example, the "
+        "key finding and what you want to know."
+    ),
+    "QUERY_EMPTY": (
+        "This question contained nothing that could be searched, so it was not answered. Please "
+        "rephrase it."
+    ),
+    # Provable from the tenant's corpus as a whole, which is all this claims: it does not say which
+    # document the question would have needed, because nothing here can know that.
+    "RETRIEVAL_CORPUS_EMPTY": (
+        "No document in this workspace is ready to search yet, so there is nothing to answer from. "
+        "A document becomes searchable once its processing has finished. Nothing has been filled "
+        "in from the model's own knowledge, and no answer is shown."
+    ),
+}
+
+# Declared codes that mean there was nothing to search. That is a statement about the evidence —
+# there is none — so the turn is an abstention, never an outage.
+NOTHING_TO_SEARCH = frozenset({"RETRIEVAL_CORPUS_EMPTY"})
+
+
+def message(outcome: str, reason_codes: list[str] | None) -> str:
+    """The sentence a reader sees for a turn, derived from what was stored.
+
+    A declared reason with its own sentence wins; every other turn reads its outcome's sentence.
+    Deriving it at read time, from the persisted reasons, is what makes a reloaded conversation
+    read exactly as it did live.
+    """
+    for code in reason_codes or ():
+        if code in REASON_MESSAGES:
+            return REASON_MESSAGES[code]
+    return MESSAGES[outcome]
+
+
 # Declared failure codes that mean the infrastructure broke, so the reader is told that rather than
 # being told the corpus lacked evidence.
 PROVIDER_FAILURES = frozenset(
@@ -192,10 +241,15 @@ class AskService:
             payload = await self.verification.answer(actor, question, correlation_id, filters)
             outcome = self._outcome(payload)
         except DomainError as exc:
-            failure = exc.code
-            outcome = "FAILED" if exc.code in PROVIDER_FAILURES else "FAILED"
             if exc.code in ("FORBIDDEN", "UNAUTHORIZED"):
                 raise
+            failure = exc.code
+            # This read `"FAILED" if exc.code in PROVIDER_FAILURES else "FAILED"` — two identical
+            # arms — so every declared error, including an empty corpus, was reported as an outage.
+            # An empty corpus is the one case with nothing to search, and that is an abstention.
+            # Everything else stays FAILED; `message` then says whether the question or the
+            # service was the cause.
+            outcome = "INSUFFICIENT_EVIDENCE" if exc.code in NOTHING_TO_SEARCH else "FAILED"
         total = (perf_counter() - started) * 1000
 
         progress.start("FINALIZE")
@@ -473,7 +527,7 @@ class AskService:
             citations=views,
             sources=self._sources(views),
             figures=figures,
-            message=MESSAGES[turn.outcome],
+            message=message(turn.outcome, turn.reason_codes),
             reason_codes=list(turn.reason_codes or []),
             stages=stages,
             created_at=turn.created_at.isoformat(),
@@ -575,7 +629,7 @@ class AskService:
             outcome=turn.outcome,  # type: ignore[arg-type]
             verified=turn.verified,
             answer=turn.answer_text,
-            message=MESSAGES[turn.outcome],
+            message=message(turn.outcome, turn.reason_codes),
             reason_codes=list(turn.reason_codes or []),
             citations=views if turn.verified else [],
             sources=self._sources(views) if turn.verified else [],

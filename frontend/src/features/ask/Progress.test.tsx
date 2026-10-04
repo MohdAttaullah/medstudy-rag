@@ -403,6 +403,48 @@ describe('the finished record', () => {
     const summary = screen.getByText('View processing details').closest('summary')!;
     expect(within(summary).getByText('Could not verify')).toBeInTheDocument();
   });
+
+  it('does not record a question refused for its length as a technical failure', async () => {
+    // The shape the server really sends: retrieval started, was refused in milliseconds, and was
+    // settled as failed; nothing after it ran.
+    stream = {
+      frames: frames(
+        [['PREPARING', 'RUNNING'], ['PREPARING', 'COMPLETED'], ['RETRIEVAL', 'RUNNING'],
+          ['FINALIZE', 'RUNNING'], ['FINALIZE', 'COMPLETED'], ['RETRIEVAL', 'FAILED']],
+        { ...answer('FAILED'), reason_codes: ['QUERY_TOO_LONG'],
+          message: 'This question is longer than the search can accept, so it was not answered.' },
+      ),
+    };
+    await ask();
+    await screen.findByRole('heading', { name: 'Please ask a shorter question' });
+    const summary = screen.getByText('View processing details').closest('summary')!;
+    expect(within(summary).getByText('Question too long')).toBeInTheDocument();
+    expect(screen.queryByText('Technical failure')).toBeNull();
+    // The record still says truthfully which stage refused.
+    fireEvent.click(screen.getByText('View processing details'));
+    expect(within(step('Searching indexed sources')).getByText('Failed')).toBeInTheDocument();
+  });
+
+  it('records a genuine failure as a technical failure', async () => {
+    stream = {
+      frames: frames(COMPLETE, { ...answer('FAILED'), reason_codes: ['GENERATION_PROVIDER_TIMEOUT'] }),
+    };
+    await ask();
+    await screen.findByRole('heading', { name: 'The answering service failed' });
+    const summary = screen.getByText('View processing details').closest('summary')!;
+    expect(within(summary).getByText('Technical failure')).toBeInTheDocument();
+  });
+
+  it('records an abstention as an abstention, never as a failure', async () => {
+    stream = {
+      frames: frames(COMPLETE, { ...answer('INSUFFICIENT_EVIDENCE'), reason_codes: ['ASSESSMENT_ONLY_EVIDENCE'] }),
+    };
+    await ask();
+    await screen.findByRole('heading', { name: 'Insufficient evidence' });
+    const summary = screen.getByText('View processing details').closest('summary')!;
+    expect(within(summary).getByText('Not enough evidence')).toBeInTheDocument();
+    expect(screen.queryByText('Technical failure')).toBeNull();
+  });
 });
 
 describe('a conversation of several turns', () => {

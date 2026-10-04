@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Icon, type IconName } from '../navigation/icons';
+import { questionRefusal } from './refusals';
 import type { StageCode, StageEvent, StageState } from '../../types/retrieval';
 
 /**
@@ -137,8 +138,8 @@ function useElapsed(since: number | null, active: boolean) {
 }
 
 export function ProgressStepper(
-  { events, active, outcome }:
-  { events: StageEvent[]; active: boolean; outcome?: string | null },
+  { events, active, outcome, reasons }:
+  { events: StageEvent[]; active: boolean; outcome?: string | null; reasons?: string[] },
 ) {
   const states = stageStates(events);
   const running = STAGES.find(stage => states[stage.code] === 'RUNNING');
@@ -155,7 +156,12 @@ export function ProgressStepper(
   // Finished work collapses to one line. Seven stages are what a reader needs *while* they wait;
   // afterwards they are a record, and a record does not need to occupy the screen above the answer.
   if (!active) {
-    const settled = OUTCOMES[outcome ?? ''] ?? { icon: 'verified' as IconName, word: 'Finished', tone: 'verified' };
+    // The record names what the request really was: a question refused for its length is not a
+    // "Technical failure", and the line above the stages must not say so.
+    const refusal = questionRefusal(outcome, reasons);
+    const settled = refusal
+      ? { icon: refusal.icon, word: refusal.label, tone: 'caution' }
+      : OUTCOMES[outcome ?? ''] ?? { icon: 'verified' as IconName, word: 'Finished', tone: 'verified' };
     return <details className="progress progress-summary">
       <summary>
         <span className={`outcome-mark summary-${settled.tone}`} data-mark={settled.icon}

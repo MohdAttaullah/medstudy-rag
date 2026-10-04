@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import { useSourceImage } from './SourceImage';
 import { Icon, type IconName } from '../navigation/icons';
+import { questionRefusal } from './refusals';
 import type {
   AskCitation, AskFigure, AskResponse, ConversationTurnView,
 } from '../../types/retrieval';
@@ -179,11 +180,16 @@ function FigureCard({ figure }: {figure: AskFigure}) {
  */
 export function Answer({ result }: {result: AnswerRecord}) {
   if (result.outcome !== 'VERIFIED') {
-    const state = OUTCOMES[result.outcome] ?? OUTCOMES.FAILED;
+    // A FAILED turn the question itself caused is labelled for what it was. It keeps the caution
+    // severity rather than the error one: nothing broke, and the reader has something to do.
+    const refusal = questionRefusal(result.outcome, result.reason_codes);
+    const state = refusal
+      ? { severity: 'caution', icon: refusal.icon, label: refusal.label }
+      : OUTCOMES[result.outcome] ?? OUTCOMES.FAILED;
     return <section className={`answer answer-exception outcome outcome-${state.severity}`}
       aria-labelledby="ask-outcome">
       <OutcomeLine state={state} />
-      <h2 id="ask-outcome">{TITLES[result.outcome]}</h2>
+      <h2 id="ask-outcome">{refusal ? refusal.title : TITLES[result.outcome]}</h2>
       <p role="status">{result.message}</p>
       {result.outcome === 'CONFLICTING_EVIDENCE' && <p>
         The competing sources are preserved rather than one being chosen. Nothing here ranks one
@@ -280,6 +286,8 @@ const REASONS: Record<string, string> = {
   VERIFIER_FAILED: 'The verifier could not run, so nothing was approved.',
   EVIDENCE_DOES_NOT_ADDRESS_QUESTION: 'The retrieved sources are about a different subject.',
   RETRIEVAL_CORPUS_EMPTY: 'No indexed document was available to search.',
+  QUERY_TOO_LONG: 'The question is longer than the search accepts. It is refused rather than shortened, so that no evidence is found for a question you did not ask.',
+  QUERY_EMPTY: 'Nothing searchable was left once the question was normalized.',
   OUT_OF_SCOPE_PERSONAL_ADVICE: 'The question asked for advice about a specific person.',
 };
 

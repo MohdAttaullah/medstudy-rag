@@ -29,13 +29,39 @@ provider internals. Authorized reviewers see those on the M5–M8 inspector rout
 | Outcome | Meaning |
 |---|---|
 | `VERIFIED` | Every material claim was checked against the sources cited with it. |
-| `INSUFFICIENT_EVIDENCE` | The indexed sources do not support an answer. Nothing is filled in from model knowledge. |
+| `INSUFFICIENT_EVIDENCE` | The indexed sources do not support an answer — including when the workspace has no retrieval-ready document at all (`RETRIEVAL_CORPUS_EMPTY`). Nothing is filled in from model knowledge. |
 | `CONFLICTING_EVIDENCE` | The sources disagree and the disagreement is unresolved. No source is chosen. |
 | `UNVERIFIED` | Evidence existed; the draft failed verification. The draft is not shown. |
-| `FAILED` | A technical failure. Explicitly not a statement about the evidence. |
+| `FAILED` | The request could not be completed. Explicitly not a statement about the evidence. Usually a technical failure; see below for the refusals the question itself causes. |
 
 Each renders as its own state with its own explanation. No confidence figure exists anywhere —
 an answer is verified against its sources or it is not shown.
+
+### Declared errors: whose problem it was
+
+A declared error raised inside the pipeline becomes `FAILED`, with its code as the turn's only
+reason — with one exception, and with the reader told which kind of `FAILED` it was:
+
+* **`RETRIEVAL_CORPUS_EMPTY` becomes `INSUFFICIENT_EVIDENCE`.** There was nothing indexed to search,
+  which is a statement about the evidence, not an outage. It is also the only thing the system can
+  prove about a workspace whose uploads are still being processed: it says no document is ready,
+  and never claims to know which document a question depended on.
+* **`QUERY_TOO_LONG` and `QUERY_EMPTY` stay `FAILED`, but are not called technical failures.** The
+  question was refused — over the encoder's 64-token limit, it is rejected rather than truncated
+  (M5), because a shortened question would retrieve evidence for a different question. The reader
+  is told to ask more briefly, and a retry of the same text is not suggested because it cannot
+  succeed.
+* **Everything else keeps the technical wording** — provider failures, an unavailable encoder, a
+  misaligned corpus. The set of codes that speak for themselves (`REASON_MESSAGES` in
+  `app/services/ask.py`, mirrored by `features/ask/refusals.ts`) is small and closed on purpose:
+  softening a real outage into advice would be the worse error.
+
+The sentence is derived at read time from the stored reason, so a reloaded conversation reads
+exactly as it did live, and turns recorded before this rule existed read correctly too.
+
+Until this was fixed, the branch read `"FAILED" if code in PROVIDER_FAILURES else "FAILED"` — two
+identical arms — so every declared error, including a too-long question, was reported to the reader
+as "This is a technical failure".
 
 ## Enablement
 

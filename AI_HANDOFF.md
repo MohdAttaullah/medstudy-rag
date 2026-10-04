@@ -491,7 +491,54 @@ sufficiency gate classifies a request to see a picture as visual-dependent (ADR-
 abstention carries no figures by contract. Changing that is a sufficiency decision, out of scope
 here.
 
-## Interface design system (post-M12, uncommitted)
+## Ask declared-error classification (post-M12)
+
+Found in manual testing and fixed. **No retrieval, sufficiency, generation, verification or safety
+behaviour changed**; the 64-token query limit, the reject-don't-truncate rule and the
+assessment-only gate are all untouched.
+
+**The defect.** `AskService.ask` caught every `DomainError` with
+`outcome = "FAILED" if exc.code in PROVIDER_FAILURES else "FAILED"` — two identical arms — and the
+message was chosen from the outcome alone. So a deliberate, non-retryable refusal was reported to
+the reader as "This is a technical failure", and the frontend added "Technical failure / The
+answering service failed" on top. Two instances:
+
+- `QUERY_TOO_LONG` (observed). A 49-word vignette exceeds MedCPT's 64-token limit and is refused in
+  about 0.2 s before any search — the "Technical failure · 0.0 s" the user saw. HTTP 200, well-formed
+  terminal SSE frame, no exception or traceback in any service: nothing was broken.
+- `RETRIEVAL_CORPUS_EMPTY` (demonstrated by a failing test, not observed). A workspace with no
+  retrieval-ready document — e.g. a new tenant whose first upload is still parsing — got the same
+  "technical failure".
+
+**The fix.** `RETRIEVAL_CORPUS_EMPTY` now becomes `INSUFFICIENT_EVIDENCE` (there was nothing to
+search; that is a statement about the evidence). `QUERY_TOO_LONG` and `QUERY_EMPTY` stay `FAILED` —
+nothing was searched, so calling them an abstention would be untrue — but carry their own sentence,
+telling the reader to ask more briefly and why it was not truncated. The sentence is derived at read
+time from the stored reason (`message()` in `app/services/ask.py`), so turns recorded before the fix
+read correctly on reload. The frontend mirrors the closed set in `features/ask/refusals.ts`, labels
+these "Question too long" with a caution severity, and passes reason codes to the collapsed stage
+record. Every other declared code keeps the technical wording. No API field, schema, migration or
+outcome value was added. The `api` image was rebuilt so the live stack carries the fix.
+
+**The original INSUFFICIENT_EVIDENCE was correct, but not for the reason first suspected.** The
+Library showed the document as Parsing, but the ingestion log shows `EMRCS 2021 – Hand Disorders`
+reached `RETRIEVAL_READY` at 13:22:14 and the question was asked at 13:26:45. Retrieval found the
+right passage (reranked #3, page 13: "This patient is at extremely low risk of having sustained a
+scaphoid injury and may be discharged."), and the gate refused with `ASSESSMENT_ONLY_EVIDENCE`
+because every evidence block is `QUESTION_BANK / UNREVIEWED` — the project's rule that question-bank
+answers are not authoritative. The literal option text "Discharge with reassurance" is not in the
+index at all: the document is a scanned screenshot of an online question bank, and its answer
+options were parsed as a `FIGURE` with no text. A stale Library status is the planned ingestion-UX
+work and was not touched here.
+
+Tests: `test_ask_declared_refusals_integration.py` (9, written red first — 4 failed before the fix)
+and `test_ask_messages_units.py` (9); 10 frontend cases in `Presentation.test.tsx` and
+`Progress.test.tsx`, shown to fail with the fix disabled, plus one guarding the code lookup against
+inherited names (`refusals.ts` uses an own-key check, not `in`). Ask/M9/M5/figure regression: 338
+passed, 1 skipped. Re-verified on top of `ababea7`: Ask/M8/M9/intent/figure and deletion suites 305
+passed; frontend 215/215.
+
+## Interface design system (post-M12, committed `d3dc863`)
 
 A presentation-only pass. **No RAG behaviour changed**: retrieval, fusion, reranking, evidence,
 sufficiency, generation, verification, citation semantics, figure-selection semantics, SSE progress
