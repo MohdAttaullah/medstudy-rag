@@ -124,3 +124,18 @@ the latter only for holders of `document:delete`.
 
 Order: overview → processing lifecycle → failure or review → versions (findings and technical
 detail folded per version) → ingestion diagnostics (folded) → danger zone (admins only).
+
+## Actions while a document is being processed
+
+"Add a new file version" and "Delete permanently" are not shown while the lifecycle state is
+`PROCESSING` (or `DELETING`); a single line says version management returns when processing
+finishes, and the Library ⋯ menu omits "Delete permanently" for such a row. They return in every
+stable state — Ready, Review required, Failed, Cancelled — subject to permissions (`document:upload`,
+`document:delete`). Review required is a paused state, not active work.
+
+This is presentation over a server rule, `document_is_processing` in
+`app/services/deletion.py`: true while any job of the document is outside RETRIEVAL_READY and the
+stop states (FAILED, QUARANTINED, NEEDS_REVIEW, CANCELLED), or while a parse, chunk, embedding or
+lexical run still holds a live lease. While it is true the server refuses permanent deletion and a
+new version (`POST /documents/{id}/versions`, checked before the file is received and again in the
+upload transaction) with `409 DOCUMENT_PROCESSING`, so a stale tab cannot do either.

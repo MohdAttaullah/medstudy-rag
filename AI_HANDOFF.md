@@ -706,6 +706,23 @@ Tests: backend `test_chunk_budget_units.py`, `test_chunk_review_integration.py`,
 the defective behaviour); full backend with integration 1525 passed, 1 skipped. Frontend
 `features/chunking/ChunkReview.test.tsx`; 233/233.
 
+## Lifecycle-aware document actions and a neutral Ask empty state (post-M12)
+
+- **New server rule.** `POST /documents/{id}/versions` is refused with `409 DOCUMENT_PROCESSING`
+  while the document is mid-pipeline — the same `document_is_processing` (now a module function in
+  `app/services/deletion.py`) that already refused permanent deletion: a job outside
+  RETRIEVAL_READY/FAILED/QUARANTINED/NEEDS_REVIEW/CANCELLED, or a live run lease. Checked before
+  the file bytes are received and again in the upload transaction. Previously only archived
+  documents were refused. `test_m1_integration` now asserts the 409 while queued and 201 after
+  cancelling; `test_document_actions_integration.py` covers processing, review, ready, failed,
+  reader and other tenant.
+- **UI.** Document Details hides "Add a new file version" and the danger zone while the lifecycle
+  is PROCESSING/DELETING (one muted line explains); the Library ⋯ menu omits "Delete permanently"
+  then. `versionActionsSettled()` in `features/documents/lifecycle.ts` is the client mirror.
+- **Ask.** The three cerebellum sample questions are gone from the empty state; it now says what
+  the workspace does in source-neutral terms and goes straight to the composer. Any future
+  suggestions must come from the workspace's own retrieval-ready sources.
+
 ## RAG v1 freeze (post-M12)
 
 Retrieval, reranking, sufficiency, generation and verification are **frozen**. The acceptance gates

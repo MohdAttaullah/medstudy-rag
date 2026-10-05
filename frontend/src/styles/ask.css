@@ -52,18 +52,6 @@
 .chat-empty { padding-block: var(--space-5) var(--space-2); max-inline-size: var(--measure); }
 .chat-empty h1 { margin-bottom: var(--space-3); }
 .chat-empty .intro { margin-bottom: var(--space-5); }
-.examples { list-style: none; padding: 0; margin: var(--space-2) 0 0; display: grid; gap: var(--space-2); }
-/* Suggestions, not commands: a quiet chip that fills the composer rather than a primary button
-   that looks like it will ask on the reader's behalf. */
-.example {
-  inline-size: 100%; text-align: start; background: var(--bg-surface); color: var(--text-primary);
-  border: 1px solid var(--border-subtle); padding: 10px var(--space-4);
-  border-radius: var(--radius-md); font: var(--text-secondary-size); font-weight: 400;
-}
-.example:hover:not(:disabled) {
-  background: var(--bg-surface); border-color: var(--accent-primary); color: var(--accent-primary);
-}
-
 /* ---- the question ------------------------------------------------------
    White on the deep accent: 7.8:1. The previous bubble inherited a muted grey from a generic
    `article p` rule and rendered grey-on-teal at roughly 1.5:1, which is why it was unreadable. */

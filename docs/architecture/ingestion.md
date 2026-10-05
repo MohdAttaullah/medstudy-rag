@@ -1,7 +1,10 @@
 # Ingestion architecture
 
 How this pipeline is presented to people — stages, review guidance, honest timing — is in
-`document-lifecycle.md`. Permanent deletion of a document is ADR-026.
+`document-lifecycle.md`. Permanent deletion of a document is ADR-026. A new version of a document
+is refused with `409 DOCUMENT_PROCESSING` while any of its versions is still mid-pipeline (the same
+rule that refuses deletion); it is accepted again once processing stops, including at
+NEEDS_REVIEW.
 
 ## Implemented boundary
 

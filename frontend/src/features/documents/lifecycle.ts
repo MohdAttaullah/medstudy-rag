@@ -434,3 +434,16 @@ export function unavailableReason(action: ReprocessAction, reason: string | null
   }
   return 'Not applicable to the document’s current state.';
 }
+
+/**
+ * Whether a new file version or permanent deletion may be offered for a document in this state.
+ *
+ * Mirrors the server's `document_is_processing`: both are refused with 409 DOCUMENT_PROCESSING
+ * while the pipeline is mid-flight, so offering them would only invite a rejection. A review, a
+ * failure, a cancellation and Ready are all stable — nothing is running — so both are offered
+ * there, subject to the caller's permissions. An unknown state is not treated as settled.
+ * The server stays the authority: this only decides what is shown.
+ */
+export function versionActionsSettled(state: LifecycleState | null | undefined): boolean {
+  return Boolean(state) && state !== 'PROCESSING' && state !== 'DELETING';
+}

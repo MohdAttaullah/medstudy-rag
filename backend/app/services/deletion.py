@@ -87,6 +87,48 @@ DELETED_TITLE = "Deleted source"
 TERMINAL = frozenset({Status.RETRIEVAL_READY, *FAILURE_STATES})
 
 
+def document_is_processing(session: Session, document: Document) -> bool:
+    """Whether any job for the document is mid-pipeline, or any worker still holds its work.
+
+    The one definition of "this document is being processed", used to refuse both permanent
+    deletion and a new version while it is true: the interface hides those actions in that state,
+    and this is what refuses them from a stale tab.
+
+    A cancelled job is not proof the worker stopped: a parse notices cancellation only at its
+    next fence. So a run is also treated as live while its lease is current — or, for a run
+    without a lease, while it was touched recently.
+    """
+    now = datetime.now(UTC)
+    versions = select(DocumentVersion.id).where(
+        DocumentVersion.document_id == document.id,
+        DocumentVersion.tenant_id == document.tenant_id,
+    )
+    statuses = session.scalars(
+        select(IngestionJob.status).where(IngestionJob.document_version_id.in_(versions))
+    )
+    if any(Status(status) not in TERMINAL for status in statuses):
+        return True
+    live: list[tuple[Any, tuple[str, ...], Any]] = [
+        (ParseRun, ("RUNNING",), ParseRun.document_version_id.in_(versions)),
+        (ChunkRun, ("PENDING", "RUNNING"), ChunkRun.document_id == document.id),
+        (EmbeddingRun, ("PENDING", "RUNNING"), EmbeddingRun.document_id == document.id),
+        (SparseIndex, ("STAGING", "VERIFYING"), SparseIndex.document_id == document.id),
+    ]
+    for model, active, scope in live:
+        if session.scalar(
+            select(func.count()).where(
+                scope,
+                model.status.in_(active),
+                or_(
+                    model.lease_expires_at > now,
+                    (model.lease_expires_at.is_(None)) & (model.updated_at > now - STALE_RUN),
+                ),
+            )
+        ):
+            return True
+    return False
+
+
 class DeletionFailed(Exception):
     """A cleanup step failed; carries a code safe to store and show, never a storage key."""
 
@@ -527,35 +569,4 @@ class DocumentDeletionService:
 
     @staticmethod
     def _processing(session: Session, document: Document) -> bool:
-        """Whether any job for the document is mid-pipeline, or any worker still holds its work.
-
-        A cancelled job is not proof the worker stopped: a parse notices cancellation only at its
-        next fence. So a run is also treated as live while its lease is current — or, for a run
-        without a lease, while it was touched recently.
-        """
-        now = datetime.now(UTC)
-        versions = DocumentDeletionService._versions(document)
-        statuses = session.scalars(
-            select(IngestionJob.status).where(IngestionJob.document_version_id.in_(versions))
-        )
-        if any(Status(status) not in TERMINAL for status in statuses):
-            return True
-        live: list[tuple[Any, tuple[str, ...], Any]] = [
-            (ParseRun, ("RUNNING",), ParseRun.document_version_id.in_(versions)),
-            (ChunkRun, ("PENDING", "RUNNING"), ChunkRun.document_id == document.id),
-            (EmbeddingRun, ("PENDING", "RUNNING"), EmbeddingRun.document_id == document.id),
-            (SparseIndex, ("STAGING", "VERIFYING"), SparseIndex.document_id == document.id),
-        ]
-        for model, active, scope in live:
-            if session.scalar(
-                select(func.count()).where(
-                    scope,
-                    model.status.in_(active),
-                    or_(
-                        model.lease_expires_at > now,
-                        (model.lease_expires_at.is_(None)) & (model.updated_at > now - STALE_RUN),
-                    ),
-                )
-            ):
-                return True
-        return False
+        return document_is_processing(session, document)

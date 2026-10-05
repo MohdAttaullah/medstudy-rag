@@ -11,12 +11,6 @@ import type {
   AskResponse, ConversationTurnView, ConversationView, StageEvent,
 } from '../../types/retrieval';
 
-const EXAMPLES = [
-  'What are the three cerebellar surfaces?',
-  'What is the tentorial surface of the cerebellum?',
-  'Summarize the section on the fourth ventricle.',
-];
-
 /**
  * The Ask page: one conversation, read top to bottom.
  *
@@ -158,16 +152,18 @@ function Conversation() {
     <div className="chat-thread">
       {empty && <section className="chat-empty">
         <h1>Ask your indexed medical sources</h1>
+        {/* No sample questions: a fixed list names one book's contents in every workspace, and
+            reads as though the product were built around that book. Suggestions, if they come
+            back, must be drawn from the workspace's own retrieval-ready sources. */}
         <p className="intro">
-          Every statement in an answer is checked against the sources cited beside it. A question
-          the indexed documents do not cover is refused rather than filled in.
+          Ask a question about the documents available in this workspace. Answers are released
+          only when supported by traceable evidence; a question the indexed documents do not cover
+          is refused rather than filled in.
         </p>
-        <p className="eyebrow">Try one of these</p>
-        <ul className="examples">{EXAMPLES.map(example => <li key={example}>
-          <button type="button" className="example" onClick={() => setQuestion(example)}>
-            {example}
-          </button>
-        </li>)}</ul>
+        <p className="muted">
+          Ask about a concept, compare information across sources, or summarize a topic covered by
+          your indexed material.
+        </p>
       </section>}
 
       {history.isPending && conversationId && !result &&

@@ -23,6 +23,7 @@ from app.observability.ingestion import IngestionMetrics, audit, phase_event
 from app.repositories.documents import ensure_actor, get_document
 from app.schemas.documents import DocumentMetadata, UploadResult, VersionMetadata
 from app.security.auth import Principal
+from app.services.deletion import document_is_processing
 from app.services.storage import ObjectStorage, object_key
 
 
@@ -100,6 +101,13 @@ class UploadService:
                 if doc.archived_at:
                     raise DomainError(
                         "DOCUMENT_ARCHIVED", "Archived documents cannot receive versions.", 409
+                    )
+                if document_is_processing(session, doc):
+                    raise DomainError(
+                        "DOCUMENT_PROCESSING",
+                        "This document is still being processed. Add a new version when it "
+                        "finishes.",
+                        409,
                     )
             old = session.scalar(
                 select(UploadIntent).where(

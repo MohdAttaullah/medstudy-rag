@@ -8,6 +8,7 @@ import { DeleteDocumentDialog } from '../documents/DeleteDocumentDialog';
 import { LifecycleChip } from '../documents/LifecycleChip';
 import { RowMenu, type RowMenuItem } from '../documents/RowMenu';
 import { POLL_MS, useNow } from '../documents/useLifecycle';
+import { versionActionsSettled } from '../documents/lifecycle';
 import { AccessGate, useSession } from './Session';
 import { label, sources, UploadForm } from './UploadForm';
 export function Library() {
@@ -42,7 +43,8 @@ function LibraryContent() {
   function menu(doc: Document): RowMenuItem[] {
     const items: RowMenuItem[] = [];
     if (!doc.archived_at && can('document:manage')) items.push({ label: 'Archive', disabled: busyId === doc.id, onSelect: () => void archive(doc.id) });
-    if (can('document:delete')) items.push({ label: 'Delete permanently', danger: true, onSelect: () => { setNotice(''); setDeleting(doc); } });
+    // Not offered while the document is being processed: the server would refuse it.
+    if (can('document:delete') && (!doc.lifecycle || versionActionsSettled(doc.lifecycle.state))) items.push({ label: 'Delete permanently', danger: true, onSelect: () => { setNotice(''); setDeleting(doc); } });
     return items;
   }
   return <><UploadForm /><section className="panel"><div className="section-heading"><h2>Documents</h2><div className="filters">

@@ -217,16 +217,23 @@ it('shows the stage waterfall to a principal holding retrieval diagnostics', asy
   expect(await screen.findByRole('row', { name: /Total/ })).toBeInTheDocument();
 });
 
-it('offers example questions in an empty conversation', async () => {
+it('opens an empty conversation with no source-specific sample questions', async () => {
   await workspace();
   expect(await screen.findByRole('heading', { name: 'Ask your indexed medical sources' }))
     .toBeInTheDocument();
-  const examples = screen.getAllByRole('button', { name: /cerebellar|tentorial|fourth ventricle/i });
-  expect(examples.length).toBe(3);
-  // Choosing one fills the composer rather than asking on the reader's behalf.
-  fireEvent.click(examples[0]);
-  expect(screen.getByLabelText('Your educational medical question'))
-    .toHaveValue('What are the three cerebellar surfaces?');
+  // The workspace may hold any books; nothing here may name one book's contents.
+  const body = document.body.textContent ?? '';
+  for (const fixed of ['cerebellar', 'tentorial', 'fourth ventricle', 'Try one of these']) {
+    expect(body.toLowerCase()).not.toContain(fixed.toLowerCase());
+  }
+  expect(screen.getByText(/Ask a question about the documents available in this workspace/)).toBeVisible();
+  expect(screen.getByText(/released only when supported by traceable evidence/)).toBeVisible();
+  // The composer is ready to use straight away.
+  const composer = screen.getByLabelText('Your educational medical question');
+  expect(screen.getByRole('button', { name: 'Ask with evidence' })).toBeDisabled();
+  fireEvent.change(composer, { target: { value: 'What does the source say about this?' } });
+  expect(composer).toHaveValue('What does the source say about this?');
+  expect(screen.getByRole('button', { name: 'Ask with evidence' })).toBeEnabled();
 });
 
 it('stores no conversation content in browser storage', async () => {

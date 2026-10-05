@@ -207,6 +207,15 @@ def test_idempotency_duplicate_new_version_and_scope(system):
     )
     duplicate = upload(client, credentials, file="duplicate.pdf")
     assert duplicate.status_code == 409 and duplicate.json()["error"]["code"] == "UPLOAD_DUPLICATE"
+    # A new version is refused while the current one is still being processed — here it is still
+    # queued — and accepted once that job has stopped.
+    early = upload(client, credentials, file="edition-two.pdf", document_id=first["document_id"])
+    assert early.status_code == 409, early.text
+    assert early.json()["error"]["code"] == "DOCUMENT_PROCESSING"
+    cancelled = client.post(
+        f"/api/v1/ingestion/jobs/{first['job_id']}/cancel", headers=auth(credentials)
+    )
+    assert cancelled.status_code == 200, cancelled.text
     second = upload(client, credentials, file="edition-two.pdf", document_id=first["document_id"])
     assert second.status_code == 201, second.text
     versions = client.get(

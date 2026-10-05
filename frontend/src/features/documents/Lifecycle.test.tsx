@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../App';
 import { Answer } from '../ask/Answer';
 import { lifecycleView, stages } from '../../test-lifecycle';
-import { duration, estimateText, factLine, guidanceFor, remedies, repeatWarning } from './lifecycle';
+import { duration, estimateText, factLine, guidanceFor, remedies, repeatWarning, versionActionsSettled } from './lifecycle';
 import { POLL_MS } from './useLifecycle';
 import type { Lifecycle, Review } from '../../types/lifecycle';
 import type { AskCitation } from '../../types/retrieval';
@@ -401,5 +401,59 @@ describe('lifecycle wording rules', () => {
     expect(duration(18_400)).toBe('18s');
     expect(duration(306_000)).toBe('5m 06s');
     expect(duration(4_020_000)).toBe('1h 07m');
+  });
+});
+
+describe('version management follows the lifecycle', () => {
+  const versionHeading = () => screen.queryByRole('heading', { name: 'Add a new file version' });
+  const deleteHeading = () => screen.queryByRole('heading', { name: 'Delete permanently' });
+
+  it('hides a new version and permanent deletion while the document is being processed', async () => {
+    lifecycles = [running];
+    await show('/documents/doc-1');
+    await screen.findByRole('heading', { name: 'Preparing document for Ask' });
+    expect(screen.getByText('Version management will be available when processing finishes.')).toBeVisible();
+    expect(versionHeading()).toBeNull();
+    expect(deleteHeading()).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete permanently…' })).toBeNull();
+  });
+
+  it.each([
+    ['ready', lifecycleView()],
+    ['stopped for review', needsReview],
+    ['failed', lifecycleView({ state: 'FAILED', status: 'FAILED', terminal: true, failure: { code: 'X', message: 'Parsing failed.' } })],
+  ])('offers both again once the document is %s', async (_, state) => {
+    lifecycles = [state];
+    await show('/documents/doc-1');
+    expect(await screen.findByRole('heading', { name: 'Add a new file version' })).toBeVisible();
+    expect(deleteHeading()).toBeVisible();
+    expect(screen.queryByText('Version management will be available when processing finishes.')).toBeNull();
+  });
+
+  it('shows a reader neither, in any state', async () => {
+    permissions = READER; lifecycles = [lifecycleView()];
+    await show('/documents/doc-1');
+    await screen.findByRole('heading', { name: 'Ready for Ask' });
+    expect(versionHeading()).toBeNull();
+    expect(deleteHeading()).toBeNull();
+    expect(screen.queryByText(/Version management will be available/)).toBeNull();
+  });
+
+  it('leaves deletion out of the library menu while a document is processing', async () => {
+    summary = { state: 'PROCESSING', current_stage: 'READING', activity: 'PARSING', run_started_at: '2026-09-05T00:00:00Z',
+      finished_at: null, server_time: '2026-09-05T00:01:05Z', blocking_count: 0, warning_count: 0 };
+    await show('/library');
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions for Synthetic reference' }));
+    expect(screen.getByRole('menuitem', { name: 'Archive' })).toBeVisible();
+    expect(screen.queryByRole('menuitem', { name: 'Delete permanently' })).toBeNull();
+  });
+
+  it('decides from the state alone, matching the server', () => {
+    expect(versionActionsSettled('PROCESSING')).toBe(false);
+    expect(versionActionsSettled('DELETING')).toBe(false);
+    for (const stable of ['READY', 'REVIEW_REQUIRED', 'FAILED', 'CANCELLED', 'ARCHIVED', 'DELETION_INCOMPLETE', 'NOT_STARTED'] as const) {
+      expect(versionActionsSettled(stable)).toBe(true);
+    }
+    expect(versionActionsSettled(undefined)).toBe(false);
   });
 });

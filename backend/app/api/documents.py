@@ -42,6 +42,7 @@ from app.schemas.documents import (
 from app.schemas.lifecycle import DeletionPreview, Lifecycle
 from app.security.auth import Principal
 from app.services.control import ControlPlane
+from app.services.deletion import document_is_processing
 from app.services.lifecycle import lifecycle as read_lifecycle
 from app.services.lifecycle import summary as read_summary
 
@@ -174,6 +175,15 @@ async def upload(
                     doc = get_document(session, actor.tenant_id, document_id)
                     if doc.archived_at:
                         raise DomainError("DOCUMENT_ARCHIVED", "This document is archived.", 409)
+                    # Refused before any file bytes are received, and again in the upload
+                    # transaction, so a tab showing a stale state cannot add one mid-pipeline.
+                    if document_is_processing(session, doc):
+                        raise DomainError(
+                            "DOCUMENT_PROCESSING",
+                            "This document is still being processed. Add a new version when it "
+                            "finishes.",
+                            409,
+                        )
 
             await run_in_threadpool(check_scope)
         # Disk spool and hashing are bounded even when Content-Length is absent or misleading.
